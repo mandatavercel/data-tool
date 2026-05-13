@@ -12,6 +12,9 @@ rapidfuzz==3.10.1
 
 # analysis_app.py 전용
 yfinance==0.2.50
+# Chrome TLS fingerprint 위장 — Streamlit Cloud에서 Yahoo Finance 차단 우회
+# (yfinance가 자체 dep로 가져오지만 명시적으로 추가)
+curl-cffi
 scipy==1.13.1
 plotly==5.24.1
 pytest==8.3.3

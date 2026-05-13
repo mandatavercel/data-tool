@@ -117,6 +117,31 @@ def _fetch_daily_ohlcv(ticker: str, start: str, end: str) -> pd.DataFrame:
     return df
 
 
+# ── yfinance용 curl_cffi 세션 (Chrome TLS fingerprint 위장) ─────────────────
+# Yahoo Finance는 Python requests의 TLS fingerprint로 봇을 식별.
+# curl_cffi는 실제 Chrome의 TLS handshake를 재현해서 일반 브라우저로 위장.
+# Streamlit Cloud (US IP) + 일반 requests 조합은 즉시 차단되지만,
+# curl_cffi impersonate="chrome" 사용시 정상 응답.
+_YF_SESSION = None
+
+
+def _get_yf_session():
+    """curl_cffi 기반 yfinance 세션 — Chrome TLS 위장.
+
+    Yahoo가 클라우드 IP·Python fingerprint 조합을 차단할 때 우회.
+    curl_cffi가 없거나 실패하면 None 반환 (기본 requests로 폴백).
+    """
+    global _YF_SESSION
+    if _YF_SESSION is not None:
+        return _YF_SESSION
+    try:
+        from curl_cffi import requests as cc_requests
+        _YF_SESSION = cc_requests.Session(impersonate="chrome")
+        return _YF_SESSION
+    except Exception:
+        return None
+
+
 def _fetch_via_pykrx(ticker_bare: str, start: str, end: str) -> pd.DataFrame:
     """pykrx 폴백 — KRX 서버 직접 호출. Streamlit Cloud (US) IP가 yfinance에서
     차단될 때 핵심 백업. ticker_bare는 6자리 코드 (.KS/.KQ 없이).
@@ -188,10 +213,22 @@ def _fetch_daily_ohlcv_with_error(ticker: str, start: str, end: str) -> tuple[pd
     errors: list[str] = []
 
     if yf is not None:
+        # Chrome TLS 위장 세션 — Yahoo 봇 감지 우회
+        # None일 경우 yfinance가 자체 기본 세션 사용
+        yf_session = _get_yf_session()
+
+        def _mk_ticker(t):
+            """세션 주입 Ticker 생성 — curl_cffi 사용시 Yahoo가 Chrome으로 인식."""
+            try:
+                return yf.Ticker(t, session=yf_session) if yf_session else yf.Ticker(t)
+            except TypeError:
+                # 구 yfinance는 session 파라미터 없음 → 폴백
+                return yf.Ticker(t)
+
         for t in candidates:
             # 1) period="max" + slice — yfinance 1.3.0에서 가장 안정적
             try:
-                tk = yf.Ticker(t)
+                tk = _mk_ticker(t)
                 hist = tk.history(period="max", auto_adjust=False)
                 df = _normalize_ohlcv(hist, t)
                 if not df.empty:
@@ -209,7 +246,7 @@ def _fetch_daily_ohlcv_with_error(ticker: str, start: str, end: str) -> tuple[pd
             # 2) Ticker.history(start, end) (capped)
             for auto_adj in (False, True):
                 try:
-                    tk = yf.Ticker(t)
+                    tk = _mk_ticker(t)
                     hist = tk.history(start=start, end=end_capped, auto_adjust=auto_adj)
                     df = _normalize_ohlcv(hist, t)
                     if not df.empty:
@@ -218,13 +255,20 @@ def _fetch_daily_ohlcv_with_error(ticker: str, start: str, end: str) -> tuple[pd
                 except Exception as e:
                     errors.append(f"{t} Ticker.history: {type(e).__name__}: {str(e)[:60]}")
 
-            # 3) yf.download(start, end) (capped)
+            # 3) yf.download(start, end) (capped) — session 지원
             for auto_adj in (False, True):
                 try:
-                    hist = yf.download(
-                        t, start=start, end=end_capped,
+                    dl_kwargs = dict(
+                        start=start, end=end_capped,
                         progress=False, auto_adjust=auto_adj, threads=False,
                     )
+                    if yf_session:
+                        try:
+                            hist = yf.download(t, session=yf_session, **dl_kwargs)
+                        except TypeError:
+                            hist = yf.download(t, **dl_kwargs)
+                    else:
+                        hist = yf.download(t, **dl_kwargs)
                     df = _normalize_ohlcv(hist, t)
                     if not df.empty:
                         return df, ""
