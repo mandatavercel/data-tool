@@ -125,10 +125,16 @@ def _fetch_daily_ohlcv(ticker: str, start: str, end: str) -> pd.DataFrame:
     """yfinance OHLCV — 빈 결과는 캐시하지 않음 (재시도시 새 fetch 보장)."""
     df = _fetch_daily_ohlcv_cached(ticker, start, end)
     if df is None or df.empty:
-        # 빈 결과는 캐시 무효 — 다음 호출이 다시 시도하도록
-        # (cache_data는 per-key 무효화 불가 — 빈 결과 자체를 다시 fetch)
         df, _err = _fetch_daily_ohlcv_with_error(ticker, start, end)
     return df
+
+
+def _fetch_daily_ohlcv_diag(ticker: str, start: str, end: str) -> tuple[pd.DataFrame, str]:
+    """fetch + 실패 사유 — 진단 UI 전용. 캐시 hit시 빈 error 반환."""
+    df = _fetch_daily_ohlcv_cached(ticker, start, end)
+    if df is not None and not df.empty:
+        return df, ""
+    return _fetch_daily_ohlcv_with_error(ticker, start, end)
 
 
 # ── yfinance용 curl_cffi 세션 (Chrome TLS fingerprint 위장) ─────────────────
@@ -720,13 +726,14 @@ def _compute_company_signal(
     if not ticker_raw:
         return empty
 
-    daily_ohlcv = _fetch_daily_ohlcv(ticker_raw, start, end)
+    daily_ohlcv, fetch_err = _fetch_daily_ohlcv_diag(ticker_raw, start, end)
     if daily_ohlcv.empty:
         return {
             **empty, "status": "no_data", "grade": "데이터 없음",
             "fail_reason": (
-                f"주가 응답 없음 ({ticker_raw}) — pykrx + yfinance 모두 빈 응답. "
-                "비상장/상장폐지/종목코드 오류일 수 있음"
+                f"주가 응답 없음 ({ticker_raw}) — {fetch_err[:200]}"
+                if fetch_err
+                else f"주가 응답 없음 ({ticker_raw}) — 원인 불명"
             ),
         }
     ticker_used = daily_ohlcv["ticker_used"].iloc[0]
@@ -1311,6 +1318,48 @@ def _render(result: dict):
                   help="pykrx(KRX 1순위) + yfinance(백업) 호출 시도")
         n_ok = sum(1 for s in all_sigs if s.get("status") == "ok")
         d3.metric("③ 주가 응답 OK", f"{n_ok}개사")
+
+        # ── 🩺 pykrx 단독 자체 진단 (Samsung 005930으로 KRX 응답 확인) ────
+        with st.expander("🩺 pykrx 자체 진단 — 'KRX 서버가 응답하는지' 단독 테스트",
+                         expanded=(n_ok == 0)):
+            st.caption(
+                "Samsung Electronics (005930)로 pykrx만 직접 호출. "
+                "이게 OK면 pykrx는 살아있고 매핑/날짜/cache 문제. 실패면 KRX 자체 차단/패키지 문제."
+            )
+            if st.button("▶ pykrx 단독 테스트 실행", key="pykrx_diag_btn"):
+                try:
+                    from pykrx import stock as krx
+                    end_d   = pd.Timestamp.today().strftime("%Y%m%d")
+                    start_d = (pd.Timestamp.today() - pd.Timedelta(days=14)).strftime("%Y%m%d")
+                    with st.spinner(f"pykrx.get_market_ohlcv_by_date({start_d}, {end_d}, '005930') 호출 중..."):
+                        raw = krx.get_market_ohlcv_by_date(start_d, end_d, "005930")
+                    if raw is None or raw.empty:
+                        st.error(
+                            "❌ pykrx 호출은 성공했지만 **빈 DataFrame 반환**.\n\n"
+                            "→ KRX 서버가 응답은 했지만 데이터를 안 줌. "
+                            "Streamlit Cloud IP를 KRX가 차단했거나, pykrx 1.0.51의 URL이 stale일 가능성."
+                        )
+                    else:
+                        st.success(
+                            f"✅ pykrx 정상 동작 — {len(raw)}행 수신 "
+                            f"(최근 종가: {raw['종가'].iloc[-1]:,.0f}원)"
+                        )
+                        st.dataframe(raw.tail(5), use_container_width=True)
+                        st.info(
+                            "💡 pykrx 자체는 문제 없음. 그럼에도 회사별로 실패하는 이유는 "
+                            "**개별 종목코드가 KRX에 없거나(ETF/SPAC), 날짜 범위가 잘못됐거나, "
+                            "cache 오염**일 수 있음. 'Manage app → Reboot'으로 캐시 청소 권장."
+                        )
+                except ImportError:
+                    st.error("❌ pykrx 미설치 — requirements.txt 확인 필요")
+                except Exception as e:
+                    st.error(
+                        f"❌ pykrx 호출 실패: **{type(e).__name__}**: {str(e)[:200]}\n\n"
+                        "→ KRX 서버 접속 자체가 막힘. 가능한 원인:\n"
+                        "1. KRX가 Streamlit Cloud IP 차단\n"
+                        "2. pykrx 1.0.51의 KRX 엔드포인트가 outdated\n"
+                        "3. 네트워크 timeout"
+                    )
 
         # ── 시나리오별 진단 메시지 ───────────────────────────────────────
         if not co_ticker and "KRX 6자리 종목코드를 추출하지 못했습니다" in msg:
