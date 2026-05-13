@@ -927,7 +927,7 @@ def _render(result: dict):
             df_tq = pd.DataFrame(rows).sort_values(
                 "Quality", ascending=False, na_position="last"
             ).reset_index(drop=True)
-            st.dataframe(df_tq, hide_index=True, width="stretch")
+            st.dataframe(df_tq, hide_index=True, use_container_width=True)
             st.caption(
                 "**Tracking Quality** (헤드라인): Direction × 0.5 + |r| × 0.3 + Stability × 0.2. "
                 "**Coverage** (보조 정보): POS / DART 매출 합계 — 편의점·카드 같은 channel-slice POS는 "

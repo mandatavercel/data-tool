@@ -543,7 +543,7 @@ def _render(result: dict):
             legend=dict(orientation="h", yanchor="top", y=-0.15),
             hovermode="x unified",
         )
-        st.plotly_chart(fig_ic, key="fr_ic_ts", width="stretch")
+        st.plotly_chart(fig_ic, key="fr_ic_ts", use_container_width=True)
         _explain_box(
             "차트 설명 — Cross-sectional Rank IC",
             "매 signal_date마다 universe 회사들을 feature로 정렬한 rank와 forward return rank의 "
@@ -586,7 +586,7 @@ def _render(result: dict):
                 xaxis=dict(title="Horizon"),
                 yaxis=dict(title="IC̄ (mean)", gridcolor="#e2e8f0"),
             )
-            st.plotly_chart(fig_dec, key="fr_lag_decay", width="stretch")
+            st.plotly_chart(fig_dec, key="fr_lag_decay", use_container_width=True)
             _explain_box(
                 "차트 설명 — Lag Decay Curve",
                 f"같은 feature ({sel_feat})의 IC가 horizon에 따라 어떻게 감쇠하는지. "
@@ -631,7 +631,7 @@ def _render(result: dict):
             legend=dict(orientation="h", yanchor="top", y=-0.15),
             hovermode="x unified",
         )
-        st.plotly_chart(fig_q, key="fr_quintile", width="stretch")
+        st.plotly_chart(fig_q, key="fr_quintile", use_container_width=True)
         _explain_box(
             "차트 설명 — Quintile Long-Short",
             f"매 시점 feature 분위로 종목을 5등분 → Q5(상위 20%) 매수 + Q1(하위 20%) 매도 = "
@@ -737,7 +737,7 @@ def _render(result: dict):
                     legend=dict(orientation="h", yanchor="top", y=-0.15),
                     hovermode="x unified",
                 )
-                st.plotly_chart(fig_ts, key="fr_drill_ts", width="stretch")
+                st.plotly_chart(fig_ts, key="fr_drill_ts", use_container_width=True)
                 _explain_box(
                     "차트 설명 — 이 회사의 시계열",
                     "왼쪽 축은 매출 feature(파/회색 막대), 오른쪽 축은 해당 horizon의 미래 수익률(빨간 라인). "
@@ -783,7 +783,7 @@ def _render(result: dict):
                                showgrid=True, gridcolor="#e2e8f0", zeroline=False),
                     legend=dict(orientation="h", yanchor="top", y=-0.15),
                 )
-                st.plotly_chart(fig_sc, key="fr_drill_scatter", width="stretch")
+                st.plotly_chart(fig_sc, key="fr_drill_scatter", use_container_width=True)
                 _explain_box(
                     "차트 설명 — Feature × Forward Return Scatter",
                     "각 점이 한 시점의 (feature 값, 그 시점 이후 수익률). "
@@ -825,7 +825,7 @@ def _render(result: dict):
                     plot_bgcolor="#fff",
                     margin=dict(t=40, b=30, l=10, r=10),
                 )
-                st.plotly_chart(fig_hm, key="fr_sector_hm", width="stretch")
+                st.plotly_chart(fig_hm, key="fr_sector_hm", use_container_width=True)
                 _explain_box(
                     "의미",
                     "행=섹터, 열=horizon. 셀=그 섹터 내부의 cross-sectional Rank IC. "
@@ -841,7 +841,7 @@ def _render(result: dict):
             ts_show = ts.head(50).copy()
             ts_show["ts_ic"]   = ts_show["ts_ic"].round(3)
             ts_show["p_value"] = ts_show["p_value"].round(3)
-            st.dataframe(ts_show, hide_index=True, width="stretch", height=380)
+            st.dataframe(ts_show, hide_index=True, use_container_width=True, height=380)
             _explain_box(
                 "의미",
                 "각 회사의 시계열 상관 (TS IC) — Cross-sectional IC와 별개의 진단 지표. "
@@ -857,7 +857,7 @@ def _render(result: dict):
             st.dataframe(
                 sector_master[["stock_code", "name", "market", "market_cap",
                               "induty_code", "sector_gics", "source"]],
-                hide_index=True, width="stretch",
+                hide_index=True, use_container_width=True,
             )
 
     # ── 주가 fetch 실패 진단 ─────────────────────────────────────────────────
@@ -871,7 +871,7 @@ def _render(result: dict):
         ):
             st.dataframe(
                 pd.DataFrame(fetch_failures),
-                hide_index=True, width="stretch",
+                hide_index=True, use_container_width=True,
             )
             st.caption(
                 "**가능한 원인**: 상장폐지/미상장 (yfinance에 데이터 없음), "

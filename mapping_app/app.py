@@ -189,7 +189,7 @@ def render_step_upload():
                 f"{len(df):,}행 × {len(df.columns)}열"
             )
             with st.expander("상위 5행 미리보기", expanded=False):
-                st.dataframe(df.head(5), width="stretch")
+                st.dataframe(df.head(5), use_container_width=True)
 
     # ── (b) 표준 레이아웃 ──────────────────────────────────────────────────────
     with c_right:
@@ -247,7 +247,7 @@ def render_step_upload():
                     "추론된 유형": [KIND_LABEL.get(k, KIND_LABEL['text'])[0] for k in kinds],
                 })
                 with st.expander("표준 컬럼 목록 + 유형 추론", expanded=False):
-                    st.dataframe(preview, width="stretch", hide_index=True)
+                    st.dataframe(preview, use_container_width=True, hide_index=True)
             else:
                 st.error(
                     "❌ 표준 레이아웃 파일에서 컬럼을 인식하지 못했습니다. "
@@ -259,7 +259,7 @@ def render_step_upload():
                     if tried:
                         st.dataframe(
                             pd.DataFrame(tried),
-                            width="stretch",
+                            use_container_width=True,
                             hide_index=True,
                         )
                     else:
@@ -292,7 +292,7 @@ def render_step_upload():
             type="primary",
             disabled=not (ready_raw and ready_std),
             key="up_next",
-            width="stretch",
+            use_container_width=True,
         ):
             go_to(2)
 
@@ -519,7 +519,7 @@ def render_step_mapping():
     st.divider()
     left, _, right = st.columns([1, 4, 1])
     with left:
-        if st.button("← 이전", key="map_prev", width="stretch"):
+        if st.button("← 이전", key="map_prev", use_container_width=True):
             go_to(1)
     with right:
         if st.button(
@@ -527,7 +527,7 @@ def render_step_mapping():
             type="primary",
             disabled=(len(std_to_raw) == 0),
             key="map_next",
-            width="stretch",
+            use_container_width=True,
         ):
             go_to(3)
 
@@ -563,11 +563,11 @@ def render_step_isin():
         left, _, right = st.columns([1, 4, 1])
         with left:
             if st.button("← DART 매칭으로", key="isin_back_no_dart",
-                         width="stretch"):
+                         use_container_width=True):
                 go_to(3)
         with right:
             if st.button("건너뛰기 →", type="primary",
-                         key="isin_skip_no_dart", width="stretch"):
+                         key="isin_skip_no_dart", use_container_width=True):
                 st.session_state.pop("isin_match", None)
                 go_to(5)
         st.stop()
@@ -601,7 +601,7 @@ def render_step_isin():
                     user_master = load_user_master(up_master)
                     st.success(f"✅ {len(user_master):,}개 종목 로드됨")
                     with st.expander("미리보기 (상위 5행)"):
-                        st.dataframe(user_master.head(5), width="stretch", hide_index=True)
+                        st.dataframe(user_master.head(5), use_container_width=True, hide_index=True)
                 except Exception as e:
                     st.error(f"❌ 매핑 파일 읽기 실패: {e}")
     elif method == METHOD_AUTO:
@@ -617,7 +617,7 @@ def render_step_isin():
     btn_col, msg_col = st.columns([1, 3])
     with btn_col:
         if st.button("🚀 ISIN 매핑 시작", type="primary", disabled=not can_start,
-                     width="stretch", key="isin_start"):
+                     use_container_width=True, key="isin_start"):
             with st.spinner(f"{len(dart_match):,}개 회사 ISIN 처리 중…"):
                 if method == METHOD_AUTO:
                     st.session_state["isin_match"] = isin_compute_from_dart_match(
@@ -648,10 +648,10 @@ def render_step_isin():
     st.divider()
     left, _, right = st.columns([1, 4, 1])
     with left:
-        if st.button("← 이전", key="isin_prev", width="stretch"):
+        if st.button("← 이전", key="isin_prev", use_container_width=True):
             go_to(3)
     with right:
-        if st.button("다음 →", type="primary", key="isin_next", width="stretch"):
+        if st.button("다음 →", type="primary", key="isin_next", use_container_width=True):
             go_to(5)
 
 
@@ -696,7 +696,7 @@ def _render_isin_result(dart_match: pd.DataFrame, dart_info: dict):
         "market":       "시장",
         "source":       "출처",
     })[["상태","법인등록번호","입력 회사명","한글명","단축코드","ISIN","시장","출처"]]
-    st.dataframe(display_df, width="stretch", hide_index=True, height=420)
+    st.dataframe(display_df, use_container_width=True, hide_index=True, height=420)
 
     # 수동 입력 UI — expander 로 감싸 기본 접힘, 100개 초과 시 일부만 노출
     failed_rows = match_df[match_df["isin"].astype(str).str.len() == 0]
@@ -780,10 +780,10 @@ def render_step_dart():
         )
         left, _, right = st.columns([1, 4, 1])
         with left:
-            if st.button("← 이전", key="dart_back_no_comp", width="stretch"):
+            if st.button("← 이전", key="dart_back_no_comp", use_container_width=True):
                 go_to(2)
         with right:
-            if st.button("건너뛰기 →", type="primary", key="dart_skip", width="stretch"):
+            if st.button("건너뛰기 →", type="primary", key="dart_skip", use_container_width=True):
                 st.session_state.pop("dart_match", None)
                 go_to(4)
         st.stop()
@@ -816,7 +816,7 @@ def render_step_dart():
             )
         with csave:
             st.write("")
-            if st.button("🔒 영구 저장", key="dart_save_key", width="stretch",
+            if st.button("🔒 영구 저장", key="dart_save_key", use_container_width=True,
                          disabled=not key_input.strip(),
                          help="현재 입력된 키를 mapping_app/.streamlit/secrets.toml 에 저장"):
                 try:
@@ -835,10 +835,10 @@ def render_step_dart():
         st.info("📝 DART 인증키를 입력하면 자동 매칭이 시작됩니다. 인증키가 없으면 건너뛰고 다음 단계로 진행할 수 있어요.")
         left, _, right = st.columns([1, 4, 1])
         with left:
-            if st.button("← 이전", key="dart_back_no_key", width="stretch"):
+            if st.button("← 이전", key="dart_back_no_key", use_container_width=True):
                 go_to(2)
         with right:
-            if st.button("건너뛰기 →", type="primary", key="dart_skip_no_key", width="stretch"):
+            if st.button("건너뛰기 →", type="primary", key="dart_skip_no_key", use_container_width=True):
                 st.session_state.pop("dart_match", None)
                 go_to(4)
         st.stop()
@@ -861,14 +861,14 @@ def render_step_dart():
         do_match = st.button(
             "🚀 DART 매칭 시작" if not has_match else "🔁 매칭 다시 실행",
             type="primary" if not has_match else "secondary",
-            width="stretch",
+            use_container_width=True,
             key="dart_btn_match",
             help="회사명 → corp_code/한글정식명/영문명/단축코드 일괄 매칭",
         )
     with a2:
         do_refresh = st.button(
             "🔄 마스터 재다운로드",
-            width="stretch",
+            use_container_width=True,
             key="dart_btn_refresh",
             help="DART corpCode 캐시 무효화 후 다시 받기",
         )
@@ -909,10 +909,10 @@ def render_step_dart():
         st.divider()
         left, _, right = st.columns([1, 4, 1])
         with left:
-            if st.button("← 이전", key="dart_prev_pre", width="stretch"):
+            if st.button("← 이전", key="dart_prev_pre", use_container_width=True):
                 go_to(2)
         with right:
-            if st.button("건너뛰기 →", type="primary", key="dart_skip_pre", width="stretch"):
+            if st.button("건너뛰기 →", type="primary", key="dart_skip_pre", use_container_width=True):
                 go_to(4)
         st.stop()
 
@@ -1009,7 +1009,7 @@ def render_step_dart():
         do_jurir = st.button(
             f"📡 조회 시작 ({n_jurir_left}개 남음)" if n_jurir_left else "📡 조회 완료",
             type="primary" if n_jurir_left else "secondary",
-            width="stretch",
+            use_container_width=True,
             key="dart_btn_jurir",
             disabled=n_jurir_left == 0,
             help="매칭된 회사들의 jurir_no(법인등록번호) 조회 — 동명 후보 선택 후 실행",
@@ -1063,16 +1063,16 @@ def render_step_dart():
             by="상태",
             key=lambda s: s.map({"❌ 실패": 0, "🟡 부분": 1, "✅ 완전": 2}),
         ).reset_index(drop=True)
-    st.dataframe(display_df, width="stretch", hide_index=True, height=420)
+    st.dataframe(display_df, use_container_width=True, hide_index=True, height=420)
 
     # ── 진행 버튼 ─────────────────────────────────────────────────────────────
     st.divider()
     left, _, right = st.columns([1, 4, 1])
     with left:
-        if st.button("← 이전", key="dart_prev", width="stretch"):
+        if st.button("← 이전", key="dart_prev", use_container_width=True):
             go_to(2)
     with right:
-        if st.button("다음 →", type="primary", key="dart_next", width="stretch"):
+        if st.button("다음 →", type="primary", key="dart_next", use_container_width=True):
             go_to(4)
 
 
@@ -1084,11 +1084,11 @@ def _trans_nav(suffix: str = "top"):
     """⑤ 영문화 step 상/하단에 공통으로 두는 navigation row."""
     left, _, right = st.columns([1, 4, 1])
     with left:
-        if st.button("← 이전 (④ ISIN)", key=f"trans_prev_{suffix}", width="stretch"):
+        if st.button("← 이전 (④ ISIN)", key=f"trans_prev_{suffix}", use_container_width=True):
             go_to(4)
     with right:
         if st.button("다음 → (⑥ 최종 매핑)", type="primary",
-                     key=f"trans_next_{suffix}", width="stretch"):
+                     key=f"trans_next_{suffix}", use_container_width=True):
             go_to(6)
 
 
@@ -1243,7 +1243,7 @@ def render_step_brand_product_en():
             f"🚀 브랜드 영문화 ({len(unique_brands)}개)",
             type="primary",
             disabled=(len(unique_brands) == 0),
-            width="stretch",
+            use_container_width=True,
             key="trans_btn_brand",
         )
     with a2:
@@ -1251,7 +1251,7 @@ def render_step_brand_product_en():
             f"🚀 제품 영문화 ({len(unique_skus)}개)",
             type="primary",
             disabled=(len(unique_skus) == 0),
-            width="stretch",
+            use_container_width=True,
             key="trans_btn_sku",
         )
 
@@ -1342,13 +1342,13 @@ def render_step_brand_product_en():
                 "고유 한글값": f"{len(uniq):,}개",
                 "예시": " · ".join(uniq[:3]) + ("…" if len(uniq) > 3 else ""),
             })
-        st.dataframe(pd.DataFrame(preview_rows), width="stretch", hide_index=True)
+        st.dataframe(pd.DataFrame(preview_rows), use_container_width=True, hide_index=True)
 
         total_free = sum(len(v) for v in free_unique.values())
         run_free = st.button(
             f"🚀 선택한 {len(free_picks)}개 컬럼 일괄 영문화 (총 {total_free:,}개 한글값)",
             type="primary",
-            width="stretch",
+            use_container_width=True,
             key="trans_btn_free",
             disabled=(total_free == 0),
         )
@@ -1386,21 +1386,21 @@ def render_step_brand_product_en():
         st.markdown("#### ③ 일괄 작업")
         bb1, bb2, bb3, bb4, bb5 = st.columns(5)
         with bb1:
-            if st.button("🎯 일괄 확정 (브랜드)", width="stretch",
+            if st.button("🎯 일괄 확정 (브랜드)", use_container_width=True,
                          key="trans_bulk_brand",
                          disabled=not unique_brands):
                 n = _trans_db.bulk_select_top("brand", reviewer="auto")
                 st.success(f"✅ 브랜드 {n}개 자동 확정 — 1순위 후보로")
                 st.rerun()
         with bb2:
-            if st.button("🎯 일괄 확정 (제품)", width="stretch",
+            if st.button("🎯 일괄 확정 (제품)", use_container_width=True,
                          key="trans_bulk_sku",
                          disabled=not unique_skus):
                 n = _trans_db.bulk_select_top("product", reviewer="auto")
                 st.success(f"✅ 제품 {n}개 자동 확정 — 1순위 후보로")
                 st.rerun()
         with bb3:
-            if st.button("🎯 일괄 확정 (자유 영문화)", width="stretch",
+            if st.button("🎯 일괄 확정 (자유 영문화)", use_container_width=True,
                          key="trans_bulk_free",
                          disabled=not free_picks,
                          help="multiselect 한 모든 자유 영문화 컬럼의 1순위 후보를 일괄 확정"):
@@ -1408,7 +1408,7 @@ def render_step_brand_product_en():
                 st.success(f"✅ 자유 영문화 {n}개 자동 확정 — 1순위 후보로")
                 st.rerun()
         with bb4:
-            if st.button("🧹 옛 규칙기반·한글 후보 정리", width="stretch",
+            if st.button("🧹 옛 규칙기반·한글 후보 정리", use_container_width=True,
                          key="trans_purge_partial",
                          help="규칙기반(official_site) 후보 + 한글 섞인 후보를 모두 삭제하고 "
                               "해당 항목 확정도 해제합니다. 이후 🚀 영문화 다시 실행 권장."):
@@ -1444,7 +1444,7 @@ def render_step_brand_product_en():
                     data=buf.getvalue(),
                     file_name="brand_product_category_master.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    width="stretch",
+                    use_container_width=True,
                     key="trans_master_dl",
                     help="확정된 영문 매핑을 회사 표준 사전 파일로 export (3시트)",
                 )
@@ -1762,10 +1762,10 @@ def render_step_final_mapping():
     st.divider()
     left, _, right = st.columns([1, 4, 1])
     with left:
-        if st.button("← 이전", key="final_prev", width="stretch"):
+        if st.button("← 이전", key="final_prev", use_container_width=True):
             go_to(5)
     with right:
-        if st.button("다음 →", type="primary", key="final_next", width="stretch"):
+        if st.button("다음 →", type="primary", key="final_next", use_container_width=True):
             go_to(7)
 
 
@@ -1824,10 +1824,10 @@ def render_step_validation():
     st.divider()
     left, _, right = st.columns([1, 4, 1])
     with left:
-        if st.button("← 이전", key="val_prev", width="stretch"):
+        if st.button("← 이전", key="val_prev", use_container_width=True):
             go_to(6)
     with right:
-        if st.button("다음 →", type="primary", key="val_next", width="stretch"):
+        if st.button("다음 →", type="primary", key="val_next", use_container_width=True):
             go_to(8)
 
 
@@ -1959,7 +1959,7 @@ def render_step_download():
                 "예시 (상위 3행)": sample_str or "(빈 값)",
             })
         preview_df = pd.DataFrame(rows)
-        st.dataframe(preview_df, width="stretch", hide_index=True)
+        st.dataframe(preview_df, use_container_width=True, hide_index=True)
     except Exception as e:
         st.warning(f"⚠️ 미리보기 생성 실패 (변환은 그래도 시도 가능): {type(e).__name__}: {e}")
 
@@ -1969,7 +1969,7 @@ def render_step_download():
         do_build = st.button(
             "🛠 변환 결과 생성" if not is_built else "🔁 다시 생성",
             type="primary" if not is_built else "secondary",
-            width="stretch",
+            use_container_width=True,
             key="dl_btn_build",
             help="표준 레이아웃 데이터를 생성합니다. 대용량은 수초~수십초 소요될 수 있어요.",
         )
@@ -2046,7 +2046,7 @@ def render_step_download():
                 short = vsrc.replace("[KRX] ", "🔐").replace("[DART] ", "🏛")
                 cols[i % len(cols)].metric(short, f"{n:,} / {n_rows:,}")
 
-        st.dataframe(out_df.head(20), width="stretch")
+        st.dataframe(out_df.head(20), use_container_width=True)
 
         # ── 다운로드 ──────────────────────────────────────────────────────────
         st.markdown("#### 다운로드")
@@ -2071,7 +2071,7 @@ def render_step_download():
                 "📦 CSV 파일 생성 (전체 행, 권장)" if csv_bytes is None
                 else f"✅ CSV 생성됨 ({len(csv_bytes)/1024/1024:.1f} MB)",
                 type="primary" if csv_bytes is None else "secondary",
-                width="stretch",
+                use_container_width=True,
                 key="dl_make_csv",
                 disabled=csv_bytes is not None,
             )
@@ -2083,7 +2083,7 @@ def render_step_download():
                  if xlsx_bytes is None
                  else f"✅ XLSX 생성됨 ({len(xlsx_bytes)/1024/1024:.1f} MB)"),
                 type="secondary",
-                width="stretch",
+                use_container_width=True,
                 key="dl_make_xlsx",
                 disabled=xlsx_bytes is not None,
             )
@@ -2121,7 +2121,7 @@ def render_step_download():
                     file_name=f"{base_name}.csv",
                     mime="text/csv",
                     type="primary",
-                    width="stretch",
+                    use_container_width=True,
                     key="dl_csv",
                 )
         with d2:
@@ -2132,17 +2132,17 @@ def render_step_download():
                     file_name=f"{base_name}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     type="primary" if not xlsx_truncated else "secondary",
-                    width="stretch",
+                    use_container_width=True,
                     key="dl_xlsx",
                 )
             else:
-                st.button("CSV 변환 실패", disabled=True, width="stretch", key="dl_csv_dis")
+                st.button("CSV 변환 실패", disabled=True, use_container_width=True, key="dl_csv_dis")
 
     # ── 진행 버튼 (변환 성공/실패와 무관하게 항상 노출) ──────────────────────
     st.divider()
     left, _ = st.columns([1, 5])
     with left:
-        if st.button("← 이전", key="dl_prev", width="stretch"):
+        if st.button("← 이전", key="dl_prev", use_container_width=True):
             go_to(7)
 
 
@@ -2156,14 +2156,14 @@ def _master_nav(suffix: str, prev_step: int | None, next_step: int | None,
     left, _, right = st.columns([1, 4, 1])
     with left:
         if prev_step is not None:
-            if st.button("← 이전", key=f"m_prev_{suffix}", width="stretch"):
+            if st.button("← 이전", key=f"m_prev_{suffix}", use_container_width=True):
                 st.session_state["master_step"] = prev_step
                 st.rerun()
     with right:
         if next_step is not None:
             if st.button(next_label, type="primary",
                          disabled=next_disabled,
-                         key=f"m_next_{suffix}", width="stretch"):
+                         key=f"m_next_{suffix}", use_container_width=True):
                 st.session_state["master_step"] = next_step
                 st.rerun()
 
@@ -2226,7 +2226,7 @@ def render_master_step_input():
                 "회사 + 브랜드 + 제품 3계층. mandata_brand_name 은 "
                 "`{회사}_{브랜드}_{제품}` 형식. 회사당 001/002/003 순번."
             )
-        st.dataframe(example, width="stretch", hide_index=True)
+        st.dataframe(example, use_container_width=True, hide_index=True)
 
     tab_editor, tab_file = st.tabs(["📝 직접 입력", "📁 파일 업로드"])
 
@@ -2237,7 +2237,7 @@ def render_master_step_input():
         edited = st.data_editor(
             pairs_df,
             num_rows="dynamic",
-            width="stretch", height=420,
+            use_container_width=True, height=420,
             key="m_pairs_editor",
         )
         st.session_state["master_pairs_df"] = edited
@@ -2265,7 +2265,7 @@ def render_master_step_input():
                 st.success(f"✅ {len(df)}행 로드됨")
                 st.session_state["master_pairs_df"] = df
                 with st.expander("미리보기 (상위 10)"):
-                    st.dataframe(df.head(10), width="stretch", hide_index=True)
+                    st.dataframe(df.head(10), use_container_width=True, hide_index=True)
             except Exception as e:
                 st.error(f"읽기 실패: {e}")
 
@@ -2441,7 +2441,7 @@ def render_master_step_dart():
             "시장":          info.get("corp_cls", ""),
             "corp_code":     cc,
         })
-    st.dataframe(pd.DataFrame(rows_view), width="stretch", hide_index=True, height=360)
+    st.dataframe(pd.DataFrame(rows_view), use_container_width=True, hide_index=True, height=360)
 
     _master_nav("dart", prev_step=1, next_step=3,
                 next_disabled=(n_left > 0 and len(matched_cc) > 0))
@@ -2493,7 +2493,7 @@ def render_master_step_isin():
             "ISIN":      isin_map.get(r["input_name"], ""),
             "시장":      _master.CORP_CLS_TO_STATUS.get(info.get("corp_cls", ""), "Not listed"),
         })
-    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True, height=360)
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True, height=360)
     n_isin = sum(1 for v in isin_map.values() if v)
     st.caption(f"✅ ISIN 채움: {n_isin} / {len(isin_map)} (비상장은 빈 값)")
 
@@ -2534,7 +2534,7 @@ def render_master_step_isin():
                 f"🤖 Claude 로 모회사 추정 ({len(nonlisted) - n_filled}개)",
                 type="primary",
                 disabled=(len(nonlisted) - n_filled == 0 or not anthropic_key),
-                width="stretch",
+                use_container_width=True,
                 key="m_parent_llm",
                 help="Anthropic API 키 필요. 비상장 회사들의 모회사를 LLM 추정.",
             )
@@ -2607,7 +2607,7 @@ def render_master_step_isin():
                     help="subsidiary=일반 자회사 / delisted=상장폐지 / international=해외상장",
                 ),
             },
-            width="stretch", hide_index=True, height=360,
+            use_container_width=True, hide_index=True, height=360,
             key="m_parent_editor",
         )
         for _, r in edited_p.iterrows():
@@ -2644,7 +2644,7 @@ def render_master_step_isin():
 
         # 캐시 저장 + 다음으로
         if st.button("💾 자회사 매핑 캐시에 저장 + 다음으로",
-                     type="primary", width="stretch", key="m_parent_save_next"):
+                     type="primary", use_container_width=True, key="m_parent_save_next"):
             save_rows: list[dict] = []
             for inp, p in parent_overrides.items():
                 if not p.get("parent_kr"):
@@ -2729,7 +2729,7 @@ def render_master_step_gics():
             f"🤖 Claude 로 누락 GICS 채우기 ({len(missing)}개)",
             type="primary",
             disabled=(len(missing) == 0 or not anthropic_key),
-            width="stretch",
+            use_container_width=True,
             key="m_gics_llm",
             help="Anthropic API 키 필요. 회사명+KSIC+영문명 컨텍스트로 GICS 추론.",
         )
@@ -2799,7 +2799,7 @@ def render_master_step_gics():
             "회사":     st.column_config.TextColumn(disabled=True),
             "업종코드": st.column_config.TextColumn(disabled=True),
         },
-        width="stretch", hide_index=True, height=420,
+        use_container_width=True, hide_index=True, height=420,
         key="m_gics_editor",
     )
     # 변경사항을 session 에 저장
@@ -2817,7 +2817,7 @@ def render_master_step_gics():
 
     # ── 다음 → 시 캐시에 누적 저장 ─────────────────────────────────────────
     if st.button("💾 검수 결과 KSIC→GICS 캐시에 저장 + 다음으로",
-                 type="primary", width="stretch", key="m_gics_save_next"):
+                 type="primary", use_container_width=True, key="m_gics_save_next"):
         save_rows: list[dict] = []
         for inp, g in gics_map.items():
             ksic = company_ksic.get(inp, "")
@@ -2879,7 +2879,7 @@ def render_master_step_download():
             f"🚀 영문화 실행 (브랜드 {n_brands_kr} · 제품 {n_products_kr})",
             type="primary",
             disabled=(not _anth0 or (n_brands_kr + n_products_kr == 0)),
-            width="stretch",
+            use_container_width=True,
             key="m_translate_run",
             help="브랜드·제품 한글값을 LLM 으로 영문 변환. 회사 영문은 DART 결과 사용.",
         )
@@ -2987,7 +2987,7 @@ def render_master_step_download():
             f"📡 DART 최대주주 조회 ({len(missing_sh)}개)",
             type="primary",
             disabled=(len(missing_sh) == 0 or not dart_api_key),
-            width="stretch",
+            use_container_width=True,
             key="m_sh_dart",
             help="DART hyslrSttus.json 호출 → dart_master 자동 매칭",
         )
@@ -3097,7 +3097,7 @@ def render_master_step_download():
                 "`DART unmatched` 매칭 실패 / `Individual (heuristic)` 자연인 / "
                 "`Institution (NPS)` 기관 / `LLM` 보강 / `Manual` 수동 / `DART no_data` 응답 없음"
             )
-            st.dataframe(pd.DataFrame(verify_rows), width="stretch", hide_index=True, height=320)
+            st.dataframe(pd.DataFrame(verify_rows), use_container_width=True, hide_index=True, height=320)
 
     # ── 🤖 LLM fallback (DART 매칭 실패 + 정의 항목) ────────────────────────
     _kipris_key, anthropic_key = _trans_get_keys()
@@ -3124,7 +3124,7 @@ def render_master_step_download():
             f"🤖 LLM fallback ({len(missing_llm)}개)",
             type="secondary",
             disabled=(len(missing_llm) == 0 or not anthropic_key),
-            width="stretch",
+            use_container_width=True,
             key="m_sh_llm",
             help="DART 매칭 실패한 행과 정의(definition) 컬럼을 LLM 으로 보강.",
         )
@@ -3210,7 +3210,7 @@ def render_master_step_download():
             c: st.column_config.TextColumn(disabled=True)
             for c in _master.LIST_COLUMNS[:10]
         },
-        width="stretch", hide_index=True, height=420,
+        use_container_width=True, hide_index=True, height=420,
         key="m_list_editor",
     )
     # 사용자 수정값을 session 에 반영 (회사 단위 — 같은 회사 마지막 행 값으로)
@@ -3244,7 +3244,7 @@ def render_master_step_download():
             data=xlsx_bytes, file_name=fname,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             type="primary",
-            width="stretch", key="m_dl_xlsx",
+            use_container_width=True, key="m_dl_xlsx",
         )
 
     _master_nav("dl", prev_step=4, next_step=None)
@@ -3273,7 +3273,7 @@ def render_mode_select():
                 "• 브랜드/제품/카테고리 영문화\n\n"
                 "• XLSX/CSV 출력"
             )
-            if st.button("▶ 시작하기", type="primary", width="stretch", key="mode_a"):
+            if st.button("▶ 시작하기", type="primary", use_container_width=True, key="mode_a"):
                 st.session_state["app_mode"] = "raw_to_standard"
                 st.session_state["step"] = 1
                 st.rerun()
@@ -3288,7 +3288,7 @@ def render_mode_select():
                 "• LIST_PR 단일 시트 (10 컬럼)\n\n"
                 "• 5단계 wizard"
             )
-            if st.button("▶ 시작하기", type="primary", width="stretch", key="mode_b"):
+            if st.button("▶ 시작하기", type="primary", use_container_width=True, key="mode_b"):
                 st.session_state["app_mode"] = "company_master"
                 st.session_state["master_step"] = 1
                 st.rerun()
@@ -3310,7 +3310,7 @@ with st.sidebar:
             "📊 원천 → 표준" if cur_mode == "raw_to_standard"
             else "🏢 Information & List"
         )
-        if st.button("🏠 모드 선택으로", key="sb_home", width="stretch"):
+        if st.button("🏠 모드 선택으로", key="sb_home", use_container_width=True):
             st.session_state["app_mode"] = None
             st.rerun()
 

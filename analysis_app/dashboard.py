@@ -439,7 +439,7 @@ def render_investor_dashboard(results: dict, analysis_options: dict | None = Non
                            range=[min(bar_values + [-0.4]) * 1.2, max(bar_values + [0.4]) * 1.2]),
                 yaxis=dict(autorange="reversed"),
             )
-            st.plotly_chart(fig, key="dash_ls_bars", width="stretch")
+            st.plotly_chart(fig, key="dash_ls_bars", use_container_width=True)
             st.caption("막대가 길수록 신호 강함. |r| ≥ 0.3이어야 의미 있음.")
         else:
             st.info("후보 없음.")

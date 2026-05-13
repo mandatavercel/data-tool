@@ -57,18 +57,18 @@ def render() -> None:
     with tcol1:
         st.markdown(status_html, unsafe_allow_html=True)
     with tcol2:
-        if st.button("✓ 전체 선택", width="stretch", key="btn_all_sel"):
+        if st.button("✓ 전체 선택", use_container_width=True, key="btn_all_sel"):
             for k in runnable_keys:
                 st.session_state[f"sel_{k}"] = True
             st.rerun()
     with tcol3:
-        if st.button("✕ 전체 해제", width="stretch", key="btn_all_clear"):
+        if st.button("✕ 전체 해제", use_container_width=True, key="btn_all_clear"):
             for k in runnable_keys:
                 st.session_state[f"sel_{k}"] = False
             st.rerun()
     with tcol4:
         if hasattr(st, "popover"):
-            with st.popover("📖 가이드", width="stretch"):
+            with st.popover("📖 가이드", use_container_width=True):
                 from modules.analysis.guides import _guide_step4 as _g4
                 _g4()
         else:

@@ -1251,7 +1251,7 @@ def render(go_to):
     st.success(f"**파일 로드 완료** — {len(df):,}행 × {len(df.columns)}열")
 
     with st.expander("📋 데이터 미리보기 (상위 5행)", expanded=False):
-        st.dataframe(df.head(5), width="stretch")
+        st.dataframe(df.head(5), use_container_width=True)
 
     # ── 역할 매핑 UI ──────────────────────────────────────────────────────────
     st.markdown("#### 1) 컬럼 역할 매핑")

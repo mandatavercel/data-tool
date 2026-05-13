@@ -1043,7 +1043,7 @@ def _render_data_audit(result: dict, freq_label: str, ok_sigs: list, failed: lis
         })
 
     if audit_rows:
-        st.dataframe(pd.DataFrame(audit_rows), hide_index=True, width="stretch")
+        st.dataframe(pd.DataFrame(audit_rows), hide_index=True, use_container_width=True)
         st.caption(
             f"📌 **POS 종목코드** = POS 데이터에서 추출한 6자리 코드 / "
             f"**yfinance ticker** = 실제 호출에 사용된 ticker (.KS=KOSPI, .KQ=KOSDAQ) / "
@@ -1116,7 +1116,7 @@ def _render_data_audit(result: dict, freq_label: str, ok_sigs: list, failed: lis
                                    tickformat="%Y-%m"),
                         yaxis=dict(autorange="reversed"),
                     )
-                    st.plotly_chart(fig_g, key="ms_audit_gantt", width="stretch")
+                    st.plotly_chart(fig_g, key="ms_audit_gantt", use_container_width=True)
                     if len(ok_sigs) > 20:
                         st.caption(f"상위 20개사만 표시 (전체 {len(ok_sigs)}개사). 위 표에서 모든 종목 확인.")
             except Exception:
@@ -1240,7 +1240,7 @@ def _render(result: dict):
                     "상태":     _FAIL_LABEL.get(s.get("status", ""), "—"),
                     "원인":     s.get("fail_reason", "—"),
                 } for s in failed]
-                st.dataframe(pd.DataFrame(fail_rows), hide_index=True, width="stretch")
+                st.dataframe(pd.DataFrame(fail_rows), hide_index=True, use_container_width=True)
         return
 
     # ── 빈도 선택 (전체 + 드릴다운에 공통 적용) ─────────────────────────────────
@@ -1443,7 +1443,7 @@ def _render(result: dict):
         legend=dict(orientation="h", yanchor="top", y=-0.15, x=0),
         hovermode="x unified",
     )
-    st.plotly_chart(fig_ov, key="ms_drill_overlay", width="stretch")
+    st.plotly_chart(fig_ov, key="ms_drill_overlay", use_container_width=True)
 
     # 설명 박스
     if rec_lag > 0:
@@ -1508,7 +1508,7 @@ def _render(result: dict):
                        dtick=dtick_x),
             yaxis=dict(title="Pearson r", range=[-1, 1], showgrid=True, gridcolor="#e2e8f0"),
         )
-        st.plotly_chart(fig_lag, key="ms_drill_lag", width="stretch")
+        st.plotly_chart(fig_lag, key="ms_drill_lag", use_container_width=True)
 
         st.markdown(
             f"<div style='background:#f8fafc;border-left:3px solid #1e40af;padding:12px 16px;"
@@ -1556,7 +1556,7 @@ def _render(result: dict):
             )
             fig_v.update_yaxes(title_text="매출 성장률(%)", secondary_y=False, gridcolor="#e2e8f0")
             fig_v.update_yaxes(title_text="거래량 변화(%)", secondary_y=True,  gridcolor="#fef3c7")
-            st.plotly_chart(fig_v, key="ms_drill_volume", width="stretch")
+            st.plotly_chart(fig_v, key="ms_drill_volume", use_container_width=True)
 
             st.markdown(
                 "<div style='background:#f8fafc;border-left:3px solid #94a3b8;padding:10px 14px;"
@@ -1587,7 +1587,7 @@ def _render(result: dict):
                 margin=dict(t=40, b=10, l=10, r=10),
                 yaxis=dict(title="평균 누적 수익률(%)", gridcolor="#e2e8f0"),
             )
-            st.plotly_chart(fig_es, key="ms_drill_event", width="stretch")
+            st.plotly_chart(fig_es, key="ms_drill_event", use_container_width=True)
 
             st.markdown(
                 "<div style='background:#f8fafc;border-left:3px solid #94a3b8;padding:10px 14px;"
@@ -1623,7 +1623,7 @@ def _render(result: dict):
                 yaxis=dict(title="Pearson r", range=[-1, 1], gridcolor="#e2e8f0"),
                 legend=dict(orientation="h", yanchor="top", y=-0.18, x=0),
             )
-            st.plotly_chart(fig_rc, key="ms_drill_rolling", width="stretch")
+            st.plotly_chart(fig_rc, key="ms_drill_rolling", use_container_width=True)
 
             st.markdown(
                 "<div style='background:#f8fafc;border-left:3px solid #94a3b8;padding:10px 14px;"
@@ -1657,7 +1657,7 @@ def _render(result: dict):
         full_df = pd.DataFrame(rows).sort_values(
             "Score", ascending=False, na_position="last"
         ).reset_index(drop=True)
-        st.dataframe(full_df, hide_index=True, width="stretch")
+        st.dataframe(full_df, hide_index=True, use_container_width=True)
 
     if failed:
         with st.expander(f"Failed connections ({len(failed)})", expanded=False):
@@ -1667,7 +1667,7 @@ def _render(result: dict):
                 "Status":   _FAIL_LABEL.get(s.get("status", ""), "—"),
                 "Reason":   s.get("fail_reason", "—"),
             } for s in failed]
-            st.dataframe(pd.DataFrame(fail_rows), hide_index=True, width="stretch")
+            st.dataframe(pd.DataFrame(fail_rows), hide_index=True, use_container_width=True)
 
     st.divider()
     st.markdown(
@@ -1751,7 +1751,7 @@ def _render(result: dict):
             yaxis=dict(title="|IC| (전 회사 평균)", range=[0, max(0.5, max_y * 1.5)],
                        showgrid=True, gridcolor="#e2e8f0"),
         )
-        st.plotly_chart(fig_ic, key="ms_overall_ic_decay", width="stretch")
+        st.plotly_chart(fig_ic, key="ms_overall_ic_decay", use_container_width=True)
 
         st.markdown(
             "<div style='background:#f8fafc;border-left:3px solid #1e40af;padding:12px 16px;"
@@ -1839,10 +1839,10 @@ def _render(result: dict):
         if show_all_ls:
             table_height = min(560, 36 + 35 * len(ls_rows))
             st.dataframe(pd.DataFrame(ls_rows), hide_index=True,
-                         width="stretch", height=table_height)
+                         use_container_width=True, height=table_height)
         else:
             st.dataframe(pd.DataFrame(ls_rows), hide_index=True,
-                         width="stretch")
+                         use_container_width=True)
         st.caption(f"LONG {n_long}개 · SHORT {n_short}개")
         st.markdown(
             "<div style='background:#f8fafc;border-left:3px solid #94a3b8;padding:10px 14px;"
@@ -1911,7 +1911,7 @@ def _render(result: dict):
                 yaxis=dict(autorange="reversed"),
                 plot_bgcolor="#fff",
             )
-            st.plotly_chart(fig_hm, key="ms_overall_heatmap", width="stretch")
+            st.plotly_chart(fig_hm, key="ms_overall_heatmap", use_container_width=True)
             st.markdown(
                 "<div style='background:#f8fafc;border-left:3px solid #94a3b8;padding:10px 14px;"
                 "font-size:13px;line-height:1.6;color:#475569;margin-top:8px;border-radius:4px'>"
