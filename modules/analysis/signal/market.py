@@ -111,9 +111,23 @@ def _normalize_ohlcv(hist: pd.DataFrame, ticker_used: str) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=21600, show_spinner=False)
-def _fetch_daily_ohlcv(ticker: str, start: str, end: str) -> pd.DataFrame:
-    """yfinance OHLCV 일별 데이터. 6시간 캐시. 4경로 fallback."""
+def _fetch_daily_ohlcv_cached(ticker: str, start: str, end: str, _v: int = 2) -> pd.DataFrame:
+    """캐시 가능한 fetch — 성공한 결과만 저장.
+
+    _v: 캐시 버전. 코드가 바뀌어 캐시를 무효화해야 할 때 증가시킴.
+        (v2 = curl_cffi + pykrx 폴백 도입)
+    """
     df, _err = _fetch_daily_ohlcv_with_error(ticker, start, end)
+    return df
+
+
+def _fetch_daily_ohlcv(ticker: str, start: str, end: str) -> pd.DataFrame:
+    """yfinance OHLCV — 빈 결과는 캐시하지 않음 (재시도시 새 fetch 보장)."""
+    df = _fetch_daily_ohlcv_cached(ticker, start, end)
+    if df is None or df.empty:
+        # 빈 결과는 캐시 무효 — 다음 호출이 다시 시도하도록
+        # (cache_data는 per-key 무효화 불가 — 빈 결과 자체를 다시 fetch)
+        df, _err = _fetch_daily_ohlcv_with_error(ticker, start, end)
     return df
 
 
