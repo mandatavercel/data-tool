@@ -201,30 +201,44 @@ def _fetch_via_pykrx(ticker_bare: str, start: str, end: str) -> pd.DataFrame:
 def _fetch_daily_ohlcv_with_error(ticker: str, start: str, end: str) -> tuple[pd.DataFrame, str]:
     """디버그용 — fetch 실패 원인까지 함께 반환. (캐시 안 됨)
 
-    Fallback chain:
-      1. yfinance (period="max" + slice)         — 가장 안정적
-      2. yfinance (Ticker.history start/end)     — auto_adj × 2
-      3. yfinance (yf.download)                  — auto_adj × 2
-      4. pykrx (get_market_ohlcv_by_date)        — Cloud에서 yfinance 차단시 핵심 백업
-    """
-    try:
-        import yfinance as yf
-    except ImportError:
-        yf = None  # yfinance 없어도 pykrx 폴백 가능
+    Fallback chain (순서 중요):
+      1. pykrx (KRX 한국 서버 직접 호출)   — Cloud에서 가장 안정적
+      2. yfinance (period="max" + slice)   — pykrx 실패시 백업
+      3. yfinance (Ticker.history)         — auto_adj × 2
+      4. yfinance (yf.download)            — auto_adj × 2
 
-    # 미래 end 방지 — yfinance 1.3.0이 미래 end에서 빈 응답
+    Streamlit Cloud는 Yahoo가 IP를 차단해서 yfinance가 거의 항상 실패.
+    pykrx를 우선으로 두면 즉시 응답 받음.
+    """
     today_str = pd.Timestamp.today().strftime("%Y-%m-%d")
     end_capped = min(end, today_str)
     start_ts = pd.Timestamp(start)
     end_ts   = pd.Timestamp(end_capped)
+
+    errors: list[str] = []
+
+    # ── 1) pykrx 우선 시도 — KRX 직접 호출 (Cloud에서 가장 안정) ──
+    ticker_bare = ticker.split(".")[0] if "." in ticker else ticker
+    if ticker_bare.isdigit() and len(ticker_bare) == 6:
+        try:
+            df_krx = _fetch_via_pykrx(ticker_bare, start, end_capped)
+            if not df_krx.empty:
+                return df_krx, ""
+            errors.append(f"pykrx({ticker_bare}): empty")
+        except Exception as e:
+            errors.append(f"pykrx({ticker_bare}): {type(e).__name__}: {str(e)[:60]}")
+
+    # ── 2) yfinance 백업 — pykrx 실패한 경우만 ──
+    try:
+        import yfinance as yf
+    except ImportError:
+        yf = None
 
     candidates = (
         [f"{ticker}.KS", f"{ticker}.KQ"]
         if not any(c.isalpha() for c in ticker)
         else [ticker]
     )
-
-    errors: list[str] = []
 
     if yf is not None:
         # Chrome TLS 위장 세션 — Yahoo 봇 감지 우회
@@ -290,19 +304,7 @@ def _fetch_daily_ohlcv_with_error(ticker: str, start: str, end: str) -> tuple[pd
                 except Exception as e:
                     errors.append(f"{t} yf.download: {type(e).__name__}: {str(e)[:60]}")
     else:
-        errors.append("yfinance 미설치 — pykrx 폴백만 시도")
-
-    # 4) pykrx 폴백 — KRX 서버 직접 호출
-    # yfinance가 Yahoo IP 차단으로 죽었어도 한국 KRX는 응답
-    ticker_bare = ticker.split(".")[0] if "." in ticker else ticker
-    if ticker_bare.isdigit() and len(ticker_bare) == 6:
-        try:
-            df_krx = _fetch_via_pykrx(ticker_bare, start, end_capped)
-            if not df_krx.empty:
-                return df_krx, ""
-            errors.append(f"pykrx({ticker_bare}): empty")
-        except Exception as e:
-            errors.append(f"pykrx({ticker_bare}): {type(e).__name__}: {str(e)[:60]}")
+        errors.append("yfinance 미설치")
 
     return pd.DataFrame(), " || ".join(errors[:8])
 
@@ -311,9 +313,43 @@ def _fetch_daily_ohlcv_with_error(ticker: str, start: str, end: str) -> tuple[pd
 def _fetch_benchmark_daily(start: str, end: str) -> pd.DataFrame:
     """KOSPI 인덱스 daily OHLCV. universe 분석에서 'stock'으로 사용 가능.
 
-    Returns columns: same shape as _fetch_daily_ohlcv (open/high/low/close/adj_close/
-                     volume/stock_return/vol_change/ticker_used)
+    pykrx 우선 → yfinance 백업. Streamlit Cloud에서 Yahoo가 차단되므로
+    pykrx의 get_index_ohlcv_by_date를 1순위로.
     """
+    start_compact = pd.Timestamp(start).strftime("%Y%m%d")
+    end_compact   = pd.Timestamp(end).strftime("%Y%m%d")
+
+    # 1) pykrx로 KOSPI/KOSDAQ 인덱스 시도
+    try:
+        from pykrx import stock as krx
+        for idx_code, label in [("1001", "^KS11"), ("2001", "^KQ11")]:
+            try:
+                raw = krx.get_index_ohlcv_by_date(start_compact, end_compact, idx_code)
+                if raw is None or raw.empty:
+                    continue
+                raw = raw.reset_index().rename(columns={
+                    "날짜": "date", "시가": "open", "고가": "high",
+                    "저가": "low", "종가": "close", "거래량": "volume",
+                })
+                df = pd.DataFrame({
+                    "date":      pd.to_datetime(raw["date"]),
+                    "open":      raw["open"].astype(float),
+                    "high":      raw["high"].astype(float),
+                    "low":       raw["low"].astype(float),
+                    "close":     raw["close"].astype(float),
+                    "adj_close": raw["close"].astype(float),
+                    "volume":    raw.get("volume", pd.Series(0, index=raw.index)).astype(float),
+                })
+                df["stock_return"] = df["adj_close"].pct_change() * 100
+                df["vol_change"]   = df["volume"].pct_change() * 100
+                df["ticker_used"]  = label
+                return df.dropna(subset=["date"]).reset_index(drop=True)
+            except Exception:
+                continue
+    except ImportError:
+        pass
+
+    # 2) yfinance 백업
     try:
         import yfinance as yf
     except ImportError:
