@@ -1,7 +1,7 @@
 # Streamlit Cloud용 stable 버전 pin
 # (>= 만 쓰면 uv가 너무 최신 버전을 가져와서 깨짐 — pandas 3.0, numpy 2.x 등)
 
-streamlit==1.40.0
+streamlit==1.46.0
 pandas==2.2.3
 numpy==1.26.4
 requests==2.32.3
