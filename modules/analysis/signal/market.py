@@ -117,17 +117,61 @@ def _fetch_daily_ohlcv(ticker: str, start: str, end: str) -> pd.DataFrame:
     return df
 
 
+def _fetch_via_pykrx(ticker_bare: str, start: str, end: str) -> pd.DataFrame:
+    """pykrx 폴백 — KRX 서버 직접 호출. Streamlit Cloud (US) IP가 yfinance에서
+    차단될 때 핵심 백업. ticker_bare는 6자리 코드 (.KS/.KQ 없이).
+    """
+    try:
+        from pykrx import stock as krx
+    except ImportError:
+        return pd.DataFrame()
+
+    start_compact = pd.Timestamp(start).strftime("%Y%m%d")
+    end_compact   = pd.Timestamp(end).strftime("%Y%m%d")
+
+    try:
+        raw = krx.get_market_ohlcv_by_date(start_compact, end_compact, ticker_bare)
+    except Exception:
+        return pd.DataFrame()
+    if raw is None or raw.empty:
+        return pd.DataFrame()
+
+    # pykrx 컬럼명 한글 → 표준화
+    raw = raw.reset_index()
+    rename = {
+        "날짜":   "date",
+        "시가":   "open",
+        "고가":   "high",
+        "저가":   "low",
+        "종가":   "close",
+        "거래량": "volume",
+    }
+    raw = raw.rename(columns=rename)
+    if "date" not in raw.columns:
+        return pd.DataFrame()
+
+    df = raw[["date", "open", "high", "low", "close", "volume"]].copy()
+    df["date"]      = pd.to_datetime(df["date"])
+    df["adj_close"] = df["close"]          # KRX는 수정종가 별도 제공 안 함 → close 사용
+    df["ticker_used"] = ticker_bare + ".KS"  # 표시용
+    df["stock_return"] = df["close"].pct_change()
+    df["vol_change"]   = df["volume"].pct_change()
+    return df.dropna(subset=["date"]).reset_index(drop=True)
+
+
 def _fetch_daily_ohlcv_with_error(ticker: str, start: str, end: str) -> tuple[pd.DataFrame, str]:
     """디버그용 — fetch 실패 원인까지 함께 반환. (캐시 안 됨)
 
-    yfinance 1.3.0 호환:
-      - period= 기반 호출이 가장 안정적
-      - end가 미래면 yfinance가 빈 응답을 던짐 → today로 cap
+    Fallback chain:
+      1. yfinance (period="max" + slice)         — 가장 안정적
+      2. yfinance (Ticker.history start/end)     — auto_adj × 2
+      3. yfinance (yf.download)                  — auto_adj × 2
+      4. pykrx (get_market_ohlcv_by_date)        — Cloud에서 yfinance 차단시 핵심 백업
     """
     try:
         import yfinance as yf
     except ImportError:
-        return pd.DataFrame(), "yfinance 미설치"
+        yf = None  # yfinance 없어도 pykrx 폴백 가능
 
     # 미래 end 방지 — yfinance 1.3.0이 미래 end에서 빈 응답
     today_str = pd.Timestamp.today().strftime("%Y-%m-%d")
@@ -142,49 +186,65 @@ def _fetch_daily_ohlcv_with_error(ticker: str, start: str, end: str) -> tuple[pd
     )
 
     errors: list[str] = []
-    for t in candidates:
-        # 1) period="max" + slice — yfinance 1.3.0에서 가장 안정적
-        try:
-            tk = yf.Ticker(t)
-            hist = tk.history(period="max", auto_adjust=False)
-            df = _normalize_ohlcv(hist, t)
-            if not df.empty:
-                # tz-aware → naive 정렬 후 사용자 범위로 자름
-                df["date"] = pd.to_datetime(df["date"]).dt.tz_localize(None)
-                sliced = df[(df["date"] >= start_ts) & (df["date"] <= end_ts)]
-                if not sliced.empty:
-                    return sliced.reset_index(drop=True), ""
-                errors.append(f"{t} period='max': 데이터 있으나 요청 범위 밖")
-            else:
-                errors.append(f"{t} period='max': empty")
-        except Exception as e:
-            errors.append(f"{t} period='max': {type(e).__name__}: {str(e)[:60]}")
 
-        # 2) Ticker.history(start, end) (capped)
-        for auto_adj in (False, True):
+    if yf is not None:
+        for t in candidates:
+            # 1) period="max" + slice — yfinance 1.3.0에서 가장 안정적
             try:
                 tk = yf.Ticker(t)
-                hist = tk.history(start=start, end=end_capped, auto_adjust=auto_adj)
+                hist = tk.history(period="max", auto_adjust=False)
                 df = _normalize_ohlcv(hist, t)
                 if not df.empty:
-                    return df, ""
-                errors.append(f"{t} Ticker.history(start={start},end={end_capped},aa={auto_adj}): empty")
+                    # tz-aware → naive 정렬 후 사용자 범위로 자름
+                    df["date"] = pd.to_datetime(df["date"]).dt.tz_localize(None)
+                    sliced = df[(df["date"] >= start_ts) & (df["date"] <= end_ts)]
+                    if not sliced.empty:
+                        return sliced.reset_index(drop=True), ""
+                    errors.append(f"{t} period='max': 데이터 있으나 요청 범위 밖")
+                else:
+                    errors.append(f"{t} period='max': empty")
             except Exception as e:
-                errors.append(f"{t} Ticker.history: {type(e).__name__}: {str(e)[:60]}")
+                errors.append(f"{t} period='max': {type(e).__name__}: {str(e)[:60]}")
 
-        # 3) yf.download(start, end) (capped)
-        for auto_adj in (False, True):
-            try:
-                hist = yf.download(
-                    t, start=start, end=end_capped,
-                    progress=False, auto_adjust=auto_adj, threads=False,
-                )
-                df = _normalize_ohlcv(hist, t)
-                if not df.empty:
-                    return df, ""
-                errors.append(f"{t} yf.download(aa={auto_adj}): empty")
-            except Exception as e:
-                errors.append(f"{t} yf.download: {type(e).__name__}: {str(e)[:60]}")
+            # 2) Ticker.history(start, end) (capped)
+            for auto_adj in (False, True):
+                try:
+                    tk = yf.Ticker(t)
+                    hist = tk.history(start=start, end=end_capped, auto_adjust=auto_adj)
+                    df = _normalize_ohlcv(hist, t)
+                    if not df.empty:
+                        return df, ""
+                    errors.append(f"{t} Ticker.history(start={start},end={end_capped},aa={auto_adj}): empty")
+                except Exception as e:
+                    errors.append(f"{t} Ticker.history: {type(e).__name__}: {str(e)[:60]}")
+
+            # 3) yf.download(start, end) (capped)
+            for auto_adj in (False, True):
+                try:
+                    hist = yf.download(
+                        t, start=start, end=end_capped,
+                        progress=False, auto_adjust=auto_adj, threads=False,
+                    )
+                    df = _normalize_ohlcv(hist, t)
+                    if not df.empty:
+                        return df, ""
+                    errors.append(f"{t} yf.download(aa={auto_adj}): empty")
+                except Exception as e:
+                    errors.append(f"{t} yf.download: {type(e).__name__}: {str(e)[:60]}")
+    else:
+        errors.append("yfinance 미설치 — pykrx 폴백만 시도")
+
+    # 4) pykrx 폴백 — KRX 서버 직접 호출
+    # yfinance가 Yahoo IP 차단으로 죽었어도 한국 KRX는 응답
+    ticker_bare = ticker.split(".")[0] if "." in ticker else ticker
+    if ticker_bare.isdigit() and len(ticker_bare) == 6:
+        try:
+            df_krx = _fetch_via_pykrx(ticker_bare, start, end_capped)
+            if not df_krx.empty:
+                return df_krx, ""
+            errors.append(f"pykrx({ticker_bare}): empty")
+        except Exception as e:
+            errors.append(f"pykrx({ticker_bare}): {type(e).__name__}: {str(e)[:60]}")
 
     return pd.DataFrame(), " || ".join(errors[:8])
 
