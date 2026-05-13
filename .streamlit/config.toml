@@ -1,0 +1,20 @@
+# Streamlit 서버 설정 (로컬 + Cloud 공용)
+
+[server]
+# 대용량 POS 데이터 업로드 (5GB)
+maxUploadSize = 5120
+maxMessageSize = 5120
+headless = true
+enableXsrfProtection = true
+enableCORS = false
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+# Mandata 브랜드 컬러 — Midnight Executive
+primaryColor = "#1E40AF"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F8FAFC"
+textColor = "#0F172A"
+font = "sans serif"

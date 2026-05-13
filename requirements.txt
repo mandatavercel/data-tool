@@ -1,0 +1,19 @@
+streamlit>=1.30
+pandas>=2.0
+requests>=2.31
+openpyxl>=3.1
+numpy>=1.24
+# 회사명 유사도 매칭 가속 (10~100배). 없으면 difflib로 자동 폴백.
+rapidfuzz>=3.0
+# analysis_app.py 전용
+yfinance>=0.2.36
+scipy>=1.11
+plotly>=5.18
+pytest>=7.4
+# Factor research — KRX 산업분류 / 종목 데이터
+pykrx>=1.0.45
+# 브랜드·제품 영문화 — Claude API (mapping_app 영문화 파이프라인 LLM 폴백)
+anthropic>=0.40.0
+# Final Report PPT/PDF export
+python-pptx>=0.6.21
+reportlab>=4.0.4

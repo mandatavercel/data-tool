@@ -1,0 +1,7 @@
+[server]
+# 매핑 앱 업로드 한도 (MB). 기본값 200을 덮어쓴다.
+# 5120MB = 5GB (POS·카드 거래 데이터 대용량 대응)
+maxUploadSize = 5120
+maxMessageSize = 5120
+port = 8502
+headless = false

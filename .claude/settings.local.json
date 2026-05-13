@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip show *)",
+      "Bash(python3 -c \"import gradio; print\\(gradio.__version__\\)\")",
+      "Bash(pip install *)",
+      "Bash(pip3 install *)",
+      "Bash(python3 app.py)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(curl -s http://localhost:7860)",
+      "Bash(pkill -f \"python3 app.py\")",
+      "Bash(mkdir -p /Users/yonghan/Desktop/data-tool/.claude)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:7860)",
+      "Bash(pwdx 86931)",
+      "Bash(xargs ps -p)",
+      "Bash(kill 85895)",
+      "Bash(kill 86931)",
+      "Bash(kill 86932)",
+      "Bash(python3 -c \"import streamlit; print\\(streamlit.__version__\\)\")",
+      "Bash(ls /Applications/ | grep -i \"code\\\\|cursor\\\\|zed\\\\|sublime\\\\|atom\")",
+      "Bash(ls /Applications/ | grep -i \"cursor\\\\|VSC\\\\|code\\\\|edit\\\\|IDE\" ; ls ~/Applications/ 2>/dev/null | grep -i \"code\\\\|cursor\")",
+      "Bash(python3 -c \"import ast; ast.parse\\(open\\('app.py'\\).read\\(\\)\\); print\\('syntax OK'\\)\")",
+      "Bash(python3 -m pip install -q -r requirements.txt)",
+      "Bash(python3 -m streamlit run app.py)",
+      "Bash(python -m py_compile app.py)",
+      "Bash(streamlit run *)",
+      "Bash(curl -s http://localhost:8501)",
+      "Bash(python3 -c \"import ast; ast.parse\\(open\\('/Users/yonghan/Desktop/data-tool/analysis_app.py'\\).read\\(\\)\\); print\\('✅ Syntax OK'\\)\")",
+      "Bash(awk '{print $6, $7, $8, $9}')",
+      "Bash(curl -s \"http://localhost:8501/_stcore/debug\")",
+      "Read(//Users/yonghan/.streamlit/**)",
+      "Read(//private/tmp/**)",
+      "Bash(awk -F: '{print $1}')"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+# Streamlit Community Cloud의 Debian apt 패키지
+# PDF/PPT 한글 폰트 + 시스템 의존성
+
+# 한글 폰트 (NanumGothic) — PDF 한글 표시
+fonts-nanum
+fonts-nanum-coding
+fonts-nanum-extra
+
+# Noto CJK fallback
+fonts-noto-cjk
+fonts-noto-cjk-extra
