@@ -2147,7 +2147,7 @@ def render_step_download():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 모드 B — 회사 마스터 빌더 (POS 표준 4-시트 xlsx)
+# 모드 B — 회사 마스터 빌더 (표준 4-시트 xlsx)
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _master_nav(suffix: str, prev_step: int | None, next_step: int | None,
@@ -3347,7 +3347,7 @@ elif app_mode == "company_master":
 
     st.title("🏢 Information & List")
     st.caption(
-        "회사 한글명만 주면 POS 표준 4-시트 xlsx (INFORMATION_PR/BT + LIST_PR/BT) 를 "
+        "회사 한글명만 주면 표준 4-시트 xlsx (INFORMATION_PR/BT + LIST_PR/BT) 를 "
         "자동 생성합니다."
     )
 

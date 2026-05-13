@@ -760,7 +760,7 @@ def build_pos_master_xlsx(
     def _make_information_sheet(name: str, meta: dict):
         ws = wb.create_sheet(name)
         # 타이틀 셀 (행 3, 열 C)
-        ws.cell(row=3, column=3, value="[POS Data Introduction]")
+        ws.cell(row=3, column=3, value="[Data Introduction]")
         ws.cell(row=3, column=3).font = Font(bold=True, size=14)
         # 헤더 행 (행 5): 컬럼 C, D, E, F, H (원본 레이아웃과 동일)
         header_cols = [3, 4, 5, 6, 8]   # C, D, E, F, H

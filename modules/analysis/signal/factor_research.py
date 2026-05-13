@@ -1,4 +1,4 @@
-"""Factor Research — POS 매출 features × forward stock returns.
+"""Factor Research — 매출 features × forward stock returns.
 
 Cross-sectional Rank IC + Sector neutralization + Quintile backtest의
 헤지펀드 표준 factor 검증 화면.
@@ -387,7 +387,7 @@ def run_factor_research(df: pd.DataFrame, role_map: dict, params: dict) -> dict:
                     "company_name", "number_of_tx"],
         date_min=str(panel["sales_month"].min()) if not panel.empty else None,
         date_max=str(panel["sales_month"].max()) if not panel.empty else None,
-        formula="POS YoY × forward returns · CS Rank IC + Quintile backtest",
+        formula="매출 YoY × forward returns · CS Rank IC + Quintile backtest",
         agg_unit="월", n_computable=n_panel_obs, n_periods=n_dates,
         business_checks=bs,
     )

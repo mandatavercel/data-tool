@@ -976,7 +976,7 @@ def run_market_signal(df: pd.DataFrame, role_map: dict, params: dict) -> dict:
         role_map=role_map,
         used_roles=["transaction_date", "sales_amount", "number_of_tx", "stock_code", "company_name"],
         date_min=_date_min, date_max=_date_max,
-        formula="POS 성장률 × 주가 수익률 × 거래량 변화 다중 빈도(D/W/M) lag 상관 + Event Study + Rolling",
+        formula="매출 성장률 × 주가 수익률 × 거래량 변화 다중 빈도(D/W/M) lag 상관 + Event Study + Rolling",
         agg_unit=_DEFAULT_FREQ.lower(),
         n_computable=n_months, n_periods=n_months,
         business_checks=bs,
@@ -1129,7 +1129,7 @@ def _render_data_audit(result: dict, freq_label: str, ok_sigs: list, failed: lis
 - **빈도**: 일별 → 분석에 따라 주별/월별 자동 집계
 - **캐시**: 6시간 (같은 종목 재조회 시 즉시 반환)
 
-**2️⃣ POS 데이터 → yfinance ticker 매핑 절차**
+**2️⃣ 거래/매출 데이터 → yfinance ticker 매핑 절차**
 
 ```
 ①  POS 거래 row의 stock_code (또는 security_code) 컬럼
@@ -1150,9 +1150,9 @@ def _render_data_audit(result: dict, freq_label: str, ok_sigs: list, failed: lis
 ```
 
 **3️⃣ 매칭 기간 alignment**
-- POS 데이터 첫 거래일 ~ 마지막 거래일을 기준으로 yfinance 호출
+- 거래/매출 데이터 첫 거래일 ~ 마지막 거래일을 기준으로 yfinance 호출
 - yfinance는 거래일만 반환 (영업일·주말 제외)
-- 분석 시 POS 분기(또는 주/월)와 yfinance 분기를 inner join — 두쪽 모두 데이터 있는 시점만 사용
+- 분석 시 분기(또는 주/월)와 yfinance 분기를 inner join — 두쪽 모두 데이터 있는 시점만 사용
 
 **4️⃣ 실패 케이스**
 - **종목코드 없음**: POS에 stock_code/security_code 매핑이 안 된 회사
@@ -1189,7 +1189,7 @@ def _render_data_audit(result: dict, freq_label: str, ok_sigs: list, failed: lis
         audit_rows.append({
             "Status":        "✅ 성공",
             "회사":           co[:24],
-            "POS 종목코드":   raw_code,
+            "종목코드":   raw_code,
             "yfinance ticker": ticker_used,
             "시장":           market,
             "주가 데이터":    date_range,
@@ -1199,7 +1199,7 @@ def _render_data_audit(result: dict, freq_label: str, ok_sigs: list, failed: lis
         audit_rows.append({
             "Status":        _FAIL_LABEL.get(s.get("status", ""), "❓"),
             "회사":           s.get("company", "")[:24],
-            "POS 종목코드":   co_ticker_map.get(s.get("company", ""), "—"),
+            "종목코드":   co_ticker_map.get(s.get("company", ""), "—"),
             "yfinance ticker": s.get("ticker", "—"),
             "시장":           "—",
             "주가 데이터":    "—",
@@ -1209,10 +1209,10 @@ def _render_data_audit(result: dict, freq_label: str, ok_sigs: list, failed: lis
     if audit_rows:
         st.dataframe(pd.DataFrame(audit_rows), hide_index=True, use_container_width=True)
         st.caption(
-            f"📌 **POS 종목코드** = POS 데이터에서 추출한 6자리 코드 / "
+            f"📌 **종목코드** = 거래/매출 데이터에서 추출한 6자리 코드 / "
             f"**yfinance ticker** = 실제 호출에 사용된 ticker (.KS=KOSPI, .KQ=KOSDAQ) / "
             f"**주가 데이터** = yfinance에서 받은 일별 가격의 시작 ~ 종료일 / "
-            f"**매칭 {freq_label}** = POS와 주가가 모두 있는 분석 단위 수"
+            f"**매칭 {freq_label}** = 매출과 주가가 모두 있는 분석 단위 수"
         )
 
     # ── 시장 분포 + 기간 alignment 시각화 ────────────────────────────────
@@ -1242,7 +1242,7 @@ def _render_data_audit(result: dict, freq_label: str, ok_sigs: list, failed: lis
         with ac2:
             st.markdown(
                 "<div style='font-size:13px;font-weight:700;color:#0f172a;margin-bottom:6px'>"
-                "회사별 주가 데이터 기간 (POS와 겹치는 부분만 분석에 사용)</div>",
+                "회사별 주가 데이터 기간 (매출과 겹치는 부분만 분석에 사용)</div>",
                 unsafe_allow_html=True,
             )
             try:
@@ -1313,7 +1313,7 @@ def _render(result: dict):
         st.markdown("### 🔬 단계별 진단")
         d1, d2, d3 = st.columns(3)
         d1.metric("① 종목코드 추출", f"{len(co_ticker)}개사",
-                  help="POS 회사명별로 KRX 종목코드를 추출한 결과")
+                  help="회사명별로 KRX 종목코드를 추출한 결과")
         d2.metric("② 주가 API 호출", f"{len(all_sigs)}개사",
                   help="pykrx(KRX 1순위) + yfinance(백업) 호출 시도")
         n_ok = sum(1 for s in all_sigs if s.get("status") == "ok")

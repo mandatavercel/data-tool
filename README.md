@@ -1,6 +1,6 @@
 # 📊 Mandata Alt-Data Intelligence Platform
 
-POS · 카드 · 통신사 거래 데이터로 매출 선행성·주가 상관·DART 공시 정합성을 검증하는 6단계 분석 도구.
+거래 · 카드 · 통신 등 대안 데이터로 매출 선행성·주가 상관·DART 공시 정합성을 검증하는 6단계 분석 도구.
 
 > 글로벌 기관투자자가 alt data 가치 평가할 때 보는 KPI (Tracking Quality · CS Rank IC · L/S Sharpe) 를 한국 소비재 데이터에 적용.
 
@@ -120,7 +120,7 @@ data-tool/
 
 ## 📄 라이센스 / 데이터 출처
 
-- **POS 데이터**: 사용자 업로드 (개인 데이터, 외부 반출 금지)
+- **거래/매출 데이터**: 사용자 업로드 (개인 데이터, 외부 반출 금지)
 - **DART**: 금융감독원 전자공시 (`opendart.fss.or.kr`) — 무료 API
 - **주가**: yfinance (Yahoo Finance) — 무료
 - **KRX 산업 분류**: pykrx — 무료
@@ -130,5 +130,5 @@ data-tool/
 ## ⚠️ 보안 주의
 
 - **DART API Key**: `.streamlit/secrets.toml` 에만 저장. **절대 코드에 hard-code 금지**
-- **POS 데이터**: 업로드 후 분석 종료 시 자동 삭제 (서버에 영구 저장 안 함)
+- **거래/매출 데이터**: 업로드 후 분석 종료 시 자동 삭제 (서버에 영구 저장 안 함)
 - **공개 cloud 배포 시**: Streamlit Cloud secrets 또는 환경변수 사용

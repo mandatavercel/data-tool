@@ -57,7 +57,7 @@ if "step" not in st.session_state:
 
 st.title("📊 데이터 분석 — Alt-Data Intelligence")
 st.caption(
-    "POS 데이터 + 주가/공시로 매출 선행성·상관·알파를 검증하는 6단계 워크플로우. "
+    "거래/매출 데이터 + 주가/공시로 매출 선행성·상관·알파를 검증하는 6단계 워크플로우. "
     "8501 포트에서 실행 중입니다."
 )
 render_stepper()

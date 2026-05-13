@@ -1,6 +1,6 @@
 """
 Earnings Intelligence — stub (준비 중)
-POS 데이터가 공시매출보다 먼저 움직이는지 검증 (DART API)
+거래/매출 데이터가 공시매출보다 먼저 움직이는지 검증 (DART API)
 """
 import streamlit as st
 

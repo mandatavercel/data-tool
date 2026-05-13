@@ -93,7 +93,7 @@ def _render_market_signal_info() -> None:
   <div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px'>
     <span style='background:#dbeafe;color:#1e40af;padding:2px 8px;
                  border-radius:10px;font-size:11.5px;font-weight:600'>
-      ① POS 회사명 → 6자리 종목코드 추출
+      ① 회사명 → 6자리 종목코드 추출
     </span>
     <span style='background:#dcfce7;color:#166534;padding:2px 8px;
                  border-radius:10px;font-size:11.5px;font-weight:600'>
@@ -213,7 +213,7 @@ def _render_dart_match_ui(dart_api_val: str, pos_companies: list[str]) -> None:
             key="p_dart_btn_match", type="primary",
             disabled=not bool(dart_api_val),
             use_container_width=True,
-            help=(f"{len(pos_companies)}개 POS 회사명을 DART 마스터와 자동 매칭"
+            help=(f"{len(pos_companies)}개 회사명을 DART 마스터와 자동 매칭"
                   if dart_api_val else "DART API Key 입력 후 활성화"),
         )
     with bcol2:
@@ -374,7 +374,7 @@ def _render_dart_match_ui(dart_api_val: str, pos_companies: list[str]) -> None:
 
     st.session_state["p_dart_match"] = match_df
 
-    # 사용자 매핑 (POS 회사명 → corp_code) 저장
+    # 사용자 매핑 (회사명 → corp_code) 저장
     user_dart_map: dict[str, str] = {}
     for _, r in match_df.iterrows():
         if r.get("corp_code"):

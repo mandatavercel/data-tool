@@ -78,22 +78,22 @@ def infer_amount_unit(pos_mean: float, dart_mean: float) -> dict:
 
     if 8_000 < ratio < 12_000:
         return {"ratio": ratio, "unit_type": "억원",
-                "note": f"POS/DART 비율 ≈{ratio:.0f}× → POS 억원 vs DART 원 단위 의심",
+                "note": f"매출/DART 비율 ≈{ratio:.0f}× → 매출 억원 vs DART 원 단위 의심",
                 "is_mismatch": True}
     if 800 < ratio < 1_200:
         return {"ratio": ratio, "unit_type": "백만원",
-                "note": f"POS/DART 비율 ≈{ratio:.0f}× → POS 백만원 vs DART 원 단위 의심",
+                "note": f"매출/DART 비율 ≈{ratio:.0f}× → 매출 백만원 vs DART 원 단위 의심",
                 "is_mismatch": True}
     if 80 < ratio < 120:
         return {"ratio": ratio, "unit_type": "천원",
-                "note": f"POS/DART 비율 ≈{ratio:.0f}× → POS 천원 vs DART 원 단위 의심",
+                "note": f"매출/DART 비율 ≈{ratio:.0f}× → 매출 천원 vs DART 원 단위 의심",
                 "is_mismatch": True}
     if 0.1 < ratio < 10:
         return {"ratio": ratio, "unit_type": "원",
                 "note": "단위 일치 (원 KRW 기준)",
                 "is_mismatch": False}
     return {"ratio": ratio, "unit_type": "unknown",
-            "note": f"POS/DART 비율 ≈{ratio:.0f}× — 비표준 단위 또는 집계 범위 차이 가능",
+            "note": f"매출/DART 비율 ≈{ratio:.0f}× — 비표준 단위 또는 집계 범위 차이 가능",
             "is_mismatch": ratio > 10}
 
 

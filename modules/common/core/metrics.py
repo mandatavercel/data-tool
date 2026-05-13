@@ -138,6 +138,6 @@ def calculate_tracking_ratio(
     pos_series: pd.Series,
     dart_series: pd.Series,
 ) -> pd.Series:
-    """POS / DART * 100, element-wise.  Inf → NaN (division by zero guard)."""
+    """매출 / DART * 100, element-wise.  Inf → NaN (division by zero guard)."""
     ratio = pos_series / dart_series * 100
     return ratio.replace([float("inf"), float("-inf")], float("nan"))

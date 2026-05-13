@@ -415,7 +415,7 @@ def _build_what_it_means(f: dict) -> dict:
     if alpha is not None:
         if alpha >= 75:
             bullets.append(
-                "🟢 **소비 선행 신호 강함** — POS 데이터가 해당 기업군의 성장 방향성을 강하게 뒷받침합니다. "
+                "🟢 **소비 선행 신호 강함** — 거래/매출 데이터가 해당 기업군의 성장 방향성을 강하게 뒷받침합니다. "
                 "공개 데이터보다 선행 정보를 확보한 상태입니다."
             )
         elif alpha >= 55:
@@ -508,7 +508,7 @@ def _build_what_to_do(f: dict) -> dict:
     if r and abs(r) >= 0.3 and lag is not None:
         bullets.append(
             f"📅 **모니터링 주기**: lag {lag}개월 최적 시차 기준, "
-            f"매월 POS 매출 발표 후 {lag}개월 뒤 주가 반응을 추적하는 알림 체계를 구축하세요."
+            f"매월 매출 발표 후 {lag}개월 뒤 주가 반응을 추적하는 알림 체계를 구축하세요."
         )
 
     # Data coverage
@@ -738,7 +738,7 @@ def _build_selling_points(f: dict) -> dict:
         ),
         "details": [
             "한국 상장사 분기 보고서: 분기말 + 45일 (자본시장법 회계 기준)",
-            "POS 거래 데이터: 거래 발생 후 1~3일 내 집계 / 월 1회 갱신",
+            "거래 데이터: 거래 발생 후 1~3일 내 집계 / 월 1회 갱신",
             "→ 매출 모멘텀 변곡점을 컨센서스 수정 6주 전에 정량 포착",
         ],
         "example": (
@@ -784,7 +784,7 @@ def _build_selling_points(f: dict) -> dict:
         "title": "한국 소비재 섹터 직접 커버리지 (Direct Mapping)",
         "headline": f"{n_companies}개 상장사 자동 매핑 — 주가·공시와 직결",
         "details": [
-            "POS·카드·통신사 코드 → KRX 6자리 종목코드 → KOSPI/KOSDAQ ticker",
+            "대안 데이터 코드 → KRX 6자리 종목코드 → KOSPI/KOSDAQ ticker",
             (
                 f"DART 공시 자동 연동: {n_dart}개사 / {n_companies}개사 ({n_dart/max(n_companies,1)*100:.0f}%)"
                 if has_dart else "DART 공시 매핑 가능 (현재 미연동 상태)"
@@ -798,7 +798,7 @@ def _build_selling_points(f: dict) -> dict:
                if sig_co else
                f"대표 회사 '{rep_co}'")
             + (f". DART 공시도 {n_dart}개사 자동 매핑됨" if has_dart else "")
-            + " — POS 매출 · 주가 · 공시를 단일 패널에서 결합."
+            + " — 매출 · 주가 · 공시를 단일 패널에서 결합."
         ),
         "kpi": f"{n_companies}개 종목 / DART {n_dart}개",
         "vs": "Quandl·Refinitiv(글로벌 위주) · S&P Capital IQ(공시 lag)",
@@ -983,7 +983,7 @@ def _build_use_case(f: dict) -> dict:
             "Factor zoo에 추가 후 다른 Factor와 직교성·잔여 alpha 검증 권장."
         ),
         "kpi": f"Universe {n_companies} · Best lag {lag}M · IC≈{r:.2f}",
-        "use_pattern": "월말 POS 신호 → Cross-section Rank → 익월 1영업일 리밸런싱",
+        "use_pattern": "월말 매출 신호 → Cross-section Rank → 익월 1영업일 리밸런싱",
         "examples": _ex_long_short() or [
             f"본 데이터 universe {n_companies}개사 대상으로 Cross-section Rank 백테스트 가능. "
             f"분석 기간 {date_start} ~ {date_end} ({period_m}개월) — "
@@ -996,23 +996,23 @@ def _build_use_case(f: dict) -> dict:
         "audience": "🎯 Event-Driven / Earnings Surprise Strategy",
         "tagline": "분기 어닝 발표 전후 트레이드 (Pre-announcement Drift)",
         "value": (
-            f"분기 공시 발표일 30~45일 전 POS 매출 누적치로 Consensus 대비 Surprise 방향성 예측. "
+            f"분기 공시 발표일 30~45일 전 매출 누적치로 Consensus 대비 Surprise 방향성 예측. "
             f"본 데이터로 {n_dart}개사 DART 공시 매출과 {n_quarters}분기 비교 검증 완료. "
             "음의 Surprise 예상 종목은 발표 전 short / 양의 Surprise 종목은 long 또는 콜옵션 매수. "
             "Earnings 직후 Drift도 추적 가능."
         ),
         "kpi": f"Pre-announcement window: 30~45일 / DART 검증 {n_dart}개사",
-        "use_pattern": "분기 잔여 30일 → POS run-rate vs Consensus → Surprise 방향 → 발표 직전 진입",
+        "use_pattern": "분기 잔여 30일 → 데이터 run-rate vs Consensus → Surprise 방향 → 발표 직전 진입",
         "examples": (
             [
                 f"양의 Surprise 시나리오 (실측): {top_yoy[0]['name']} 최근 12개월 YoY {top_yoy[0]['yoy_pct']:+.1f}% — "
-                f"분기 잔여 시점 POS run-rate이 컨센서스 상회 가능성 ↑. 발표 직전 long 또는 콜 매수 candidate.",
+                f"분기 잔여 시점 데이터 run-rate이 컨센서스 상회 가능성 ↑. 발표 직전 long 또는 콜 매수 candidate.",
                 f"음의 Surprise 시나리오 (실측): {bot_yoy[0]['name']} YoY {bot_yoy[0]['yoy_pct']:+.1f}% — "
                 f"발표 전 short 또는 풋옵션 candidate.",
             ] if top_yoy and bot_yoy else
-            [f"실측 가능: 본 데이터로 {n_dart}개사 DART 분기 공시와 POS run-rate 비교. "
+            [f"실측 가능: 본 데이터로 {n_dart}개사 DART 분기 공시와 데이터 run-rate 비교. "
              f"평균 {n_quarters}분기 검증 완료." if has_dart else
-             f"DART 매핑 시 분기 공시 매출과 POS run-rate 비교 검증 가능."]
+             f"DART 매핑 시 분기 공시 매출과 데이터 run-rate 비교 검증 가능."]
         ),
     })
 
@@ -1046,12 +1046,12 @@ def _build_use_case(f: dict) -> dict:
         "tagline": "Goldman Sachs · Morgan Stanley · J.P.Morgan Asia / 한국 증권사 리서치",
         "value": (
             "Buy/Hold/Sell 추천 보고서의 정량 근거 강화. "
-            f"커버 종목 분기 매출 추정 모델에 본 POS 데이터를 leading indicator로 통합. "
+            f"커버 종목 분기 매출 추정 모델에 본 거래/매출 데이터를 leading indicator로 통합. "
             f"브랜드 {n_brands or '—'}개 / SKU {n_skus or '—'}개 단위 Sub-segment 분석으로 "
             "리포트 차별화 가능 (예: '편의점 채널 점유율', '신제품 침투율 추이', 'ATV 트렌드')."
         ),
         "kpi": f"Sub-segment: {n_brands}브랜드 · {n_skus}SKU",
-        "use_pattern": "분기 모델 업데이트 → POS 트렌드 반영 → 추정치 조정 → 컨센서스 대비 Out-of-consensus 콜",
+        "use_pattern": "분기 모델 업데이트 → 매출 트렌드 반영 → 추정치 조정 → 컨센서스 대비 Out-of-consensus 콜",
         "examples": [
             (f"카테고리 성장 활용 (실측): 매출 상위 카테고리 — {_fmt_share(top_cats, 3)}. "
              "각 카테고리 YoY 추이로 sell-side 추정 모델의 mix-effect 정밀화 가능."
@@ -1068,12 +1068,12 @@ def _build_use_case(f: dict) -> dict:
         "audience": "🏛 Long-only Asset Manager / Mutual Fund",
         "tagline": "BlackRock · Capital Group · Fidelity · T.Rowe Price 액티브 펀드",
         "value": (
-            "Bottom-up 종목 선정 시 POS 데이터로 Top-down 매크로 신호와 교차 검증. "
+            "Bottom-up 종목 선정 시 거래/매출 데이터로 Top-down 매크로 신호와 교차 검증. "
             "포트폴리오 내 한국 소비재 비중 결정 (Overweight/Underweight) 의사결정 보강. "
             "분기 IR 미팅 전 회사 측 가이던스의 신뢰도를 사전 정량 점검."
         ),
         "kpi": f"Universe {n_companies}개 / 분석 {period_m}개월",
-        "use_pattern": "월간 Sector Allocation Review → POS 트렌드 → 비중 조정 → 분기 IR Q&A 준비",
+        "use_pattern": "월간 Sector Allocation Review → 매출 트렌드 → 비중 조정 → 분기 IR Q&A 준비",
         "examples": [
             (f"비중 후보 (실측 매출 상위): {_fmt_share(top_cos, 3)}. "
              "각 회사 매출 점유율과 12M 모멘텀으로 Bottom-up overweight/underweight 결정."
@@ -1082,7 +1082,7 @@ def _build_use_case(f: dict) -> dict:
             (f"가이던스 검증 (실측): YoY 증가 상위 — {top_yoy[0]['name']} ({top_yoy[0]['yoy_pct']:+.1f}%). "
              "회사 가이던스가 보수적이면 IR Q&A에서 정량 질의 근거."
              if top_yoy else
-             "분기 IR 미팅 전 회사별 POS 추세 점검하여 가이던스 신뢰도 검증."),
+             "분기 IR 미팅 전 회사별 매출 추세 점검하여 가이던스 신뢰도 검증."),
         ],
     })
 
@@ -1096,7 +1096,7 @@ def _build_use_case(f: dict) -> dict:
             "한국 vs 일본/대만/중국 EM Asia 소비재 Relative Value 분석."
         ),
         "kpi": "EM Asia consumer real-time tracking",
-        "use_pattern": "월간 EM Allocation 회의 → POS 신호 → 한국 비중 조정 → KOSPI ETF / FX 포지션",
+        "use_pattern": "월간 EM Allocation 회의 → 매출 신호 → 한국 비중 조정 → KOSPI ETF / FX 포지션",
         "examples": [
             (f"매크로 시그널 (실측): 본 universe {n_companies}개사 전체 매출 "
              f"{(yoy_latest is not None and f'YoY {yoy_latest:+.1f}%') or f'{period_m}개월 추세'} — "
@@ -1162,12 +1162,12 @@ def _build_use_case(f: dict) -> dict:
             "프리-IPO 투자 의사결정 시 비교 가능 상장사의 채널 mix 벤치마킹."
         ),
         "kpi": f"{n_companies}개 직접투자 종목 모니터링 보조",
-        "use_pattern": "분기 포트폴리오 리뷰 → 보유 종목 POS 트렌드 → IR 미팅 질의 항목",
+        "use_pattern": "분기 포트폴리오 리뷰 → 보유 종목 매출 트렌드 → IR 미팅 질의 항목",
         "examples": [
             (f"보유 종목 모니터링 (실측 매출 상위): {_fmt_share(top_cos, 3)}. "
-             "이 중 보유 종목의 POS 추세를 분기 IR 미팅 전 점검 — 가이던스 신뢰도 사전 검증."
+             "이 중 보유 종목의 매출 추세를 분기 IR 미팅 전 점검 — 가이던스 신뢰도 사전 검증."
              if top_cos else
-             f"본 universe {n_companies}개사 중 보유 종목의 POS 트렌드를 분기 IR 미팅 전 점검."),
+             f"본 universe {n_companies}개사 중 보유 종목의 매출 트렌드를 분기 IR 미팅 전 점검."),
             (f"비교 벤치마킹 (실측): "
              + (f"카테고리 분포 {_fmt_share(top_cats, 3)} · " if top_cats else "")
              + (f"브랜드 분포 {_fmt_share(top_brands, 3)}. " if top_brands else "")
@@ -1210,7 +1210,7 @@ def _build_use_case(f: dict) -> dict:
                 "Bloomberg/Refinitiv 데이터와 직접 join 가능 (KRX 코드 keyed)."
             ),
             "kpi": f"Baseline IC {r:.2f} / Customizable Factor",
-            "use_pattern": "Raw POS → Custom Factor → Backtest → Paper trade → Live",
+            "use_pattern": "Raw 데이터 → Custom Factor → Backtest → Paper trade → Live",
             "examples": [
                 (f"Baseline (실측): universe {n_companies}개사, 유효 시그널 {f.get('n_ok_signals', 0)}개, "
                  f"평균 |r|={r:.2f} @ lag {lag}M. "
@@ -1371,7 +1371,7 @@ def _build_confidence(f: dict, quality_score: float | None) -> dict:
 
     # Caveats
     caveats = [
-        "본 리포트는 POS 데이터 기반 소비 신호 분석 결과로, 공식 재무 데이터를 대체하지 않습니다.",
+        "본 리포트는 거래/매출 데이터 기반 소비 신호 분석 결과로, 공식 재무 데이터를 대체하지 않습니다.",
         "주가 선행성은 과거 패턴 기반이며 미래 수익을 보장하지 않습니다.",
         f"분석에 사용된 데이터 기간은 {f.get('date_start', 'N/A')} ~ {f.get('date_end', 'N/A')}이며, 이후 시장 변화는 반영되지 않습니다.",
     ]
@@ -1395,7 +1395,7 @@ def _one_line_summary(f: dict) -> str:
     period = f.get("data_period_months", "N/A")
     alpha  = f.get("alpha_score")
     yoy    = f.get("latest_yoy")
-    parts  = [f"{len(cos)}개 기업, {period}개월 POS 데이터 분석 완료"]
+    parts  = [f"{len(cos)}개 기업, {period}개월 거래/매출 데이터 분석 완료"]
     if yoy is not None:
         parts.append(f"최근 YoY {yoy:+.1f}%")
     if alpha is not None:
@@ -1574,8 +1574,8 @@ _KO_EN_PHRASES: list[tuple[str, str]] = [
     ("선행 신호",              "lead signal"),
     # ── Bullets / actions ────────────────────────────────────────────
     ("소비 선행 신호 강함",    "Strong consumption lead signal"),
-    ("POS 데이터가 해당 기업군의 성장 방향성을 강하게 뒷받침합니다.",
-        "POS data strongly supports the growth direction of these companies."),
+    ("거래/매출 데이터가 해당 기업군의 성장 방향성을 강하게 뒷받침합니다.",
+        "Sales data strongly supports the growth direction of these companies."),
     ("공개 데이터보다 선행 정보를 확보한 상태입니다.",
         "Information is ahead of public data."),
     ("중립적 신호",            "Neutral signal"),
@@ -1645,7 +1645,7 @@ _KO_EN_PHRASES: list[tuple[str, str]] = [
         "Acquire more company data or extend period and reanalyze."),
     ("모니터링 주기",          "Monitoring cycle"),
     ("최적 시차 기준",         "based on optimal lag"),
-    ("매월 POS 매출 발표 후",  "After each monthly POS sales"),
+    ("매월 매출 발표 후",  "After each monthly sales"),
     ("개월 뒤 주가 반응을 추적하는 알림 체계를 구축하세요.",
         "months later, set up an alert system to track price response."),
     ("DART 연동 확대",         "Expand DART coverage"),
@@ -1694,8 +1694,8 @@ _KO_EN_PHRASES: list[tuple[str, str]] = [
         "Monthly sales tracking — 45~135 days ahead of quarterly filings"),
     ("한국 상장사 분기 보고서: 분기말 + 45일 (자본시장법 회계 기준)",
         "Korean listed firms quarterly filing: quarter-end + 45 days (Capital Market Act)"),
-    ("POS 거래 데이터: 거래 발생 후 1~3일 내 집계 / 월 1회 갱신",
-        "POS transactions: aggregated 1~3 days after / monthly refresh"),
+    ("거래 데이터: 거래 발생 후 1~3일 내 집계 / 월 1회 갱신",
+        "Transactions: aggregated 1~3 days after / monthly refresh"),
     ("매출 모멘텀 변곡점을 컨센서스 수정 6주 전에 정량 포착",
         "Capture sales momentum inflection 6 weeks before consensus revisions"),
     ("브랜드",                 " brands"),
@@ -1725,10 +1725,10 @@ _KO_EN_PHRASES: list[tuple[str, str]] = [
     ("Insurance / Credit Underwriting", "Insurance / Credit Underwriting"),
     ("Market Research / Strategy Consulting", "Market Research / Strategy Consulting"),
     # ── Use case patterns ───────────────────────────────────────────
-    ("월말 POS 신호 → Cross-section Rank → 익월 1영업일 리밸런싱",
-        "Month-end POS signal → Cross-section rank → 1st business day rebalance"),
-    ("분기 잔여 30일 → POS run-rate vs Consensus → Surprise 방향 → 발표 직전 진입",
-        "30 days into quarter → POS run-rate vs Consensus → Surprise direction → Pre-announcement entry"),
+    ("월말 매출 신호 → Cross-section Rank → 익월 1영업일 리밸런싱",
+        "Month-end signal → Cross-section rank → 1st business day rebalance"),
+    ("분기 잔여 30일 → 데이터 run-rate vs Consensus → Surprise 방향 → 발표 직전 진입",
+        "30 days into quarter → 데이터 run-rate vs Consensus → Surprise direction → Pre-announcement entry"),
     ("Factor zoo 추가 → 직교성 검증 → Optimization 가중치 → Live 트레이딩",
         "Add to Factor zoo → Orthogonality check → Optimization weights → Live trading"),
     # ── Quant / Stat Arb / Demand ───────────────────────────────────
@@ -1812,7 +1812,7 @@ def render_final_report(report: dict):
         <div style='font-size:11px;letter-spacing:2px;opacity:0.7;margin-bottom:4px'>
         ALTERNATIVE DATA INTELLIGENCE</div>
         <div style='font-size:26px;font-weight:800;margin-bottom:6px'>
-        Final Report — POS Signal Analysis</div>
+        Final Report — Alt-Data Signal Analysis</div>
         <div style='font-size:13px;opacity:0.8'>
         {facts.get('date_start','N/A')} ~ {facts.get('date_end','N/A')} &nbsp;·&nbsp;
         {len(facts.get('companies',[]))}개 기업 &nbsp;·&nbsp;
@@ -2125,7 +2125,7 @@ def export_html(report: dict) -> bytes:
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>Final Report — POS Signal Analysis</title>
+<title>Final Report — Alt-Data Signal Analysis</title>
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{ font-family: 'Segoe UI', Arial, sans-serif; color: #1f2937; background: #f9fafb; }}
@@ -2209,7 +2209,7 @@ def export_html(report: dict) -> bytes:
 
   <div class="header">
     <div class="sub">ALTERNATIVE DATA INTELLIGENCE</div>
-    <h1>Final Report — POS Signal Analysis</h1>
+    <h1>Final Report — Alt-Data Signal Analysis</h1>
     <div class="meta">
       {facts.get('date_start','N/A')} ~ {facts.get('date_end','N/A')} &nbsp;·&nbsp;
       {len(facts.get('companies',[]))}개 기업 &nbsp;·&nbsp;
@@ -2284,7 +2284,7 @@ def export_html(report: dict) -> bytes:
   <div class="footer">
     Alternative Data Intelligence Platform &nbsp;·&nbsp;
     Generated {today} &nbsp;·&nbsp;
-    This report is based on POS consumption data analysis and is not financial advice.
+    This report is based on alt-data consumption signal analysis and is not financial advice.
   </div>
 </div>
 </body>

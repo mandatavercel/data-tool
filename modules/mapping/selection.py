@@ -68,7 +68,7 @@ CATALOG = {
     },
     "earnings_intel": {
         "name":  "📊 Earnings Intelligence",
-        "desc":  "POS 데이터가 공시매출보다 먼저 움직이는지 검증 (DART API)",
+        "desc":  "거래/매출 데이터가 공시매출보다 먼저 움직이는지 검증 (DART API)",
         "layer": "Signal",
         "requires": ["transaction_date", "sales_amount", "stock_code"],
         "optional": [],

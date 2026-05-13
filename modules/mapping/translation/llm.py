@@ -386,7 +386,7 @@ _LARGEST_SHAREHOLDER_BATCH_SYSTEM = (
     "\"largest_shareholder_security_code\": str (ISIN if listed e.g. 'US22266T1097', "
     "'KR7xxxxxxxxx' for Korean; 'N/A' if not listed), "
     "\"mandata_brand_name_definition\": str (English description of what the brand_name "
-    "represents in the POS data; '_ALL' suffix means all transactions under that corporation. "
+    "represents in the data; '_ALL' suffix means all transactions under that corporation. "
     "Example: 'All transactions aggregated under Coupang corporation including COUPANG EATS.'), "
     "\"confidence\": float}. "
     "If unknown, leave fields empty and set confidence=0."

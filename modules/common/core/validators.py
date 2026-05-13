@@ -155,7 +155,7 @@ def validate_ratio_sanity(ratio: float) -> dict:
                 "label": "범위 초과", "message": f"{ratio:.1f}% > 100% — 집계 범위 차이 가능성"}
     if ratio < 5:
         return {"ratio": ratio, "severity": "caution",
-                "label": "매우 낮음", "message": f"{ratio:.1f}% — POS 추적 범위가 매우 좁음"}
+                "label": "매우 낮음", "message": f"{ratio:.1f}% — 매출 추적 범위가 매우 좁음"}
     return {"ratio": ratio, "severity": "ok",
             "label": "정상", "message": f"{ratio:.1f}%"}
 

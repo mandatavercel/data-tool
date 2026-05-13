@@ -38,20 +38,20 @@ def _render_glossary() -> None:
         with gcol1:
             st.markdown(
                 "<div style='font-size:13px;line-height:1.7;color:#334155'>"
-                "<b>매출 상관성 r</b> — POS 매출 변화와 주가 변화의 상관계수. "
+                "<b>매출 상관성 r</b> — 매출 변화와 주가 변화의 상관계수. "
                 "0.5+ 강함, 0.3+ 의미 있음, 0.3 미만 약함.<br><br>"
-                "<b>공시 Direction Match</b> — POS 분기 변화와 DART 공시 변화의 부호(↑↓) 일치율. "
-                "70%+면 POS만 봐도 실적 방향 예측 가능.<br><br>"
+                "<b>공시 Direction Match</b> — 분기 변화와 DART 공시 변화의 부호(↑↓) 일치율. "
+                "70%+면 매출만 봐도 실적 방향 예측 가능.<br><br>"
                 "<b>YoY</b> — Year-over-Year. 작년 동기 대비 매출 성장률.<br><br>"
                 "<b>Lag (시차)</b> — 매출이 움직인 뒤 주가가 반응하기까지 걸리는 시간. "
-                "양수면 POS가 주가를 선행."
+                "양수면 매출이 주가를 선행."
                 "</div>",
                 unsafe_allow_html=True,
             )
         with gcol2:
             st.markdown(
                 "<div style='font-size:13px;line-height:1.7;color:#334155'>"
-                "<b>POS</b> — Point of Sale. 매장 결제 단말기 거래 데이터.<br><br>"
+                "<b>Alt-Data</b> — Alternative Data. 전통 재무·실적 외 거래/카드/통신 등 외부 시그널 데이터.<br><br>"
                 "<b>DART</b> — 금융감독원 전자공시. 상장사 분기·연간 매출 공식 발표.<br><br>"
                 "<b>알파 신호</b> — 시장보다 빠르게 매출 변화를 포착해 수익을 낼 수 있는 시그널. "
                 "|r| ≥ 0.3 + lag ≥ 1주가 일반적 기준.<br><br>"
@@ -165,7 +165,7 @@ def _alpha_insights(results: dict) -> list[str]:
         max_lag = max(valid_lags)
         insights.append(
             f"📅 **선행 시차 분포**: {len(valid_lags)}개 종목 평균 {avg_lag:.1f}주 선행 "
-            f"(최대 {max_lag}주). 즉 POS 매출 변화 후 {avg_lag:.0f}주 뒤에 주가가 반응 — "
+            f"(최대 {max_lag}주). 즉 매출 변화 후 {avg_lag:.0f}주 뒤에 주가가 반응 — "
             "이 윈도우 안에 진입하면 알파 포착 가능."
         )
 
@@ -175,12 +175,12 @@ def _alpha_insights(results: dict) -> list[str]:
     dm_avg = em.get("direction_match_avg")
     if dm_avg is not None and dm_avg >= 70:
         insights.append(
-            f"📊 **POS-공시 일치도 {dm_avg:.0f}%**: POS 데이터로 공시 매출 방향성을 "
+            f"📊 **매출-공시 일치도 {dm_avg:.0f}%**: 거래/매출 데이터로 공시 매출 방향성을 "
             f"70%+ 정확도로 예측. 분기 컨센서스 Surprise 베팅에 활용 가능."
         )
     elif dm_avg is not None and dm_avg >= 50:
         insights.append(
-            f"📊 **POS-공시 일치도 {dm_avg:.0f}%**: 보조 신호로 활용 — 단독 사용은 위험."
+            f"📊 **매출-공시 일치도 {dm_avg:.0f}%**: 보조 신호로 활용 — 단독 사용은 위험."
         )
 
     # ── 4. 이상 패턴 ────────────────────────────────────────────────────────
@@ -409,7 +409,7 @@ def render_investor_dashboard(results: dict, analysis_options: dict | None = Non
     # ── 📈 매수/매도 후보 종목 (기존 유지 — 사용자 칭찬한 부분) ────────────
     st.markdown("### 📈 매수/매도 후보 종목 (Top Long/Short)")
     st.caption(
-        "POS 매출과 주가 변화의 상관관계 r 기준 — "
+        "매출과 주가 변화의 상관관계 r 기준 — "
         "🟢 양수: 매출↑→주가↑ (매수 후보) / 🔴 음수: 매출↑→주가↓ (매도 후보)"
     )
     if mkt_ok:
@@ -434,7 +434,7 @@ def render_investor_dashboard(results: dict, analysis_options: dict | None = Non
             fig.update_layout(
                 height=340, plot_bgcolor="#fff",
                 margin=dict(t=10, b=30, l=10, r=10),
-                xaxis=dict(title="POS-주가 상관 r (0.5+ 강함, 0.3+ 의미, 0.3 미만 약함)",
+                xaxis=dict(title="매출-주가 상관 r (0.5+ 강함, 0.3+ 의미, 0.3 미만 약함)",
                            showgrid=True, gridcolor="#e2e8f0",
                            range=[min(bar_values + [-0.4]) * 1.2, max(bar_values + [0.4]) * 1.2]),
                 yaxis=dict(autorange="reversed"),
@@ -483,7 +483,7 @@ def render_investor_dashboard(results: dict, analysis_options: dict | None = Non
     # ── 🔗 주가 상관성 Top 회사 ──────────────────────────────────────────────
     st.markdown("### 🔗 주가 상관성 Top 회사")
     st.caption(
-        "POS 매출과 주가의 상관계수 |r| 절댓값 기준 Top 10. "
+        "매출과 주가의 상관계수 |r| 절댓값 기준 Top 10. "
         "⭐ 🟢 강함(|r|≥0.5) · 🟡 보통(0.3+) · 🔴 약함"
     )
     market_top = _top_market_corr(results, n=10)
@@ -494,7 +494,7 @@ def render_investor_dashboard(results: dict, analysis_options: dict | None = Non
     # ── 📊 공시매출 상관성 Top 회사 ──────────────────────────────────────────
     st.markdown("### 📊 공시매출 상관성 Top 회사 (Tracking Quality)")
     st.caption(
-        "POS 매출이 DART 공시 매출을 얼마나 잘 따라가는지. Quality = Direction × 0.5 + |r| × 0.3 + Stability × 0.2. "
+        "매출이 DART 공시 매출을 얼마나 잘 따라가는지. Quality = Direction × 0.5 + |r| × 0.3 + Stability × 0.2. "
         "⭐ 🟢 강함(65+) · 🟡 보통(40+) · 🔴 약함"
     )
     earnings_top = _top_earnings_corr(results, n=10)

@@ -1,4 +1,4 @@
-"""Earnings Intelligence — quarterly POS aggregation + DART comparison by company"""
+"""Earnings Intelligence — quarterly sales aggregation + DART comparison by company"""
 import io
 import re
 import ssl
@@ -116,7 +116,7 @@ def run_earnings_intel(df: pd.DataFrame, role_map: dict, params: dict) -> dict:
                                             "URLError", "getaddrinfo")):
                 warnings.append(
                     "DART 서버 접속 차단됨 — 네트워크 환경에서 opendart.fss.or.kr 접근 불가. "
-                    "POS 분석만 표시됩니다 (모바일 핫스팟·다른 네트워크에서 재시도하면 DART 비교 가능)."
+                    "매출 분석만 표시됩니다 (모바일 핫스팟·다른 네트워크에서 재시도하면 DART 비교 가능)."
                 )
             else:
                 warnings.append(f"DART 기업목록 조회 실패: {err_msg[:200]}")
@@ -165,7 +165,7 @@ def run_earnings_intel(df: pd.DataFrame, role_map: dict, params: dict) -> dict:
 
                 if not corp_code_map:
                     warnings.append(
-                        "POS 회사명이 DART 기업 목록과 매칭되지 않음 — "
+                        "회사명이 DART 기업 목록과 매칭되지 않음 — "
                         "파라미터에서 수동 종목코드를 입력하세요"
                     )
                 else:
@@ -206,7 +206,7 @@ def run_earnings_intel(df: pd.DataFrame, role_map: dict, params: dict) -> dict:
                     if not dart_by_company:
                         warnings.append("DART 공시 데이터 없음 (기간 또는 공시 확인 필요)")
     else:
-        warnings.append("DART API key 없음 — POS 분기 집계만 제공")
+        warnings.append("DART API key 없음 — 분기 집계만 제공")
 
     n_quarters = int(qtr_agg["quarter"].nunique())
     latest_qoq = None
@@ -215,7 +215,7 @@ def run_earnings_intel(df: pd.DataFrame, role_map: dict, params: dict) -> dict:
         latest_qoq = float(s.iloc[-1])
 
     # ── Tracking Quality (헤드라인) + Coverage (보조) 계산 ──────────────────
-    # 편의점 같은 channel-slice POS는 raw Coverage가 의미 없음.
+    # 편의점 같은 channel-slice 데이터는 raw Coverage가 의미 없음.
     # 투자자가 진짜 보고 싶은 건 Direction Match · Correlation · Stability.
     universe_cov = None
     company_cov: dict[str, float] = {}
@@ -252,7 +252,7 @@ def run_earnings_intel(df: pd.DataFrame, role_map: dict, params: dict) -> dict:
             # 1) Direction Match — 부호 일치율
             dm = float((np.sign(sub["pos_qoq"]) == np.sign(sub["dart_qoq"])).mean() * 100)
 
-            # 2) POS-DART Correlation (Pearson r)
+            # 2) 매출-DART Correlation (Pearson r)
             try:
                 corr_val = float(calculate_correlation(sub["pos_qoq"], sub["dart_qoq"]))
             except Exception:
@@ -314,7 +314,7 @@ def run_earnings_intel(df: pd.DataFrame, role_map: dict, params: dict) -> dict:
     status  = "warning" if warnings else "success"
     message = " | ".join(warnings) if warnings else (
         f"{n_quarters}개 분기 집계 완료 · DART {len(dart_by_company)}개사 연동"
-        if dart_by_company else f"{n_quarters}개 분기 POS 집계 완료"
+        if dart_by_company else f"{n_quarters}개 분기 매출 집계 완료"
     )
 
     bs  = check_sample_size_sanity(n_quarters, min_required=6)
@@ -327,7 +327,7 @@ def run_earnings_intel(df: pd.DataFrame, role_map: dict, params: dict) -> dict:
         used_roles=["transaction_date", "sales_amount", "company_name"],
         date_min=_date_min,
         date_max=_date_max,
-        formula="분기별 POS 집계 + DART YTD→분기 변환 + QoQ / YoY 성장률",
+        formula="분기별 매출 집계 + DART YTD→분기 변환 + QoQ / YoY 성장률",
         agg_unit="분기",
         n_computable=n_quarters,
         n_periods=n_quarters,
@@ -717,7 +717,7 @@ def _build_lead_table(pos_agg: pd.DataFrame, dart_df: pd.DataFrame) -> pd.DataFr
     if "yoy_pct" in merged.columns:
         merged["yoy_gap"] = (merged["yoy_pct"] - merged["dart_yoy"]).round(1)
 
-    # POS Tracking Ratio: POS quarterly / DART standalone quarterly
+    # Tracking Ratio: POS quarterly / DART standalone quarterly
     merged["tracking_ratio"] = calculate_tracking_ratio(
         merged["pos_sales"], merged["dart_sales"]
     ).round(1)
@@ -740,7 +740,7 @@ def _build_lead_table(pos_agg: pd.DataFrame, dart_df: pd.DataFrame) -> pd.DataFr
 
 
 def _compute_lag_corrs(lead_tbl: pd.DataFrame, max_lag: int = 4) -> pd.DataFrame:
-    """POS QoQ가 DART QoQ보다 몇 분기 앞서는지 lag별 Pearson r 계산.
+    """매출 QoQ가 DART QoQ보다 몇 분기 앞서는지 lag별 Pearson r 계산.
 
     lag > 0 → POS가 lag분기 선행
     lag = 0 → 동행
@@ -751,14 +751,14 @@ def _compute_lag_corrs(lead_tbl: pd.DataFrame, max_lag: int = 4) -> pd.DataFrame
         lead_tbl["dart_qoq"].values,
         max_lag=max_lag,
         min_lag=-2,
-        name_a="POS",
+        name_a="매출",
         name_b="DART",
     )
     # Korean quarter-unit labels expected by the renderer
     def _label(row):
         lag = row["lag"]
         if lag > 0:
-            return f"POS {lag}Q 선행"
+            return f"매출 {lag}Q 선행"
         if lag < 0:
             return f"DART {-lag}Q 선행"
         return "동행 (lag 0)"
@@ -814,15 +814,15 @@ def _sanity_check(lead_tbl: pd.DataFrame) -> dict:
     if not np.isnan(avg_tr):
         if avg_tr > 150:
             issues.append({"type": "channel_scope", "label": "채널 범위 초과",
-                           "desc": f"평균 추적률 {avg_tr:.0f}% — POS 집계 범위가 공시 매출을 초과. "
+                           "desc": f"평균 추적률 {avg_tr:.0f}% — 매출 집계 범위가 공시 매출을 초과. "
                                    "채널 중복 집계 또는 총매출 vs 순매출 혼용 가능성"})
             issues.append({"type": "consolidated_separate", "label": "연결/별도 불일치",
                            "desc": "DART OFS(별도) 대신 CFS(연결)를 사용하거나, "
-                                   "POS가 연결 기준 채널을 포함하는지 확인 필요"})
+                                   "매출이 연결 기준 채널을 포함하는지 확인 필요"})
         elif avg_tr > 100:
             issues.append({"type": "channel_scope", "label": "채널 범위 경고",
                            "desc": f"평균 추적률 {avg_tr:.0f}% > 100% — "
-                                   "POS 범위(총매출)와 DART 공시 범위(순매출) 차이 가능성"})
+                                   "매출 범위(총매출)와 DART 공시 범위(순매출) 차이 가능성"})
 
     if n_ext > 0:
         issues.append({"type": "quarterly_transform", "label": "분기 변환 이상",
@@ -842,7 +842,7 @@ def _sanity_check(lead_tbl: pd.DataFrame) -> dict:
     # ── 중복 집계 경고 ────────────────────────────────────────────────────
     if n_above > len(tr) * 0.5 and not np.isnan(avg_tr) and avg_tr > 80:
         issues.append({"type": "duplicated_aggregation", "label": "중복 집계 의심",
-                       "desc": f"전체 분기의 {n_above}/{len(tr)}에서 POS > DART — "
+                       "desc": f"전체 분기의 {n_above}/{len(tr)}에서 매출 > DART — "
                                "거래 데이터의 회사/브랜드 중복 집계 여부 확인 필요"})
 
     # ── severity 결정 ─────────────────────────────────────────────────────
@@ -900,7 +900,7 @@ def _render(result: dict):
     company_cov = m.get("company_coverage", {}) or {}   # 모든 곳에서 안전하게 접근 가능
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("총 POS 매출",       f"{total_pos:,.0f}")
+    c1.metric("총 매출",       f"{total_pos:,.0f}")
     c2.metric("DART 연동 기업 수", f"{m.get('n_dart_companies', 0)}")
 
     if tq_avg is not None:
@@ -911,7 +911,7 @@ def _render(result: dict):
             delta=tq_emoji,
             delta_color="off",
             help="투자자 관점 종합 신호 품질 (Universe 평균). "
-                 "Direction Match × 0.5 + |POS-DART corr| × 0.3 + Stability × 0.2. "
+                 "Direction Match × 0.5 + |매출-DART corr| × 0.3 + Stability × 0.2. "
                  "65+ 강한 신호 / 40~65 부분적 / <40 약함",
         )
     else:
@@ -924,8 +924,8 @@ def _render(result: dict):
             f"{dm_avg:.0f}%",
             delta=f"|r|={corr_avg:.2f}" if corr_avg is not None else None,
             delta_color="off",
-            help="POS QoQ와 DART QoQ가 같은 방향(부호)인 분기 비율. "
-                 "70%+ = POS가 실적 방향 신뢰성 있게 예측",
+            help="매출 QoQ와 DART QoQ가 같은 방향(부호)인 분기 비율. "
+                 "70%+ = 매출이 실적 방향 신뢰성 있게 예측",
         )
     else:
         c4.metric("Direction Match", "N/A")
@@ -936,7 +936,7 @@ def _render(result: dict):
             f"{stab_avg:.2f}",
             delta="비율 안정성",
             delta_color="off",
-            help="POS/DART 비율의 시간적 안정성 (1/(1+CoV)). "
+            help="매출/DART 비율의 시간적 안정성 (1/(1+CoV)). "
                  "0.7+ 매우 안정 / 0.4~0.7 보통 / <0.4 변동 큼",
         )
     else:
@@ -944,7 +944,7 @@ def _render(result: dict):
 
     qoq = m.get("latest_qoq")
     if qoq is not None:
-        st.caption(f"📊 최근 분기 POS QoQ: **{qoq:+.1f}%**")
+        st.caption(f"📊 최근 분기 매출 QoQ: **{qoq:+.1f}%**")
 
     # ── Tracking Quality 회사별 ranking + Coverage 보조 정보 (expander) ─────
     if co_track or m.get("company_coverage"):
@@ -975,7 +975,7 @@ def _render(result: dict):
             st.dataframe(df_tq, hide_index=True, use_container_width=True)
             st.caption(
                 "**Tracking Quality** (헤드라인): Direction × 0.5 + |r| × 0.3 + Stability × 0.2. "
-                "**Coverage** (보조 정보): POS / DART 매출 합계 — 편의점·카드 같은 channel-slice POS는 "
+                "**Coverage** (보조 정보): 매출 / DART 매출 합계 — 편의점·카드 같은 channel-slice 데이터는 "
                 "100% 초과되거나 회사·기간별 큰 분산을 보일 수 있음 (별도 vs 연결 / 단위 / VAT 등). "
                 "투자자 의사결정엔 Quality가 더 직접적."
             )
@@ -1105,18 +1105,18 @@ def _render(result: dict):
         s1, s2, s3, s4, s5, s6 = st.columns(6)
         s1.metric("Trend Match Score", f"{trend_match:.0f}%",
                   f"QoQ 방향 일치 {n_dir}/{n}Q",
-                  help="POS와 DART 공시의 분기 성장 방향(상승/하락)이 일치한 비율")
+                  help="매출과 DART 공시의 분기 성장 방향(상승/하락)이 일치한 비율")
         s2.metric("YoY 방향 일치율",
                   f"{yoy_dir_rate:.0f}%" if yoy_dir_rate is not None else "N/A",
                   help="연간 성장 방향 일치율 (최소 5분기 필요)")
         s3.metric("Growth Corr (QoQ)",
                   f"{growth_corr:+.2f}" if not np.isnan(growth_corr) else "N/A",
                   "강함" if abs(growth_corr) >= 0.7 else ("중간" if abs(growth_corr) >= 0.4 else "약함"),
-                  help="POS QoQ와 DART QoQ 성장률의 Pearson 상관계수")
+                  help="매출 QoQ와 DART QoQ 성장률의 Pearson 상관계수")
         s4.metric("Level Corr (절대값)",
                   f"{level_corr:+.2f}" if not np.isnan(level_corr) else "N/A",
                   "강함" if abs(level_corr) >= 0.9 else ("중간" if abs(level_corr) >= 0.7 else "약함"),
-                  help="POS 분기 매출과 DART 분기 매출 절대값의 Pearson 상관계수")
+                  help="분기 매출과 DART 분기 매출 절대값의 Pearson 상관계수")
         s5.metric("공시 대비 선행일", f"~{avg_lead}일", "법정 공시기한 기준",
                   help="Q1·Q2·Q3: 분기 종료 후 45일, Q4: 90일")
         # Sanity check 실행
@@ -1128,21 +1128,21 @@ def _render(result: dict):
             tr_delta = "⚠️ 신뢰도 낮음"
         elif sc["severity"] == "warning":
             tr_delta = "⚠️ 범위 확인 필요"
-        s6.metric("POS Tracking Ratio",
+        s6.metric("Tracking Ratio",
                   tr_label, tr_delta,
                   help=(
-                      "POS 분기 매출 / DART 분기 단독 공시 매출 × 100\n\n"
+                      "분기 매출 / DART 분기 단독 공시 매출 × 100\n\n"
                       "⚠️ 참고용 지표: 단위·집계범위·연결/별도 차이에 따라 "
                       "100% 초과가 발생할 수 있으며, 이 경우 Sanity Check 탭을 확인하세요."
                   ))
 
         # ── 선행 신호 배너 ───────────────────────────────────────────────────
         if trend_match >= 75 and abs(growth_corr) >= 0.6:
-            bc, bi, bt = "#f0fdf4", "🟢", f"강한 선행 신호 — POS가 공시보다 평균 {avg_lead}일 앞서 방향성을 {trend_match:.0f}% 정확도로 추적"
+            bc, bi, bt = "#f0fdf4", "🟢", f"강한 선행 신호 — 매출이 공시보다 평균 {avg_lead}일 앞서 방향성을 {trend_match:.0f}% 정확도로 추적"
         elif trend_match >= 55 or abs(growth_corr) >= 0.4:
             bc, bi, bt = "#fffbeb", "🟡", f"중간 선행 신호 — Trend Match {trend_match:.0f}%, 추가 검증 권장"
         else:
-            bc, bi, bt = "#fef2f2", "🔴", f"약한 선행 신호 — POS Tracking Ratio가 낮거나 데이터 기간이 짧을 수 있음"
+            bc, bi, bt = "#fef2f2", "🔴", f"약한 선행 신호 — Tracking Ratio가 낮거나 데이터 기간이 짧을 수 있음"
         st.markdown(
             f"<div style='background:{bc};border-radius:8px;padding:12px 16px;"
             f"font-size:13px;margin:8px 0 8px'>{bi} {bt}</div>",
@@ -1171,13 +1171,13 @@ def _render(result: dict):
             st.markdown(
                 "<div style='background:#f0fdf4;border-radius:8px;padding:8px 16px;"
                 "font-size:12px;margin:0 0 12px'>✅ <b>Sanity Check 통과</b> — "
-                "POS Tracking Ratio 및 단위가 정상 범위 내</div>",
+                "Tracking Ratio 및 단위가 정상 범위 내</div>",
                 unsafe_allow_html=True,
             )
 
     # ── 탭 ────────────────────────────────────────────────────────────────────
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "📊 POS / DART 절대값 비교",
+        "📊 매출 / DART 절대값 비교",
         "📈 Growth Alignment",
         "📡 Lead Signal",
         "📈 Coverage Stability",
@@ -1186,7 +1186,7 @@ def _render(result: dict):
     ])
 
     # ════════════════════════════════════════════════════════════════════════
-    # TAB 1 — POS / DART 절대값 비교
+    # TAB 1 — 매출 / DART 절대값 비교
     # ════════════════════════════════════════════════════════════════════════
     with tab1:
         # 주가 연동 상태 진단 (회사 선택 시에만 표시)
@@ -1197,24 +1197,24 @@ def _render(result: dict):
             if not view_agg.empty and "pos_sales" in view_agg.columns:
                 fig = go.Figure(go.Bar(
                     x=view_agg["quarter_str"], y=view_agg["pos_sales"],
-                    name="POS 분기 매출", marker_color="#3b82f6",
+                    name="분기 매출", marker_color="#3b82f6",
                     text=[f"{v:,.0f}" for v in view_agg["pos_sales"]],
                     textposition="outside",
                 ))
                 fig.update_layout(
-                    title=f"POS 분기별 절대 매출{title_sfx}",
+                    title=f"분기별 절대 매출{title_sfx}",
                     height=380, yaxis_title="매출액",
                 )
                 st.plotly_chart(fig, key="earnings_1")
                 st.info("DART API 연동 시 공시 매출과 절대값 비교 및 Tracking Ratio를 확인할 수 있습니다.")
             else:
-                st.info("POS 데이터를 집계 중이거나 분기가 부족합니다.")
+                st.info("거래/매출 데이터를 집계 중이거나 분기가 부족합니다.")
         else:
             tr_series = lead_tbl["tracking_ratio"].replace([np.inf, -np.inf], np.nan)
             avg_tr_t1 = tr_series.dropna().mean()
 
             a1, a2, a3, a4 = st.columns(4)
-            a1.metric("총 POS 매출",        f"{lead_tbl['pos_sales'].sum():,.0f}")
+            a1.metric("총 매출",        f"{lead_tbl['pos_sales'].sum():,.0f}")
             a2.metric("총 DART 매출",        f"{lead_tbl['dart_sales'].sum():,.0f}")
             a3.metric("평균 Tracking Ratio", f"{avg_tr_t1:.1f}%" if not np.isnan(avg_tr_t1) else "N/A")
             a4.metric("분석 분기 수",        f"{len(lead_tbl)}")
@@ -1228,12 +1228,12 @@ def _render(result: dict):
                 fig_abs = go.Figure()
                 fig_abs.add_trace(go.Bar(
                     x=level_data["quarter_str"], y=gap,
-                    name="Gap (POS − DART)",
+                    name="Gap (매출 − DART)",
                     marker_color=gap_colors, opacity=0.55,
                 ))
                 fig_abs.add_trace(go.Scatter(
                     x=level_data["quarter_str"], y=level_data["pos_sales"],
-                    mode="lines+markers", name="POS Revenue",
+                    mode="lines+markers", name="매출 Revenue",
                     line=dict(color="#3b82f6", width=2.5),
                     marker=dict(size=6),
                 ))
@@ -1260,7 +1260,7 @@ def _render(result: dict):
                 fig_abs.update_layout(
                     height=420,
                     title=(
-                        f"절대값 비교 — POS vs Reported Revenue (Quarterly)"
+                        f"절대값 비교 — 매출 vs Reported Revenue (Quarterly)"
                         f"{' vs 주가' if stock_added else ''}{title_sfx}"
                     ),
                     yaxis_title="매출",
@@ -1278,8 +1278,8 @@ def _render(result: dict):
                     )
                 st.plotly_chart(fig_abs, key="earnings_2")
                 _caption = (
-                    "파란 선: POS 분기 매출 · 주황 선: DART 분기 단독 공시 매출 · "
-                    "회색 막대: Gap(POS − DART). Pearson r은 두 시계열 절대값의 상관계수."
+                    "파란 선: 분기 매출 · 주황 선: DART 분기 단독 공시 매출 · "
+                    "회색 막대: Gap(매출 − DART). Pearson r은 두 시계열 절대값의 상관계수."
                 )
                 if stock_added:
                     _caption += (
@@ -1294,9 +1294,9 @@ def _render(result: dict):
             st.dataframe(
                 disp_abs.rename(columns={
                     "quarter_str":    "분기",
-                    "pos_sales":      "POS 분기 매출",
+                    "pos_sales":      "분기 매출",
                     "dart_sales":     "DART 분기 단독 매출",
-                    "tracking_ratio": "POS Tracking Ratio",
+                    "tracking_ratio": "Tracking Ratio",
                 }), hide_index=True,
             )
 
@@ -1309,20 +1309,20 @@ def _render(result: dict):
                 fig = go.Figure()
                 fig.add_trace(go.Bar(
                     x=view_agg["quarter_str"], y=view_agg["qoq_pct"].round(1),
-                    name="POS QoQ(%)", marker_color="#3b82f6",
+                    name="매출 QoQ(%)", marker_color="#3b82f6",
                 ))
                 if "yoy_pct" in view_agg.columns:
                     fig.add_trace(go.Scatter(
                         x=view_agg["quarter_str"], y=view_agg["yoy_pct"].round(1),
-                        mode="lines+markers", name="POS YoY(%)",
+                        mode="lines+markers", name="매출 YoY(%)",
                         line=dict(color="#f59e0b", width=2),
                     ))
                 fig.add_hline(y=0, line_dash="dot", line_color="gray")
-                fig.update_layout(title=f"POS 분기 성장률{title_sfx}", height=380)
+                fig.update_layout(title=f"분기 성장률{title_sfx}", height=380)
                 st.plotly_chart(fig, key="earnings_3")
                 st.info("DART API 연동 시 공시 성장률과 Growth Gap을 비교할 수 있습니다.")
             else:
-                st.info("POS 데이터를 집계 중이거나 분기가 부족합니다.")
+                st.info("거래/매출 데이터를 집계 중이거나 분기가 부족합니다.")
         else:
             ga1, ga2, ga3 = st.tabs(["QoQ 비교", "YoY 비교", "Trend Match"])
 
@@ -1330,7 +1330,7 @@ def _render(result: dict):
                 fig = go.Figure()
                 fig.add_trace(go.Bar(
                     x=lead_tbl["quarter_str"], y=lead_tbl["qoq_pct"].round(1),
-                    name="POS QoQ(%)", marker_color="#3b82f6", opacity=0.85,
+                    name="매출 QoQ(%)", marker_color="#3b82f6", opacity=0.85,
                 ))
                 fig.add_trace(go.Bar(
                     x=lead_tbl["quarter_str"], y=lead_tbl["dart_qoq"].round(1),
@@ -1350,13 +1350,13 @@ def _render(result: dict):
                         gap_colors = ["#16a34a" if v >= 0 else "#dc2626" for v in gap_data["qoq_gap"]]
                         fig_gap = go.Figure(go.Bar(
                             x=gap_data["quarter_str"], y=gap_data["qoq_gap"].round(1),
-                            name="QoQ Growth Gap (POS − DART)",
+                            name="QoQ Growth Gap (매출 − DART)",
                             marker_color=gap_colors,
                         ))
                         fig_gap.add_hline(y=0, line_dash="solid", line_color="#9ca3af")
                         fig_gap.update_layout(
                             height=260,
-                            title="QoQ Growth Gap = POS − DART  (양수 = POS가 더 빠르게 성장)",
+                            title="QoQ Growth Gap = 매출 − DART  (양수 = 매출이 더 빠르게 성장)",
                             yaxis_title="Gap (pp)",
                         )
                         st.plotly_chart(fig_gap, key="earnings_5")
@@ -1368,7 +1368,7 @@ def _render(result: dict):
                         fig = go.Figure()
                         fig.add_trace(go.Bar(
                             x=yoy_data["quarter_str"], y=yoy_data["yoy_pct"].round(1),
-                            name="POS YoY(%)", marker_color="#3b82f6", opacity=0.85,
+                            name="매출 YoY(%)", marker_color="#3b82f6", opacity=0.85,
                         ))
                         fig.add_trace(go.Bar(
                             x=yoy_data["quarter_str"], y=yoy_data["dart_yoy"].round(1),
@@ -1388,13 +1388,13 @@ def _render(result: dict):
                                 gap_col = ["#16a34a" if v >= 0 else "#dc2626" for v in yoy_gap_d["yoy_gap"]]
                                 fig_g2 = go.Figure(go.Bar(
                                     x=yoy_gap_d["quarter_str"], y=yoy_gap_d["yoy_gap"].round(1),
-                                    name="YoY Growth Gap (POS − DART)",
+                                    name="YoY Growth Gap (매출 − DART)",
                                     marker_color=gap_col,
                                 ))
                                 fig_g2.add_hline(y=0, line_dash="solid", line_color="#9ca3af")
                                 fig_g2.update_layout(
                                     height=260,
-                                    title="YoY Growth Gap = POS − DART",
+                                    title="YoY Growth Gap = 매출 − DART",
                                     yaxis_title="Gap (pp)",
                                 )
                                 st.plotly_chart(fig_g2, key="earnings_7")
@@ -1466,8 +1466,8 @@ def _render(result: dict):
                     fig2.add_hline(y=0, line_dash="dot", line_color="#e5e7eb")
                     fig2.update_layout(
                         height=380,
-                        title=f"POS QoQ vs DART QoQ 산점도 (R²={corr**2:.2f})",
-                        xaxis_title="POS QoQ(%)", yaxis_title="DART QoQ(%)",
+                        title=f"매출 QoQ vs DART QoQ 산점도 (R²={corr**2:.2f})",
+                        xaxis_title="매출 QoQ(%)", yaxis_title="DART QoQ(%)",
                         legend=dict(orientation="h", y=-0.25),
                     )
                     st.plotly_chart(fig2, key="earnings_9")
@@ -1477,14 +1477,14 @@ def _render(result: dict):
                 disp["방향(QoQ)"] = disp["direction_match"].map({True: "✅ 일치", False: "❌ 불일치"})
                 if "yoy_direction_match" in disp.columns:
                     disp["방향(YoY)"] = disp["yoy_direction_match"].map({True: "✅", False: "❌"})
-                disp["POS QoQ(%)"]  = disp["qoq_pct"].round(1)
+                disp["매출 QoQ(%)"]  = disp["qoq_pct"].round(1)
                 disp["DART QoQ(%)"] = disp["dart_qoq"].round(1)
                 disp["Growth Gap"]  = disp["qoq_gap"].apply(
                     lambda v: f"{v:+.1f}pp" if pd.notna(v) else "—"
                 ) if "qoq_gap" in disp.columns else "—"
                 disp["선행일"]      = disp["lead_days"].apply(lambda v: f"~{v}일")
 
-                show = ["quarter_str", "POS QoQ(%)", "DART QoQ(%)", "Growth Gap", "방향(QoQ)"]
+                show = ["quarter_str", "매출 QoQ(%)", "DART QoQ(%)", "Growth Gap", "방향(QoQ)"]
                 if "yoy_direction_match" in lead_tbl.columns:
                     show.append("방향(YoY)")
                 show.append("선행일")
@@ -1492,8 +1492,8 @@ def _render(result: dict):
                     disp[show].rename(columns={"quarter_str": "분기"}), hide_index=True,
                 )
                 st.caption(
-                    "Trend Match Score = POS와 DART 공시의 분기 성장 방향(상승/하락)이 일치한 비율. "
-                    "Growth Gap = POS QoQ − DART QoQ (양수면 POS가 공시보다 빠른 성장을 선반영)."
+                    "Trend Match Score = 매출과 DART 공시의 분기 성장 방향(상승/하락)이 일치한 비율. "
+                    "Growth Gap = 매출 QoQ − DART QoQ (양수면 매출이 공시보다 빠른 성장을 선반영)."
                 )
 
     # ════════════════════════════════════════════════════════════════════════
@@ -1521,8 +1521,8 @@ def _render(result: dict):
                 ls1.metric(
                     "최적 선행 Lag",
                     f"{best_lag}Q",
-                    "POS 선행" if best_lag > 0 else ("동행" if best_lag == 0 else "DART 선행"),
-                    help="POS QoQ와 DART QoQ의 상관이 가장 높은 lag. 양수 = POS가 앞섬.",
+                    "매출 선행" if best_lag > 0 else ("동행" if best_lag == 0 else "DART 선행"),
+                    help="매출 QoQ와 DART QoQ의 상관이 가장 높은 lag. 양수 = 매출이 앞섬.",
                 )
                 ls2.metric(
                     "최적 Lag 상관계수",
@@ -1539,8 +1539,8 @@ def _render(result: dict):
                 # ── 1. 성장률 overlay 차트 ─────────────────────────────────
                 st.markdown("#### Early Signal before the Revenue Report")
                 st.caption(
-                    "POS 성장률(빨강)과 DART 공시 성장률(회색)을 같은 축에 표시합니다. "
-                    "POS 곡선이 공시보다 먼저 방향을 전환하면 선행 신호입니다."
+                    "매출 성장률(빨강)과 DART 공시 성장률(회색)을 같은 축에 표시합니다. "
+                    "매출 곡선이 공시보다 먼저 방향을 전환하면 선행 신호입니다."
                 )
 
                 # QoQ overlay
@@ -1554,7 +1554,7 @@ def _render(result: dict):
                         x=qoq_data["quarter_str"],
                         y=qoq_data["qoq_pct"].round(1),
                         mode="lines+markers",
-                        name="POS (QoQ %)",
+                        name="매출 (QoQ %)",
                         line=dict(color="#ef4444", width=2.5),
                         marker=dict(size=6),
                     ))
@@ -1588,12 +1588,12 @@ def _render(result: dict):
                         if display_lag > 0:
                             shifted_pos  = qoq_data["qoq_pct"].values[:-n]
                             shifted_qtrs = qoq_data["quarter_str"].values[n:]
-                            shift_name   = f"POS {n}Q 선행 (shifted)"
+                            shift_name   = f"매출 {n}Q 선행 (shifted)"
                             shift_help_hint = "(동행 가정 default)" if best_lag == 0 else ""
                         else:
                             shifted_pos  = qoq_data["qoq_pct"].values[n:]
                             shifted_qtrs = qoq_data["quarter_str"].values[:-n]
-                            shift_name   = f"POS {n}Q 후행 (shifted)"
+                            shift_name   = f"매출 {n}Q 후행 (shifted)"
                             shift_help_hint = ""
                         full_name = (
                             f"{shift_name} {shift_help_hint}".strip()
@@ -1614,7 +1614,7 @@ def _render(result: dict):
                     fig_qoq.update_layout(
                         height=380,
                         title=dict(
-                            text=f"QoQ Growth(%) — POS vs Reported Revenue"
+                            text=f"QoQ Growth(%) — 매출 vs Reported Revenue"
                                  f"{' vs 주가' if stock_qoq_added else ''}"
                                  f"{title_sfx}",
                             font=dict(size=14),
@@ -1638,7 +1638,7 @@ def _render(result: dict):
                         st.caption(
                             "💡 **파란색 점선 = 같은 분기 주가 QoQ(%)** — 우측 축. "
                             "Market Signal 결과의 일별 종가에서 분기 마지막 영업일 가격을 사용. "
-                            "POS·공시·주가 세 줄이 같이 움직이면 강한 알파 신호."
+                            "매출·공시·주가 세 줄이 같이 움직이면 강한 알파 신호."
                         )
                     else:
                         if st.session_state.get("results", {}).get("market_signal"):
@@ -1648,7 +1648,7 @@ def _render(result: dict):
                         else:
                             st.caption(
                                 "ℹ️ **주가 line을 같이 보려면** Step 4로 가서 Market Signal도 함께 실행하세요. "
-                                "그러면 POS·공시·주가 3가지를 한 차트에서 비교 가능."
+                                "그러면 매출·공시·주가 3가지를 한 차트에서 비교 가능."
                             )
 
                 # YoY overlay
@@ -1665,7 +1665,7 @@ def _render(result: dict):
                             x=yoy_data["quarter_str"],
                             y=yoy_data["yoy_pct"].round(1),
                             mode="lines+markers",
-                            name="POS (YoY %)",
+                            name="매출 (YoY %)",
                             line=dict(color="#ef4444", width=2.5),
                             marker=dict(size=6),
                         ))
@@ -1691,7 +1691,7 @@ def _render(result: dict):
                         fig_yoy.update_layout(
                             height=380,
                             title=dict(
-                                text=f"YoY Growth(%) Correlation — POS vs Reported Revenue{title_sfx}",
+                                text=f"YoY Growth(%) Correlation — 매출 vs Reported Revenue{title_sfx}",
                                 font=dict(size=14),
                             ),
                             yaxis_title="YoY 성장률 (%)",
@@ -1711,12 +1711,12 @@ def _render(result: dict):
                     fig_lvl = go.Figure()
                     fig_lvl.add_trace(go.Bar(
                         x=level_data["quarter_str"], y=gap_abs,
-                        name="Gap (POS − DART)",
+                        name="Gap (매출 − DART)",
                         marker_color=gap_colors, opacity=0.5,
                     ))
                     fig_lvl.add_trace(go.Scatter(
                         x=level_data["quarter_str"], y=level_data["pos_sales"],
-                        mode="lines+markers", name="POS Revenue (절대값)",
+                        mode="lines+markers", name="매출 Revenue (절대값)",
                         line=dict(color="#ef4444", width=2.5),
                         marker=dict(size=6),
                     ))
@@ -1737,7 +1737,7 @@ def _render(result: dict):
                     fig_lvl.update_layout(
                         height=400,
                         title=dict(
-                            text=f"Absolute Revenue — POS vs Reported Revenue{title_sfx}",
+                            text=f"Absolute Revenue — 매출 vs Reported Revenue{title_sfx}",
                             font=dict(size=14),
                         ),
                         yaxis_title="매출",
@@ -1749,8 +1749,8 @@ def _render(result: dict):
                     )
                     st.plotly_chart(fig_lvl, key="earnings_12")
                     st.caption(
-                        "빨간 선: POS 분기 매출 · 회색 선: DART 분기 단독 공시 매출 · "
-                        "회색 막대: Gap(POS − DART). Pearson r은 절대값 시계열 기준."
+                        "빨간 선: 분기 매출 · 회색 선: DART 분기 단독 공시 매출 · "
+                        "회색 막대: Gap(매출 − DART). Pearson r은 절대값 시계열 기준."
                     )
 
                 st.divider()
@@ -1775,7 +1775,7 @@ def _render(result: dict):
                                   annotation_text="강한 음의 상관 (−0.6)")
                 fig_lag.update_layout(
                     height=340,
-                    title=f"Lag별 POS QoQ → DART QoQ 상관계수{title_sfx}",
+                    title=f"Lag별 매출 QoQ → DART QoQ 상관계수{title_sfx}",
                     xaxis_title="Lag (분기)",
                     yaxis=dict(title="Pearson r", range=[-1.1, 1.1]),
                     showlegend=False,
@@ -1784,14 +1784,14 @@ def _render(result: dict):
 
                 if best_lag > 0:
                     st.success(
-                        f"✅ POS 데이터가 DART 공시보다 **{best_lag}분기 선행** (r = {best_r:.2f}). "
+                        f"✅ 거래/매출 데이터가 DART 공시보다 **{best_lag}분기 선행** (r = {best_r:.2f}). "
                         f"공시 기한(~{avg_lead}일) 포함 시 실질 정보 우위 "
                         f"약 **{best_lag * 3}개월 + {avg_lead}일**."
                     )
                 elif best_lag == 0:
-                    st.info(f"POS와 DART가 동행 (lag 0에서 최고 상관 r = {best_r:.2f}). 선행성은 법정 공시 기한({avg_lead}일)에서만 발생.")
+                    st.info(f"매출과 DART가 동행 (lag 0에서 최고 상관 r = {best_r:.2f}). 선행성은 법정 공시 기한({avg_lead}일)에서만 발생.")
                 else:
-                    st.warning(f"⚠️ DART가 POS보다 {-best_lag}분기 선행. POS 추적 범위 또는 데이터 품질을 점검하세요.")
+                    st.warning(f"⚠️ DART가 매출보다 {-best_lag}분기 선행. 매출 추적 범위 또는 데이터 품질을 점검하세요.")
 
                 st.dataframe(
                     lag_valid[["label", "r", "n"]].rename(columns={
@@ -1802,19 +1802,19 @@ def _render(result: dict):
                 st.warning("분기 데이터가 부족하거나 분산이 없어 lag 상관분석을 수행할 수 없습니다.")
 
     # ════════════════════════════════════════════════════════════════════════
-    # TAB 4 — Coverage Stability (POS Tracking Ratio)
+    # TAB 4 — Coverage Stability (Tracking Ratio)
     # ════════════════════════════════════════════════════════════════════════
     with tab4:
         st.markdown(
             "<div style='background:#eff6ff;border-left:4px solid #3b82f6;"
             "padding:10px 14px;border-radius:4px;font-size:13px;margin-bottom:12px'>"
-            "📌 <b>POS Tracking Ratio</b> = 실제 매출 중 POS 데이터로 추적 가능한 비율<br>"
-            "<span style='color:#6b7280'>= POS 분기 매출 ÷ DART 분기 단독 공시 매출 × 100</span></div>",
+            "📌 <b>Tracking Ratio</b> = 실제 매출 중 거래/매출 데이터로 추적 가능한 비율<br>"
+            "<span style='color:#6b7280'>= 분기 매출 ÷ DART 분기 단독 공시 매출 × 100</span></div>",
             unsafe_allow_html=True,
         )
 
         if lead_tbl.empty:
-            st.info("DART 연동 데이터가 있어야 POS Tracking Ratio를 계산할 수 있습니다.")
+            st.info("DART 연동 데이터가 있어야 Tracking Ratio를 계산할 수 있습니다.")
         else:
             tr = lead_tbl["tracking_ratio"].replace([np.inf, -np.inf], np.nan)
             tr_mean = tr.dropna().mean()
@@ -1847,7 +1847,7 @@ def _render(result: dict):
             # Tracking ratio line
             fig.add_trace(go.Scatter(
                 x=lead_tbl["quarter_str"], y=tr,
-                mode="lines+markers", name="POS Tracking Ratio(%)",
+                mode="lines+markers", name="Tracking Ratio(%)",
                 line=dict(color="#1e40af", width=2),
                 marker=dict(size=7),
             ))
@@ -1862,7 +1862,7 @@ def _render(result: dict):
                 ))
             fig.update_layout(
                 height=400,
-                title=f"POS Tracking Ratio 추이{title_sfx}",
+                title=f"Tracking Ratio 추이{title_sfx}",
                 yaxis=dict(title="Tracking Ratio (%)", rangemode="tozero"),
                 legend=dict(orientation="h", y=-0.2),
             )
@@ -1879,14 +1879,14 @@ def _render(result: dict):
             st.dataframe(
                 disp_tr.rename(columns={
                     "quarter_str":    "분기",
-                    "pos_sales":      "POS 분기 매출",
+                    "pos_sales":      "분기 매출",
                     "dart_sales":     "DART 분기 단독 매출",
-                    "tracking_ratio": "POS Tracking Ratio",
+                    "tracking_ratio": "Tracking Ratio",
                 }), hide_index=True,
             )
             st.caption(
                 "이상 분기(⚠️) = Tracking Ratio가 평균 ±1σ를 벗어난 분기. "
-                "급격한 변화는 POS 데이터 누락, 신규 채널 추가, 또는 공시 수정을 시사할 수 있습니다."
+                "급격한 변화는 거래/매출 데이터 누락, 신규 채널 추가, 또는 공시 수정을 시사할 수 있습니다."
             )
 
     # ════════════════════════════════════════════════════════════════════════
@@ -1922,7 +1922,7 @@ def _render(result: dict):
                 if sc_here["pos_unit_note"]:
                     st.markdown(f"- {sc_here['pos_unit_note']}")
                 if sc_here.get("avg_ratio_raw") is not None:
-                    st.markdown(f"- POS/DART 규모 비율: `{sc_here['avg_ratio_raw']:.1f}×`")
+                    st.markdown(f"- 매출/DART 규모 비율: `{sc_here['avg_ratio_raw']:.1f}×`")
                 else:
                     st.markdown("- 단위 불일치 의심 없음")
             with u2:
@@ -1961,9 +1961,9 @@ def _render(result: dict):
             st.dataframe(
                 audit_df[["quarter_str", "pos_sales", "dart_sales", "tracking_ratio_fmt", "검증 상태"]].rename(columns={
                     "quarter_str":       "분기",
-                    "pos_sales":         "POS 분기 매출",
+                    "pos_sales":         "분기 매출",
                     "dart_sales":        "DART 분기 단독 매출",
-                    "tracking_ratio_fmt":"POS Tracking Ratio",
+                    "tracking_ratio_fmt":"Tracking Ratio",
                 }), hide_index=True,
             )
             st.caption(
@@ -1978,23 +1978,23 @@ def _render(result: dict):
 
             REMEDIATION = {
                 "unit_mismatch": (
-                    "데이터 전처리 시 POS 매출 단위를 원(KRW) 기준으로 통일하세요. "
+                    "데이터 전처리 시 매출 단위를 원(KRW) 기준으로 통일하세요. "
                     "예) 백만원 단위 데이터 × 1,000,000"
                 ),
                 "channel_scope": (
                     "DART 별도(OFS) 기준 매출인지 확인하세요. "
-                    "POS가 전체 채널을 집계한다면 DART 연결(CFS) 매출과 비교해야 합니다."
+                    "매출이 전체 채널을 집계한다면 DART 연결(CFS) 매출과 비교해야 합니다."
                 ),
                 "consolidated_separate": (
                     "DART API 호출 시 fs_div=OFS(별도) vs CFS(연결) 선택을 확인하세요. "
-                    "POS 집계 범위와 맞는 기준을 사용하세요."
+                    "매출 집계 범위와 맞는 기준을 사용하세요."
                 ),
                 "quarterly_transform": (
                     "DART 반기/3분기 보고서의 누적→분기 변환을 확인하세요. "
                     "디버깅 탭에서 DART YTD(API 원본) 컬럼과 변환 후 컬럼을 비교하세요."
                 ),
                 "duplicated_aggregation": (
-                    "POS 데이터에서 동일 거래가 여러 회사/채널에 중복 집계되지 않는지 확인하세요."
+                    "거래/매출 데이터에서 동일 거래가 여러 회사/채널에 중복 집계되지 않는지 확인하세요."
                 ),
             }
             ISSUE_COLOR = {
@@ -2060,7 +2060,7 @@ def _render(result: dict):
             st.info("DART 연동 데이터 없음")
 
         if not lead_tbl.empty:
-            st.markdown("**POS × DART 병합 + Tracking Ratio**")
+            st.markdown("**매출 × DART 병합 + Tracking Ratio**")
             dbg_cols = ["quarter_str", "pos_sales", "dart_sales", "tracking_ratio",
                         "qoq_pct", "dart_qoq", "direction_match"]
             if "yoy_pct" in lead_tbl.columns:
@@ -2073,19 +2073,19 @@ def _render(result: dict):
             st.dataframe(
                 debug2.rename(columns={
                     "quarter_str":    "분기",
-                    "pos_sales":      "POS 분기 매출",
+                    "pos_sales":      "분기 매출",
                     "dart_sales":     "DART 분기 단독",
-                    "tracking_ratio": "POS Tracking Ratio",
-                    "qoq_pct":        "POS QoQ(%)",
+                    "tracking_ratio": "Tracking Ratio",
+                    "qoq_pct":        "매출 QoQ(%)",
                     "dart_qoq":       "DART QoQ(%)",
                     "direction_match":"방향 일치",
-                    "yoy_pct":        "POS YoY(%)",
+                    "yoy_pct":        "매출 YoY(%)",
                     "dart_yoy":       "DART YoY(%)",
                 }), hide_index=True,
             )
 
         if not view_agg.empty:
-            st.markdown("**POS 분기 집계 원본**")
+            st.markdown("**분기 집계 원본**")
             display_cols = [c for c in view_agg.columns if not str(c).startswith("_")]
             st.dataframe(view_agg[display_cols], hide_index=True)
 
@@ -2102,9 +2102,9 @@ def _render_dart_mapping_audit(
     """결과 화면 안에서 DART 매핑 상태를 검증하고 재매핑할 수 있는 UI.
 
     Args:
-        pos_companies:   POS 데이터의 회사명 리스트 (전체)
-        corp_code_map:   {POS 회사명: corp_code} — 매핑된 회사만
-        dart_by_company: {POS 회사명: DART DataFrame} — 실제 응답 받은 회사
+        pos_companies:   거래/매출 데이터의 회사명 리스트 (전체)
+        corp_code_map:   {회사명: corp_code} — 매핑된 회사만
+        dart_by_company: {회사명: DART DataFrame} — 실제 응답 받은 회사
     """
     if not pos_companies:
         return
@@ -2118,7 +2118,7 @@ def _render_dart_mapping_audit(
 
     st.markdown("#### 🔗 DART 매핑 검증")
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("POS 회사", f"{n_total}")
+    m1.metric("회사", f"{n_total}")
     m2.metric("✅ DART 매핑됨", f"{n_mapped}",
               delta=f"{n_mapped/max(n_total,1)*100:.0f}% 커버", delta_color="off")
     m3.metric("📊 공시 데이터 있음", f"{n_with_data}",
@@ -2174,7 +2174,7 @@ def _render_dart_mapping_audit(
             source = "—"
         rows.append({
             "상태":         status_label,
-            "POS 회사명":   co,
+            "회사명":   co,
             "DART 한글명":  name_by_cc.get(cc, "—") if cc else "—",
             "영문명":       name_by_cc_eng.get(cc, "") if cc else "",
             "단축코드":     stock_by_cc.get(cc, "") if cc else "",
@@ -2319,7 +2319,7 @@ def _render_inline_dart_setup(pos_companies: list[str]) -> None:
             type="primary",
             disabled=not bool(dart_api_val),
             use_container_width=True,
-            help=f"{len(pos_companies)}개 POS 회사명을 DART 마스터와 자동 매칭",
+            help=f"{len(pos_companies)}개 회사명을 DART 마스터와 자동 매칭",
         )
     with bcol2:
         if st.button(
@@ -2418,7 +2418,7 @@ def _render_inline_dart_setup(pos_companies: list[str]) -> None:
                     match_df.loc[mask, "stock_code"]    = chosen.get("stock_code", "")
                 st.session_state["p_dart_match"] = match_df
 
-        # 사용자 매핑 (POS 회사명 → corp_code) 저장
+        # 사용자 매핑 (회사명 → corp_code) 저장
         user_dart_map: dict[str, str] = {}
         for _, r in match_df.iterrows():
             if r.get("corp_code"):
@@ -2512,7 +2512,7 @@ def _render_stock_link_status(company: str) -> None:
             f"⚠️ **주가 line 없음** — Market Signal 결과에 회사명 `'{company}'`이(가) 없습니다.\n\n"
             f"**Market Signal에 매핑된 회사 (앞 5개)**: {', '.join(sample_co) if sample_co else '없음'}\n\n"
             "**가능한 원인**:\n"
-            "- POS 데이터에 회사명이 다른 이름으로 등록됨 (예: `_ALL` suffix 차이)\n"
+            "- 거래/매출 데이터에 회사명이 다른 이름으로 등록됨 (예: `_ALL` suffix 차이)\n"
             "- Market Signal 실행 시 stock_code 매핑 실패"
         )
         return
@@ -2554,7 +2554,7 @@ def _add_stock_level_overlay(fig, company: str, level_data: pd.DataFrame) -> boo
 
     Args:
         fig:        plotly figure
-        company:    POS 회사명
+        company:    회사명
         level_data: dart level 데이터 (quarter_str 컬럼 보유)
 
     Returns:
@@ -2616,7 +2616,7 @@ def _add_stock_qoq_overlay(fig, company: str, qoq_data: pd.DataFrame) -> bool:
 
     Args:
         fig:      plotly figure (yaxis2 overlay 추가됨)
-        company:  POS 회사명 (Earnings selected 회사)
+        company:  회사명 (Earnings selected 회사)
         qoq_data: dart QoQ 데이터 (quarter_str 컬럼 보유)
 
     Returns:

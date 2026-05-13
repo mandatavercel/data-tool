@@ -130,7 +130,7 @@ ROLE_DESCRIPTION: dict[str, dict[str, str]] = {
     },
     # ── 식별 ────────────────────────────────────────────────────────────
     "company_name": {
-        "what": "회사명 (POS 데이터의 어느 상장사 매출인지).",
+        "what": "회사명 (거래/매출 데이터의 어느 상장사 매출인지).",
         "for":  "🏢 회사별 분석이 가능해집니다 — 주가 상관성, 공시 매출 매칭(DART), "
                 "Long/Short 후보 종목 추출, Investor Dashboard 매출 Top 5, "
                 "Factor Research universe 정의.",
@@ -226,7 +226,7 @@ ROLE_DESCRIPTION: dict[str, dict[str, str]] = {
         "what": "판매 채널 (온라인 / 오프라인 / 편의점 / 마트 / 백화점).",
         "for":  "🛒 채널 mix 분석 — 한 회사 매출이 어떤 채널에서 발생하는지 추적. "
                 "예: 'BGF리테일 = 편의점 채널 슬라이스'임을 명시하면 글로벌 투자자가 "
-                "POS coverage 한계를 정확히 이해 가능.",
+                "매출 coverage 한계를 정확히 이해 가능.",
     },
     "store_id": {
         "what": "점포 ID / 매장 코드.",
@@ -248,7 +248,7 @@ ROLE_DESCRIPTION: dict[str, dict[str, str]] = {
     "stock_code": {
         "what": "KRX 6자리 종목코드 (예: 005930 = 삼성전자).",
         "for":  "📈 주가 연동 활성화 — Market Signal이 yfinance로 주가 호출 가능, "
-                "POS 매출과 주가의 시차 상관 분석, Long/Short 후보 추출. "
+                "매출과 주가의 시차 상관 분석, Long/Short 후보 추출. "
                 "⚠️ 법인등록번호(13자리)와 다릅니다.",
     },
     "security_code": {
@@ -366,7 +366,7 @@ CATALOG: dict[str, dict] = {
     },
     "earnings_intel": {
         "name":             "📊 Earnings Intelligence",
-        "desc":             "POS 소비 분기별 집계 및 DART 공시매출 비교 (API key 선택)",
+        "desc":             "매출 분기별 집계 및 DART 공시매출 비교 (API key 선택)",
         "layer":            "Signal",
         "requires":         ["transaction_date", "sales_amount"],
         "optional":         ["company_name"],

@@ -22,7 +22,7 @@ from typing import Any
 I18N: dict[str, dict[str, str]] = {
     "ko": {
         # ── 제목 ──
-        "report_title":      "Final Report — POS Signal Analysis",
+        "report_title":      "Final Report — Alt-Data Signal Analysis",
         "report_subtitle":   "Alternative Data Intelligence Platform",
         "generated":         "생성일",
         "period":            "분석 기간",
@@ -56,10 +56,10 @@ I18N: dict[str, dict[str, str]] = {
         "vs":                "vs",
         "workflow":          "운용 흐름",
         "case":              "케이스",
-        "footer":            "본 리포트는 POS 데이터 기반 소비 신호 분석으로 공식 재무 데이터를 대체하지 않습니다.",
+        "footer":            "본 리포트는 거래/매출 데이터 기반 소비 신호 분석으로 공식 재무 데이터를 대체하지 않습니다.",
     },
     "en": {
-        "report_title":      "Final Report — POS Signal Analysis",
+        "report_title":      "Final Report — Alt-Data Signal Analysis",
         "report_subtitle":   "Alternative Data Intelligence Platform",
         "generated":         "Generated",
         "period":            "Period",
@@ -90,7 +90,7 @@ I18N: dict[str, dict[str, str]] = {
         "vs":                "vs",
         "workflow":          "Workflow",
         "case":              "Case",
-        "footer":            "This report is based on POS consumption data analysis and does not replace official financial data.",
+        "footer":            "This report is based on alt-data consumption signal analysis and does not replace official financial data.",
     },
 }
 

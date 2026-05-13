@@ -91,7 +91,7 @@ def _guide_step1():
     c1, c2 = st.columns(2)
     with c1:
         _section("이 단계의 목적",
-            "원천 POS / 거래 데이터를 업로드합니다. 업로드된 데이터는 이후 모든 분석의 기초가 됩니다.")
+            "원천 거래 데이터를 업로드합니다. 업로드된 데이터는 이후 모든 분석의 기초가 됩니다.")
         st.markdown("**지원 형식**")
         st.markdown("""
 - `xlsx` — Excel 파일 (단일 시트 권장)
@@ -202,8 +202,8 @@ def _guide_step4():
         st.markdown("**Signal Layer** — 외부 시장 데이터 연동 분석")
         sig = [
             ("Anomaly Detection",     "시계열 이상 패턴 탐지"),
-            ("Market Signal",         "POS 매출 → 주가 선행 신호 분석"),
-            ("Earnings Intelligence", "DART 공시 실적과 POS 데이터 비교"),
+            ("Market Signal",         "매출 → 주가 선행 신호 분석"),
+            ("Earnings Intelligence", "DART 공시 실적과 거래/매출 데이터 비교"),
             ("Alpha Validation",      "전체 모듈 결과를 종합한 투자 신호 점수"),
         ]
         for name, desc in sig:
@@ -486,14 +486,14 @@ def _guide_earnings():
     c1, c2 = st.columns(2)
     with c1:
         _section("분석 목적",
-            "금융감독원 전자공시(DART)의 분기 실적과 POS 데이터를 비교해 "
+            "금융감독원 전자공시(DART)의 분기 실적과 거래/매출 데이터를 비교해 "
             "소비 데이터의 선행성을 수치로 검증합니다.")
         _section("DART 연동 원리", "")
         st.markdown("""
 1. API Key 입력 → 전체 기업 코드 맵 다운로드
 2. 데이터의 회사명/종목코드 → DART 법인코드 자동 매핑
 3. 분기 재무제표(매출액) 수집
-4. POS 분기 집계 vs DART 분기 매출 비교
+4. 분기 집계 vs DART 분기 매출 비교
 """)
         _section("핵심 지표", "")
         terms = [
@@ -502,13 +502,13 @@ def _guide_earnings():
             ("YoY (Year-over-Year)",
              "전년 동 분기 대비 성장률. 계절성 제거"),
             ("Coverage Ratio",
-             "POS 매출 / DART 공시 매출. 100% 초과 시 채널 이외 매출 포함, "
-             "낮으면 POS가 일부 채널만 커버"),
+             "매출 / DART 공시 매출. 100% 초과 시 채널 이외 매출 포함, "
+             "낮으면 매출이 일부 채널만 커버"),
             ("방향 일치율 (Direction Match Rate)",
-             "POS QoQ 방향과 DART QoQ 방향이 같은 분기 비율. "
-             "높을수록 POS가 전사 실적을 잘 대표"),
+             "매출 QoQ 방향과 DART QoQ 방향이 같은 분기 비율. "
+             "높을수록 매출이 전사 실적을 잘 대표"),
             ("선행일 (Lead Days)",
-             "공시 의무일 기준 POS 데이터가 몇 일 먼저 정보를 갖는지. "
+             "공시 의무일 기준 거래/매출 데이터가 몇 일 먼저 정보를 갖는지. "
              "Q1/Q2/Q3: 45일, Q4: 90일 기준"),
         ]
         for name, desc in terms:
@@ -517,7 +517,7 @@ def _guide_earnings():
         _section("결과 해석 방법", "")
         st.markdown("""
 **선행 신호 분석 탭**
-- 방향 일치율 ≥ 70%: 🟢 POS가 실적 방향을 잘 예측
+- 방향 일치율 ≥ 70%: 🟢 매출이 실적 방향을 잘 예측
 - 방향 일치율 50–70%: 🟡 부분적 예측력
 - 방향 일치율 < 50%: 🔴 POS와 공시 실적 괴리 큼
 
@@ -540,7 +540,7 @@ def _guide_alpha():
     with c1:
         _section("분석 목적",
             "모든 분석 모듈의 결과를 하나의 종합 점수(Alpha Score)로 집계합니다. "
-            "POS 데이터가 투자 신호로서 얼마나 강력한지를 0–100점으로 표현합니다.")
+            "거래/매출 데이터가 투자 신호로서 얼마나 강력한지를 0–100점으로 표현합니다.")
         _section("Alpha Score 구성 (최대 100점)", "")
         st.markdown("""
 | 구성요소 | 최대 | 근거 |
@@ -576,7 +576,7 @@ def _guide_alpha():
 - **모듈 상태**: 각 분석 모듈의 실행 결과 요약
 - **해석**: 점수 구성요소별 인사이트 텍스트
 """)
-        _warn("Alpha Score는 POS 데이터 기반의 소비 신호 강도를 측정합니다. "
+        _warn("Alpha Score는 거래/매출 데이터 기반의 소비 신호 강도를 측정합니다. "
               "투자 의사결정의 단독 근거로 사용하지 마세요.")
         _tip("Market Signal의 상관계수가 0.5를 넘으면 최대 10점 보너스가 추가됩니다. "
              "Market Signal을 함께 실행하면 Alpha Score 정확도가 높아집니다.")

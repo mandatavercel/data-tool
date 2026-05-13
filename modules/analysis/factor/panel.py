@@ -1,4 +1,4 @@
-"""PIT Panel Builder — POS 데이터 → (stock × month) panel + signal_date.
+"""PIT Panel Builder — 거래/매출 데이터 → (stock × month) panel + signal_date.
 
 Look-ahead bias 가드:
   - sales는 sales_month 단위로 집계
