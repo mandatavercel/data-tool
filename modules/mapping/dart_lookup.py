@@ -40,29 +40,55 @@ def _normalize(name: str) -> str:
 # DART 마스터 (corpCode.xml)
 # ══════════════════════════════════════════════════════════════════════════════
 
+# ── 모듈 레벨 세션 (keep-alive) ─────────────────────────────────────────────
+# Streamlit Cloud (미국 IP) → DART (한국) RTT ~300ms.
+# 호출마다 새 TCP/TLS handshake 비용 ~1.2s 절약.
+import threading as _threading
+_DART_SESSION: requests.Session | None = None
+_DART_SESSION_LOCK = _threading.Lock()
+
+
 def _retry_session() -> requests.Session:
-    """Connection reset / 5xx / 429에 대해 자동 backoff retry하는 session.
+    """모듈 레벨 keep-alive 세션 — 재시도/backoff/pool 모두 포함.
 
-    재시도 횟수 3회, backoff 1.5s → 3s → 6s.
+    같은 host(opendart.fss.or.kr)만 호출하므로 단일 pool로 충분.
+    timeout이 짧을수록 Cloud에서 무한 로딩처럼 보이지 않음.
     """
-    from urllib3.util.retry import Retry
-    from requests.adapters import HTTPAdapter
+    global _DART_SESSION
+    if _DART_SESSION is not None:
+        return _DART_SESSION
 
-    sess = requests.Session()
-    retries = Retry(
-        total=3,
-        backoff_factor=1.5,
-        status_forcelist=[408, 429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
-        raise_on_status=False,
-    )
-    adapter = HTTPAdapter(max_retries=retries)
-    sess.mount("https://", adapter)
-    sess.mount("http://",  adapter)
-    return sess
+    with _DART_SESSION_LOCK:
+        if _DART_SESSION is not None:
+            return _DART_SESSION
+
+        from urllib3.util.retry import Retry
+        from requests.adapters import HTTPAdapter
+
+        sess = requests.Session()
+        retries = Retry(
+            total=2,            # 3→2 (Cloud에선 빠른 실패 우선)
+            backoff_factor=1.0, # 1.5→1.0 (2s, 3s)
+            status_forcelist=[408, 429, 500, 502, 503, 504],
+            allowed_methods=["GET"],
+            raise_on_status=False,
+        )
+        adapter = HTTPAdapter(
+            max_retries=retries,
+            pool_connections=8,
+            pool_maxsize=8,
+        )
+        sess.mount("https://", adapter)
+        sess.mount("http://",  adapter)
+        sess.headers.update({
+            "User-Agent": "Mozilla/5.0 (compatible; alt-data-tool)",
+            "Accept-Encoding": "gzip, deflate",
+        })
+        _DART_SESSION = sess
+        return _DART_SESSION
 
 
-@st.cache_data(ttl=24 * 60 * 60, show_spinner="DART 회사 마스터 다운로드 중…")
+@st.cache_data(ttl=24 * 60 * 60, show_spinner=False)
 def fetch_dart_corp_master(api_key: str) -> pd.DataFrame:
     """
     DART corpCode.xml → 전체 회사 마스터 DataFrame.
@@ -81,12 +107,13 @@ def fetch_dart_corp_master(api_key: str) -> pd.DataFrame:
 
     url = f"{DART_BASE}/corpCode.xml"
 
-    # 마지막 fallback — Retry session 실패해도 한 번 더 직접 시도
+    # 모듈 세션 (keep-alive) — TLS handshake 한 번이면 끝
     sess = _retry_session()
     last_err: Exception | None = None
-    for attempt in range(2):    # session retry(3) × outer(2) = 최대 6회
+    for attempt in range(2):    # session retry(2) × outer(2) = 최대 4회
         try:
-            resp = sess.get(url, params={"crtfc_key": api_key.strip()}, timeout=120)
+            # timeout=45 (120→45): Cloud에서 무한 로딩처럼 보이지 않게 빨리 실패
+            resp = sess.get(url, params={"crtfc_key": api_key.strip()}, timeout=45)
             resp.raise_for_status()
             break
         except requests.exceptions.ConnectionError as e:
@@ -96,7 +123,7 @@ def fetch_dart_corp_master(api_key: str) -> pd.DataFrame:
             if any(k in err_str for k in ("Connection reset", "Connection aborted",
                                             "ConnectionResetError", "BrokenPipe")):
                 import time as _t
-                _t.sleep(2 + attempt * 3)   # 2s, 5s
+                _t.sleep(1 + attempt * 2)   # 1s, 3s
                 continue
             # 그 외 ConnectionError는 즉시 raise
             raise RuntimeError(
@@ -107,8 +134,9 @@ def fetch_dart_corp_master(api_key: str) -> pd.DataFrame:
         except requests.exceptions.Timeout as e:
             last_err = e
             raise RuntimeError(
-                "DART 서버 응답 타임아웃 (120초 초과). "
-                "잠시 후 다시 시도하거나 네트워크 환경을 확인하세요."
+                "DART 서버 응답 타임아웃 (45초 초과). "
+                "Streamlit Cloud는 미국 서버라 DART 응답이 느릴 수 있습니다. "
+                "1분 후 다시 시도하거나, '🔄 마스터 재다운로드' 클릭."
             ) from e
         except requests.exceptions.HTTPError as e:
             last_err = e
