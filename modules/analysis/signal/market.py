@@ -1327,38 +1327,58 @@ def _render(result: dict):
                 "이게 OK면 pykrx는 살아있고 매핑/날짜/cache 문제. 실패면 KRX 자체 차단/패키지 문제."
             )
             if st.button("▶ pykrx 단독 테스트 실행", key="pykrx_diag_btn"):
+                # 1단계 — pykrx 패키지 자체 import
+                pykrx_version = None
+                try:
+                    import pykrx
+                    pykrx_version = getattr(pykrx, "__version__", "?")
+                    st.write(f"✅ `import pykrx` OK · 버전 `{pykrx_version}`")
+                except ImportError as e:
+                    st.error(f"❌ `import pykrx` 실패: **{type(e).__name__}**: {e}")
+                    st.stop()
+                except Exception as e:
+                    st.error(
+                        f"❌ `import pykrx` 실패 (비호환 가능성): "
+                        f"**{type(e).__name__}**: {str(e)[:300]}"
+                    )
+                    st.stop()
+
+                # 2단계 — pykrx.stock 서브모듈 import
                 try:
                     from pykrx import stock as krx
+                    st.write("✅ `from pykrx import stock` OK")
+                except Exception as e:
+                    st.error(
+                        f"❌ `from pykrx import stock` 실패: "
+                        f"**{type(e).__name__}**: {str(e)[:300]}\n\n"
+                        f"**원인 추정**: pykrx {pykrx_version}이 현재 pandas/numpy와 호환 안 됨. "
+                        "requirements.txt에서 pykrx 버전 업데이트 필요."
+                    )
+                    st.stop()
+
+                # 3단계 — 실제 API 호출
+                try:
                     end_d   = pd.Timestamp.today().strftime("%Y%m%d")
                     start_d = (pd.Timestamp.today() - pd.Timedelta(days=14)).strftime("%Y%m%d")
                     with st.spinner(f"pykrx.get_market_ohlcv_by_date({start_d}, {end_d}, '005930') 호출 중..."):
                         raw = krx.get_market_ohlcv_by_date(start_d, end_d, "005930")
                     if raw is None or raw.empty:
                         st.error(
-                            "❌ pykrx 호출은 성공했지만 **빈 DataFrame 반환**.\n\n"
+                            "❌ pykrx 호출 성공 but **빈 DataFrame 반환**.\n\n"
                             "→ KRX 서버가 응답은 했지만 데이터를 안 줌. "
-                            "Streamlit Cloud IP를 KRX가 차단했거나, pykrx 1.0.51의 URL이 stale일 가능성."
+                            "Cloud IP 차단 또는 pykrx의 URL stale 가능."
                         )
                     else:
                         st.success(
-                            f"✅ pykrx 정상 동작 — {len(raw)}행 수신 "
+                            f"✅ pykrx 완전 정상 — {len(raw)}행 수신 "
                             f"(최근 종가: {raw['종가'].iloc[-1]:,.0f}원)"
                         )
                         st.dataframe(raw.tail(5), use_container_width=True)
-                        st.info(
-                            "💡 pykrx 자체는 문제 없음. 그럼에도 회사별로 실패하는 이유는 "
-                            "**개별 종목코드가 KRX에 없거나(ETF/SPAC), 날짜 범위가 잘못됐거나, "
-                            "cache 오염**일 수 있음. 'Manage app → Reboot'으로 캐시 청소 권장."
-                        )
-                except ImportError:
-                    st.error("❌ pykrx 미설치 — requirements.txt 확인 필요")
+                        st.info("💡 pykrx는 정상. 회사별 실패는 cache 오염 또는 개별 종목 이슈.")
                 except Exception as e:
                     st.error(
-                        f"❌ pykrx 호출 실패: **{type(e).__name__}**: {str(e)[:200]}\n\n"
-                        "→ KRX 서버 접속 자체가 막힘. 가능한 원인:\n"
-                        "1. KRX가 Streamlit Cloud IP 차단\n"
-                        "2. pykrx 1.0.51의 KRX 엔드포인트가 outdated\n"
-                        "3. 네트워크 timeout"
+                        f"❌ pykrx API 호출 실패: **{type(e).__name__}**: {str(e)[:300]}\n\n"
+                        "→ KRX 서버 접속/응답 문제. 패키지 import는 OK였으므로 네트워크/엔드포인트 이슈."
                     )
 
         # ── 시나리오별 진단 메시지 ───────────────────────────────────────
