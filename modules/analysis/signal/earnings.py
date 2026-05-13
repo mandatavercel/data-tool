@@ -4,6 +4,7 @@ import re
 import ssl
 import math
 import zipfile
+import threading
 import urllib.request
 import urllib.parse
 import json
@@ -346,21 +347,28 @@ def run_earnings_intel(df: pd.DataFrame, role_map: dict, params: dict) -> dict:
 
 # ── DART helpers ──────────────────────────────────────────────────────────────
 
-def _dart_get(url: str, timeout: int = 20, retries: int = 3) -> bytes:
-    """DART 호출 — requests + urllib fallback (단순 구성).
+# ── 모듈 레벨 세션 (keep-alive) ─────────────────────────────────────────────
+# Streamlit Cloud (US) → DART (KR) 환경에서 RTT가 200~400ms.
+# 호출마다 새 TCP/TLS handshake = 800~1600ms 낭비.
+# 모듈 세션 1개를 모든 호출이 공유 → handshake 비용은 첫 호출에만 발생.
+_DART_SESSION = None
+_DART_SESSION_LOCK = threading.Lock()
 
-    requests가 깨지는 환경에서 urllib이 잡아주는 패턴 유지.
-    connect/read retry는 명시하지 않음 — urllib3 default 동작 사용.
 
-    시도 순서:
-      1. requests (verify=True)  — modern TLS
-      2. requests (verify=False) — SSL 검증 우회
-      3. urllib   (verify=False) — 단순 연결, 한 번만
+def _get_dart_session():
+    """모듈 레벨 requests.Session — keep-alive로 TCP 재사용.
+
+    16 workers 동시 호출에 대비해 pool_maxsize=24 (여유 8).
+    같은 host(opendart.fss.or.kr)만 호출하므로 단일 pool로 충분.
     """
-    errors: list[str] = []
+    global _DART_SESSION
+    if _DART_SESSION is not None:
+        return _DART_SESSION
 
-    # 1, 2) requests 두 가지 verify 모드
-    try:
+    with _DART_SESSION_LOCK:
+        if _DART_SESSION is not None:
+            return _DART_SESSION
+
         import requests
         from requests.adapters import HTTPAdapter
         try:
@@ -368,27 +376,64 @@ def _dart_get(url: str, timeout: int = 20, retries: int = 3) -> bytes:
         except ImportError:
             from requests.packages.urllib3.util.retry import Retry  # type: ignore
 
-        session = requests.Session()
+        s = requests.Session()
         retry_cfg = Retry(
-            total=retries,
-            backoff_factor=0.7,
+            total=2,
+            backoff_factor=0.4,
             status_forcelist=[429, 500, 502, 503, 504],
             allowed_methods=["GET"],
         )
-        session.mount("https://", HTTPAdapter(max_retries=retry_cfg))
+        adapter = HTTPAdapter(
+            max_retries=retry_cfg,
+            pool_connections=24,
+            pool_maxsize=24,
+            pool_block=False,
+        )
+        s.mount("https://", adapter)
+        s.mount("http://",  adapter)
+        s.headers.update({
+            "User-Agent": "Mozilla/5.0 (compatible; alt-data-tool)",
+            "Accept-Encoding": "gzip, deflate",
+        })
+        _DART_SESSION = s
+        return _DART_SESSION
 
-        for verify in (True, False):
-            try:
-                r = session.get(url, timeout=timeout, verify=verify,
-                                headers={"User-Agent": "Mozilla/5.0 (compatible; alt-data-tool)"})
-                r.raise_for_status()
-                return r.content
-            except Exception as e:
-                errors.append(f"requests(verify={verify}): {type(e).__name__}: {str(e)[:80]}")
+
+def _dart_get(url: str, timeout: int = 20, retries: int = 3) -> bytes:
+    """DART API GET — 모듈 세션 (keep-alive) + urllib fallback.
+
+    Streamlit Cloud (US) → DART (KR) 고지연 환경에서 keep-alive로
+    TLS handshake 비용 제거 — 호출당 ~600ms 절약.
+
+    시도 순서:
+      1. 공유 세션 (verify=True)  — 정상 경로, TCP/TLS 재사용
+      2. 공유 세션 (verify=False) — SSL 검증 우회 (실패시에만)
+      3. urllib   (verify=False) — 마지막 fallback
+    """
+    errors: list[str] = []
+
+    try:
+        session = _get_dart_session()
+
+        # 1) 정상 경로 — keep-alive로 재사용되는 TCP/TLS
+        try:
+            r = session.get(url, timeout=timeout)
+            r.raise_for_status()
+            return r.content
+        except Exception as e:
+            errors.append(f"requests(verify=True): {type(e).__name__}: {str(e)[:80]}")
+
+        # 2) SSL 검증 우회 — 정상 경로 실패시만
+        try:
+            r = session.get(url, timeout=timeout, verify=False)
+            r.raise_for_status()
+            return r.content
+        except Exception as e:
+            errors.append(f"requests(verify=False): {type(e).__name__}: {str(e)[:80]}")
     except ImportError as e:
         errors.append(f"requests not available: {e}")
 
-    # 3) urllib fallback — 한 번만 시도, 단순한 호출
+    # 3) urllib fallback — 한 번만
     import urllib.request
     import ssl
     ctx = ssl.create_default_context()
