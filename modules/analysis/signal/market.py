@@ -724,7 +724,10 @@ def _compute_company_signal(
     if daily_ohlcv.empty:
         return {
             **empty, "status": "no_data", "grade": "데이터 없음",
-            "fail_reason": f"yfinance 주가 없음 ({ticker_raw}) — 상장폐지/미상장/ISIN 오류 가능",
+            "fail_reason": (
+                f"주가 응답 없음 ({ticker_raw}) — pykrx + yfinance 모두 빈 응답. "
+                "비상장/상장폐지/종목코드 오류일 수 있음"
+            ),
         }
     ticker_used = daily_ohlcv["ticker_used"].iloc[0]
 
@@ -1304,8 +1307,8 @@ def _render(result: dict):
         d1, d2, d3 = st.columns(3)
         d1.metric("① 종목코드 추출", f"{len(co_ticker)}개사",
                   help="POS 회사명별로 KRX 종목코드를 추출한 결과")
-        d2.metric("② yfinance 호출", f"{len(all_sigs)}개사",
-                  help="추출된 코드로 yfinance API 호출 시도")
+        d2.metric("② 주가 API 호출", f"{len(all_sigs)}개사",
+                  help="pykrx(KRX 1순위) + yfinance(백업) 호출 시도")
         n_ok = sum(1 for s in all_sigs if s.get("status") == "ok")
         d3.metric("③ 주가 응답 OK", f"{n_ok}개사")
 
@@ -1327,12 +1330,12 @@ def _render(result: dict):
             )
         elif co_ticker and not all_sigs:
             st.warning(
-                f"종목코드 {len(co_ticker)}개 추출은 성공했으나 yfinance 호출 자체가 실행되지 않았습니다. "
+                f"종목코드 {len(co_ticker)}개 추출은 성공했으나 주가 API 호출이 실행되지 않았습니다. "
                 "stock_col 또는 has_data 조건을 확인하세요."
             )
         elif co_ticker and all_sigs:
             st.warning(
-                f"{len(co_ticker)}개사 종목코드 추출 OK · yfinance 호출 {len(all_sigs)}회 · "
+                f"{len(co_ticker)}개사 종목코드 추출 OK · 주가 API 호출 {len(all_sigs)}회 · "
                 f"성공 {n_ok}개. 회사별 실패 사유는 아래 표 참조."
             )
 
@@ -1356,7 +1359,7 @@ def _render(result: dict):
                             "회사":         co[:24],
                             "추출 ticker":  tk,
                             "Status":       "(호출 안 됨)",
-                            "실패 사유":    "yfinance 호출 미실행",
+                            "실패 사유":    "주가 API 호출 미실행",
                         })
                 if rows:
                     st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)

@@ -52,6 +52,12 @@ def render_param_block(key: str) -> dict:
     elif key == "earnings_intel":
         p = _render_earnings_params()
 
+    # ── 📉 Market Signal ──────────────────────────────────────────────────
+    elif key == "market_signal":
+        _render_market_signal_info()
+        # Market Signal은 별도 사용자 파라미터 없음 — 정보 표시만
+        p = {}
+
     # ── 🧪 Factor Research ────────────────────────────────────────────────
     elif key == "factor_research":
         fr1, fr2 = st.columns([1.4, 1])
@@ -66,6 +72,51 @@ def render_param_block(key: str) -> dict:
         p = {"dart_api_key": dart_api_fr, "available_lag_days": avail_lag}
 
     return p
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Market Signal — 데이터 출처 안내 (사용자 파라미터 없음)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _render_market_signal_info() -> None:
+    """Market Signal이 주가 데이터를 어떻게 수집하는지 4단계 흐름 표시.
+
+    클라우드(미국 IP)에서 Yahoo Finance가 자주 차단되는 환경 대응 — pykrx 우선 전략.
+    """
+    st.markdown(
+        """
+<div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;
+            padding:12px 14px;font-size:12.5px;line-height:1.65;color:#334155'>
+  <div style='font-weight:700;color:#0f172a;margin-bottom:6px;font-size:13px'>
+    📡 주가 데이터 수집 흐름 — 자동 4단계 폴백
+  </div>
+  <div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px'>
+    <span style='background:#dbeafe;color:#1e40af;padding:2px 8px;
+                 border-radius:10px;font-size:11.5px;font-weight:600'>
+      ① POS 회사명 → 6자리 종목코드 추출
+    </span>
+    <span style='background:#dcfce7;color:#166534;padding:2px 8px;
+                 border-radius:10px;font-size:11.5px;font-weight:600'>
+      ② pykrx (KRX 한국 서버) 우선 호출
+    </span>
+    <span style='background:#fef3c7;color:#92400e;padding:2px 8px;
+                 border-radius:10px;font-size:11.5px;font-weight:600'>
+      ③ 실패시 yfinance (.KS/.KQ) 백업
+    </span>
+    <span style='background:#e0e7ff;color:#3730a3;padding:2px 8px;
+                 border-radius:10px;font-size:11.5px;font-weight:600'>
+      ④ OHLCV → 매출 vs 주가 시차 상관
+    </span>
+  </div>
+  <div style='font-size:11.5px;color:#64748b;margin-top:2px'>
+    💡 <b>왜 pykrx 우선?</b> Streamlit Cloud는 미국 서버라 Yahoo Finance에 자주 차단됨.
+    pykrx는 KRX 한국 서버를 직접 호출해 IP 제한 없이 안정적으로 작동.
+    수정종가는 미제공 → 종가로 대체 (단기 시차 상관 분석에 영향 미미).
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
 
 
 # ══════════════════════════════════════════════════════════════════════════════

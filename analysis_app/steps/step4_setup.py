@@ -20,7 +20,8 @@ STATUS_DOT = {
     "executable_with_warning": ("#f59e0b", "제한 실행"),
     "failed_requirement":      ("#9ca3af", "데이터 부족"),
 }
-HAS_PARAMS = {"growth", "demand", "anomaly", "earnings_intel", "factor_research"}
+HAS_PARAMS = {"growth", "demand", "anomaly", "earnings_intel",
+              "factor_research", "market_signal"}
 
 
 def render() -> None:
