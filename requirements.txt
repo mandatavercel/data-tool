@@ -1,19 +1,27 @@
-streamlit>=1.30
-pandas>=2.0
-requests>=2.31
-openpyxl>=3.1
-numpy>=1.24
+# Streamlit Cloud용 stable 버전 pin
+# (>= 만 쓰면 uv가 너무 최신 버전을 가져와서 깨짐 — pandas 3.0, numpy 2.x 등)
+
+streamlit==1.40.0
+pandas==2.2.3
+numpy==1.26.4
+requests==2.32.3
+openpyxl==3.1.5
+
 # 회사명 유사도 매칭 가속 (10~100배). 없으면 difflib로 자동 폴백.
-rapidfuzz>=3.0
+rapidfuzz==3.10.1
+
 # analysis_app.py 전용
-yfinance>=0.2.36
-scipy>=1.11
-plotly>=5.18
-pytest>=7.4
+yfinance==0.2.50
+scipy==1.13.1
+plotly==5.24.1
+pytest==8.3.3
+
 # Factor research — KRX 산업분류 / 종목 데이터
-pykrx>=1.0.45
-# 브랜드·제품 영문화 — Claude API (mapping_app 영문화 파이프라인 LLM 폴백)
-anthropic>=0.40.0
+pykrx==1.0.51
+
+# 브랜드·제품 영문화 — Claude API
+anthropic==0.40.0
+
 # Final Report PPT/PDF export
-python-pptx>=0.6.21
-reportlab>=4.0.4
+python-pptx==1.0.2
+reportlab==4.2.5
