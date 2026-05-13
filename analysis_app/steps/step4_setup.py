@@ -1,12 +1,77 @@
 """Step 4 — Analysis Setup (Capability Map + Module Selection + Run)."""
 from __future__ import annotations
 
+import time
 import streamlit as st
 
 from modules.common.foundation import _eval_caps
 from analysis_app.navigation import go_to
 from analysis_app.setup_ui    import render_param_block
 from analysis_app.config      import ANALYSIS_OPTIONS, RUNNERS
+
+
+# ── Error classification + module run helpers (refactor: robustness) ─────────
+# 동일 결과 포맷·동일 호출 시그니처 유지. 실행 안정성만 강화.
+
+_NETWORK_KEYWORDS = (
+    "ConnectionError", "Max retries", "timed out", "Timeout",
+    "URLError", "getaddrinfo", "Connection reset", "Connection aborted",
+    "ReadTimeout", "ConnectTimeout", "RemoteDisconnected",
+    "BrokenPipe", "SSLError",
+)
+_DATA_KEYWORDS = ("PIT", "panel", "insufficient", "no_data", "empty")
+
+
+def _classify_error(exc: Exception) -> str:
+    """예외를 사용자 친화 메시지로 분류. 기존 동작과 호환 (동일 출력 카테고리)."""
+    err_str = str(exc)
+    name    = type(exc).__name__
+
+    if any(k in err_str or k in name for k in _NETWORK_KEYWORDS):
+        return ("네트워크 연결 실패 — 외부 API(DART/yfinance/pykrx) 응답 없음. "
+                "잠시 후 재시도 또는 Manage app → Reboot 권장.")
+    if any(k in err_str.lower() for k in (k.lower() for k in _DATA_KEYWORDS)):
+        return f"데이터 부족 — {err_str[:140]}"
+    if "MemoryError" in name or "메모리" in err_str:
+        return "메모리 부족 — 데이터 크기를 줄이거나 (sample 활용) Reboot 권장."
+    return f"{name}: {err_str[:200]}"
+
+
+def _run_one_module(key: str, df, role_map: dict, params: dict, all_results: dict) -> dict:
+    """단일 모듈 실행 — 네트워크 transient 실패시 1회 재시도. 결과 dict 반환.
+
+    기존 동작 보존:
+      - alpha_validation은 all_results를 params에 주입
+      - 예외 발생시 {status: failed, message, data, metrics} 반환
+      - 정상시 RUNNERS[key]가 반환한 그대로 반환
+    """
+    p = dict(params or {})
+    if key == "alpha_validation":
+        p["all_results"] = dict(all_results)
+
+    runner = RUNNERS.get(key)
+    if runner is None:
+        return {"status": "failed", "message": f"알 수 없는 모듈 key: {key}",
+                "data": None, "metrics": {}}
+
+    last_exc: Exception | None = None
+    for attempt in range(2):    # 최초 시도 + 1회 재시도
+        try:
+            return runner(df, role_map, p)
+        except Exception as exc:
+            last_exc = exc
+            # transient network 에러만 재시도, 데이터 부족은 즉시 fail
+            err_str = str(exc)
+            is_transient = any(k in err_str or k in type(exc).__name__
+                               for k in _NETWORK_KEYWORDS)
+            if attempt == 0 and is_transient:
+                time.sleep(1.5)   # 짧은 backoff
+                continue
+            break
+
+    return {"status": "failed",
+            "message": _classify_error(last_exc) if last_exc else "원인 불명",
+            "data": None, "metrics": {}}
 
 
 # ── 스타일 상수 ───────────────────────────────────────────────────────────────
@@ -177,30 +242,41 @@ def render() -> None:
         if selected_modules:
             if st.button(f"▶ {len(selected_modules)}개 분석 실행", type="primary"):
                 progress = st.progress(0, text="분석 준비 중...")
+                t_start = time.time()
+                # 로컬 dict 누적 — 끝에 atomic으로 session_state에 할당 (re-run 안정성)
+                new_results = dict(results)
+                n_total = len(selected_modules)
+                n_done_ok = 0
+                n_done_fail = 0
+
                 for i, key in enumerate(selected_modules):
+                    elapsed = int(time.time() - t_start)
+                    name = ANALYSIS_OPTIONS.get(key, key)
                     progress.progress(
-                        i / len(selected_modules),
-                        text=f"실행 중: {ANALYSIS_OPTIONS.get(key, key)}",
+                        i / n_total,
+                        text=f"실행 중 ({i+1}/{n_total} · 경과 {elapsed}s): {name}",
                     )
-                    p = params_map.get(key, {})
-                    if key == "alpha_validation":
-                        p = {**p, "all_results": dict(results)}
-                    try:
-                        res = RUNNERS[key](df, role_map, p)
-                    except Exception as exc:
-                        err_str = str(exc)
-                        if any(k in err_str for k in ("ConnectionError", "Max retries",
-                                                       "timed out", "URLError", "getaddrinfo")):
-                            msg = "네트워크 연결 실패 — 외부 API(DART/yfinance) 접근 불가"
-                        elif "PIT" in err_str or "panel" in err_str.lower():
-                            msg = f"데이터 부족 — {err_str[:120]}"
-                        else:
-                            msg = f"{type(exc).__name__}: {err_str[:200]}"
-                        res = {"status": "failed", "message": msg,
-                               "data": None, "metrics": {}}
-                    results[key] = res
-                progress.progress(1.0, text="완료!")
-                st.session_state["results"] = results
+                    res = _run_one_module(
+                        key=key,
+                        df=df,
+                        role_map=role_map,
+                        params=params_map.get(key, {}),
+                        all_results=new_results,
+                    )
+                    new_results[key] = res
+                    if isinstance(res, dict) and res.get("status") == "failed":
+                        n_done_fail += 1
+                    else:
+                        n_done_ok += 1
+
+                # 최종 atomic 업데이트 — 부분 실패가 있어도 성공한 결과는 모두 보존
+                st.session_state["results"] = new_results
+
+                total_elapsed = int(time.time() - t_start)
+                progress.progress(
+                    1.0,
+                    text=f"완료 ({total_elapsed}s) · 성공 {n_done_ok} · 실패 {n_done_fail}",
+                )
                 go_to(5)
         else:
             st.button("▶ 분석 실행", disabled=True,
