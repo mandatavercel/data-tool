@@ -436,9 +436,23 @@ def infer_schema(df: pd.DataFrame, sample_n: int = _INFER_SAMPLE_N) -> list[dict
             "sales_count", "tx_count", "tx_cnt", "거래건수",
             "거래수", "건수", "횟수", "transaction_count",
             "num_tx", "number_of_tx", "txn_count", "트랜잭션수",
+            # 유니크 고객/유저/거래자 카운트 (semantic 유사 — count metric per period)
+            "거래자수", "거래자_수", "구매자수", "구매자_수",
+            "방문자수", "방문자_수", "사용자수", "사용자_수",
+            "이용자수", "이용자_수", "고객수", "고객_수",
+            "유저수", "유저_수", "회원수", "회원_수",
+            "가입자수", "손님수",
+            "number_of_users", "number_of_user", "number_of_buyers",
+            "number_of_customers", "number_of_visitors",
+            "n_users", "n_user", "num_users", "num_user",
+            "user_count", "users_count", "customer_count", "customers_count",
+            "buyer_count", "buyers_count", "visitor_count", "visitors_count",
+            "unique_users", "unique_buyers", "unique_customers", "unique_visitors",
+            "uu", "dau", "mau", "wau", "distinct_users", "distinct_buyers",
         ], 65),
         ("number_of_tx", [
             "number_of_tx", "tx_n", "n_tx", "n_transactions",
+            "n_orders", "order_count", "orders_count", "주문건수", "주문수",
         ], 55),
         ("unit_price", [
             "unit_price", "단가", "price_per_unit", "asp",
@@ -581,15 +595,45 @@ def infer_schema(df: pd.DataFrame, sample_n: int = _INFER_SAMPLE_N) -> list[dict
             pos_rate = float((num > 0).mean())
             mean_val = float(num.mean()) if len(num) > 0 else 0
 
-            add(col, "sales_amount", 20, "숫자형")
-            if pos_rate > 0.8:
-                add(col, "sales_amount", 10, f"양수 {pos_rate*100:.0f}%")
-            if mean_val > 5_000:
-                add(col, "sales_amount", 10, f"평균 {mean_val:,.0f}")
+            # ── count-like 컬럼명 휴리스틱 (sales_amount 오추론 방지) ──
+            # "거래자수", "user_count", "n_users", "DAU" 같은 카운트 컬럼명이면
+            # sales_amount는 약하게, count 류는 강하게.
+            col_lc = col.lower().strip()
+            # 잘 알려진 count 약어 정확 매칭
+            count_acronyms = {"dau", "mau", "wau", "uu", "uv"}  # daily/monthly/weekly active users
+            is_count_name = (
+                col_lc in count_acronyms
+                or col_lc.endswith("수")
+                or col_lc.endswith("_count") or col_lc.endswith("count")
+                or col_lc.startswith("n_") or col_lc.startswith("num_")
+                or col_lc.startswith("number_of_") or col_lc.startswith("cnt_")
+                or "유저" in col or "거래자" in col or "구매자" in col
+                or "방문자" in col or "사용자" in col or "이용자" in col
+                or "user" in col_lc or "buyer" in col_lc or "visitor" in col_lc
+                or "customer" in col_lc
+            )
+            # 정수면서 작은 값(<100k)이면 count 가능성 더 높음
+            is_small_int = "int" in dtype and 0 < mean_val < 100_000
+
+            if is_count_name:
+                # sales_amount 점수는 약하게 (기존 20 → 5)
+                add(col, "sales_amount", 5, "숫자형 (count-like 이름)")
+                # count 후보들에 강한 boost
+                add(col, "sales_count",  30, f"이름에 count 시그널 ('{col}')")
+                add(col, "number_of_tx", 25, f"이름에 count 시그널 ('{col}')")
+            else:
+                add(col, "sales_amount", 20, "숫자형")
+                if pos_rate > 0.8:
+                    add(col, "sales_amount", 10, f"양수 {pos_rate*100:.0f}%")
+                if mean_val > 5_000:
+                    add(col, "sales_amount", 10, f"평균 {mean_val:,.0f}")
 
             if "int" in dtype:
                 add(col, "number_of_tx", 12, "정수형")
                 add(col, "quantity",     10, "정수형")
+            # 작은 정수 (count 가능성) — count 신호가 이미 있으면 부스트
+            if is_small_int and is_count_name:
+                add(col, "sales_count",  10, "작은 정수 + count 이름")
 
         if is_object:
             # 고유값 수로 역할 암시 (계층 카테고리 추론에 핵심)
