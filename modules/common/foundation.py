@@ -427,6 +427,11 @@ def infer_schema(df: pd.DataFrame, sample_n: int = _INFER_SAMPLE_N) -> list[dict
             "transaction_date", "tx_date", "거래일자", "거래일",
             "일자", "date", "day", "날짜", "dt", "ymd",
             "transaction", "time", "tm", "yyyymmdd", "기간",
+            # 월 단위 데이터 (YYYYMM)
+            "transaction_month", "tx_month", "year_month", "yearmonth",
+            "yyyymm", "ym", "month", "월", "년월", "거래월",
+            # 분기 단위
+            "quarter", "yyyyq", "분기",
         ], 55),
 
         # ── 매출 메트릭 ─────────────────────────────────────────
@@ -473,7 +478,15 @@ def infer_schema(df: pd.DataFrame, sample_n: int = _INFER_SAMPLE_N) -> list[dict
         ("company_name", [
             "company", "corp", "업체", "회사", "법인", "거래처",
             "client", "vendor", "거래사",
+            # 매핑 후 회사명 / 사업자명 컬럼
+            "mapped_mbn", "mbn", "company_name", "corp_name",
+            "회사명", "기업명", "법인명",
         ], 60),
+        # 사업자번호 (10자리) — company_name과는 구별, ID 성격
+        ("unknown", [
+            "mapped_mbc", "mbc", "사업자번호", "사업자_번호", "biz_no",
+            "bizr_no", "bizno", "business_no", "business_number",
+        ], 30),    # unknown으로 약하게 — 분석 미사용 (회사명이 따로 있으면 충분)
         ("brand_name", [
             "brand", "브랜드", "상표", "maker", "제조사", "제조원",
         ], 65),
@@ -691,6 +704,17 @@ def infer_schema(df: pd.DataFrame, sample_n: int = _INFER_SAMPLE_N) -> list[dict
                 except ValueError:
                     pass
 
+            # YYYYMM (정수 6자리) — 월 단위 데이터 (예: 202110)
+            if len(s0) == 6 and s0.isdigit():
+                try:
+                    v = int(s0)
+                    yr = v // 100
+                    mo = v % 100
+                    if 1900 <= yr <= 2100 and 1 <= mo <= 12:
+                        add(col, "transaction_date", 45, "YYYYMM 형식 (월 단위)")
+                except ValueError:
+                    pass
+
             # YYYY-MM-DD / YYYY/MM/DD
             elif re.search(r'^\d{4}[-/]\d{2}[-/]\d{2}', s0):
                 add(col, "transaction_date", 35, "YYYY-MM-DD 형식")
@@ -715,6 +739,11 @@ def infer_schema(df: pd.DataFrame, sample_n: int = _INFER_SAMPLE_N) -> list[dict
                 add(col, "security_code", 45, f"ISIN 형식 {isin_rate*100:.0f}%")
             elif kr_rate > 0.3:
                 add(col, "security_code", 25, f"KR 접두사 {kr_rate*100:.0f}%")
+
+            # 사업자번호 (10자리 정수) — sales_amount 오추론 방지
+            biz_rate = float(s_str.str.match(r'^\d{10}$').mean())
+            if biz_rate > 0.5:
+                add(col, "unknown", 40, f"10자리 사업자번호 {biz_rate*100:.0f}%")
 
             # ── 성별 (M/F/남/여/MALE/FEMALE) ──────────────────────────────
             gender_tokens = {"m", "f", "male", "female", "남", "여",
@@ -814,10 +843,18 @@ def infer_schema(df: pd.DataFrame, sample_n: int = _INFER_SAMPLE_N) -> list[dict
             "null_pct":      m["null_pct"],
             "n_unique":      m["n_unique"],
             "inferred_role": role,
-            "confidence":    min(100, sc),
+            "confidence":    min(100, int(sc)),
             "reason":        rsn,
             "final_role":    role,          # 사용자가 덮어쓸 수 있는 필드
         })
+
+    # ── LLM 스마트 보강 — 패턴이 약한 컬럼만 (confidence < 40) Claude에 위임 ──
+    # API key 없거나 LLM 실패시 패턴 결과 그대로 사용 (graceful fallback)
+    try:
+        from modules.common.schema_ai import enhance_schema
+        result = enhance_schema(result, confidence_threshold=40)
+    except Exception:
+        pass    # LLM 보강 실패해도 패턴 결과는 보존
 
     return result
 
@@ -827,8 +864,9 @@ def _parse_dates(series: pd.Series) -> pd.Series:
     날짜 파싱 우선순위:
     1. 이미 datetime → 그대로 반환
     2. YYYYMMDD 8자리 정수/문자열 → format='%Y%m%d'
-    3. YYYY-MM-DD / YYYY/MM/DD 문자열 → format 지정
-    4. 그 외 → pd.to_datetime 자동 추론
+    3. YYYYMM 6자리 정수/문자열 (월 단위) → 해당 월 1일로 파싱
+    4. YYYY-MM-DD / YYYY/MM/DD 문자열 → format 지정
+    5. 그 외 → pd.to_datetime 자동 추론
     """
     if pd.api.types.is_datetime64_any_dtype(series):
         return series
@@ -860,11 +898,33 @@ def _parse_dates(series: pd.Series) -> pd.Series:
         except (ValueError, OverflowError):
             pass
 
+    # YYYYMM 감지 (6자리 — 월 단위 데이터 예: 202110 = 2021년 10월)
+    if len(s0_int) == 6 and s0_int.isdigit():
+        try:
+            v = int(s0_int)
+            yr, mo = v // 100, v % 100
+            if 1900 <= yr <= 2100 and 1 <= mo <= 12:
+                try:
+                    int_s = pd.to_numeric(series, errors="coerce").astype("Int64")
+                    # YYYYMM → "YYYYMM01" (해당 월 1일)
+                    str_s = int_s.astype("string") + "01"
+                    return pd.to_datetime(str_s, format="%Y%m%d", errors="coerce")
+                except Exception:
+                    str_s = series.where(series.notna(), None).map(
+                        lambda x: f"{int(x)}01" if pd.notna(x) else None
+                    )
+                    return pd.to_datetime(str_s, format="%Y%m%d", errors="coerce")
+        except (ValueError, OverflowError):
+            pass
+
     # YYYY-MM-DD or YYYY/MM/DD
     if re.match(r"^\d{4}-\d{2}-\d{2}$", s0):
         return pd.to_datetime(series, format="%Y-%m-%d", errors="coerce")
     if re.match(r"^\d{4}/\d{2}/\d{2}$", s0):
         return pd.to_datetime(series, format="%Y/%m/%d", errors="coerce")
+    # YYYY-MM (월 단위 문자열)
+    if re.match(r"^\d{4}-\d{2}$", s0):
+        return pd.to_datetime(series + "-01", format="%Y-%m-%d", errors="coerce")
 
     # 그 외 형식 — 경고 억제
     import warnings

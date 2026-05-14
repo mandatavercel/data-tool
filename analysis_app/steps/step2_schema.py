@@ -63,15 +63,36 @@ def render() -> None:
 
     # ── 최초 1회만 추론, 이후 rerun은 session_state 사용 ─────────────────────
     if "schema_rows" not in st.session_state:
-        st.session_state["schema_rows"] = infer_schema(df)
+        with st.spinner("스키마 추론 중... (패턴 매칭 + AI 보강 — 약 5~15초)"):
+            st.session_state["schema_rows"] = infer_schema(df)
 
     schema_rows = st.session_state["schema_rows"]
+
+    # ── AI 사용 가능 여부 표시 ───────────────────────────────────────────────
+    try:
+        from modules.common.schema_ai import is_available as _ai_ok
+        ai_enabled = _ai_ok()
+    except Exception:
+        ai_enabled = False
+    n_llm_enhanced = sum(1 for r in schema_rows if r.get("llm_reasoning"))
 
     # ── 헤더 ──────────────────────────────────────────────────────────────────
     hcol, bcol = st.columns([5, 1])
     with hcol:
-        st.caption("역할을 수정하거나 불필요한 컬럼을 제외하세요. "
-                   "역할 의미가 헷갈리면 ↓ 가이드 펼쳐보세요.")
+        if ai_enabled:
+            st.caption(
+                f"역할을 수정하거나 불필요한 컬럼을 제외하세요. "
+                f"역할 의미가 헷갈리면 ↓ 가이드 펼쳐보세요.  "
+                f"🤖 **AI 보강 활성** — 패턴이 약한 컬럼은 Claude가 자동으로 의미·분석 활용처를 추론합니다 "
+                f"(보강된 컬럼: {n_llm_enhanced}개)."
+            )
+        else:
+            st.caption(
+                "역할을 수정하거나 불필요한 컬럼을 제외하세요. "
+                "역할 의미가 헷갈리면 ↓ 가이드 펼쳐보세요.  "
+                "⚠️ AI 스마트 추론 비활성화 — `ANTHROPIC_API_KEY`를 Streamlit Secrets에 추가하면 "
+                "낯선 컬럼도 자동 분석됩니다."
+            )
     with bcol:
         if st.button("🔄 재추론"):
             st.session_state.pop("schema_rows", None)
@@ -187,12 +208,20 @@ def render() -> None:
             unsafe_allow_html=True,
         )
 
-        # 근거
-        c_rsn.markdown(
+        # 근거 + AI 분석 힌트
+        rsn_html = (
             f"<div style='padding:6px 0;font-size:11px;color:#6b7280'>"
-            f"{row['reason']}</div>",
-            unsafe_allow_html=True,
+            f"{row['reason']}</div>"
         )
+        # LLM이 제안한 분석 활용처가 있으면 추가 표시
+        hint = row.get("llm_analysis_hint", "")
+        if hint:
+            rsn_html += (
+                f"<div style='font-size:11px;color:#1e40af;background:#eff6ff;"
+                f"border-radius:4px;padding:3px 6px;margin-top:2px;line-height:1.4'>"
+                f"💡 {hint}</div>"
+            )
+        c_rsn.markdown(rsn_html, unsafe_allow_html=True)
 
         updated_rows.append({**row, "final_role": new_role, "included": included})
 
