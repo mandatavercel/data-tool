@@ -234,50 +234,96 @@ def render() -> None:
                     params_map[key] = {}
 
     # ── 실행 버튼 ─────────────────────────────────────────────────────────────
-    c_run, c_prev = st.columns([3, 1])
+    st.divider()
+    if selected_modules:
+        st.markdown(
+            f"<div style='background:#dbeafe;border-left:4px solid #1e40af;"
+            f"padding:10px 14px;border-radius:6px;margin:8px 0;font-size:13px;color:#1e3a8a'>"
+            f"📌 <b>{len(selected_modules)}개 분석</b> 준비됨. 아래 큰 버튼 클릭 → "
+            f"자동으로 분석 실행 + 결과 페이지로 이동.</div>",
+            unsafe_allow_html=True,
+        )
+    c_prev, c_run = st.columns([1, 4])
     with c_prev:
-        if st.button("← Data Validation"):
+        if st.button("← Data Validation", use_container_width=True):
             go_to(3)
     with c_run:
         if selected_modules:
-            if st.button(f"▶ {len(selected_modules)}개 분석 실행", type="primary"):
-                progress = st.progress(0, text="분석 준비 중...")
-                t_start = time.time()
-                # 로컬 dict 누적 — 끝에 atomic으로 session_state에 할당 (re-run 안정성)
-                new_results = dict(results)
-                n_total = len(selected_modules)
-                n_done_ok = 0
-                n_done_fail = 0
+            run_clicked = st.button(
+                f"▶ {len(selected_modules)}개 분석 실행 (클릭!)",
+                type="primary", use_container_width=True,
+                key="btn_run_analysis",
+            )
+            if run_clicked:
+                # 클릭 감지 즉시 시각 피드백 — 사용자가 클릭됐는지 확인 가능
+                st.success(f"🚀 분석 시작! {len(selected_modules)}개 모듈 실행 중...")
+                st.info("⏱ 1~3분 소요. 완료되면 자동으로 Step 5(결과)로 이동합니다.")
 
-                for i, key in enumerate(selected_modules):
-                    elapsed = int(time.time() - t_start)
-                    name = ANALYSIS_OPTIONS.get(key, key)
+                try:
+                    progress = st.progress(0, text="분석 준비 중...")
+                    status_text = st.empty()    # 실시간 상태 텍스트
+                    t_start = time.time()
+                    # session_state["results"]가 None인 경우 방어
+                    _existing = st.session_state.get("results") or {}
+                    new_results = dict(_existing) if isinstance(_existing, dict) else {}
+                    n_total = len(selected_modules)
+                    n_done_ok = 0
+                    n_done_fail = 0
+
+                    for i, key in enumerate(selected_modules):
+                        elapsed = int(time.time() - t_start)
+                        name = ANALYSIS_OPTIONS.get(key, key)
+                        progress.progress(
+                            i / max(n_total, 1),
+                            text=f"실행 중 ({i+1}/{n_total} · 경과 {elapsed}s): {name}",
+                        )
+                        status_text.markdown(
+                            f"<div style='font-size:12px;color:#475569'>"
+                            f"🔄 <b>{name}</b> 실행 중... ({i+1}/{n_total})</div>",
+                            unsafe_allow_html=True,
+                        )
+                        try:
+                            res = _run_one_module(
+                                key=key,
+                                df=df,
+                                role_map=role_map,
+                                params=params_map.get(key, {}),
+                                all_results=new_results,
+                            )
+                        except Exception as exc:
+                            res = {"status": "failed",
+                                   "message": _classify_error(exc),
+                                   "data": None, "metrics": {}}
+                        new_results[key] = res
+                        if isinstance(res, dict) and res.get("status") == "failed":
+                            n_done_fail += 1
+                        else:
+                            n_done_ok += 1
+
+                    # 최종 atomic 업데이트
+                    st.session_state["results"] = new_results
+                    total_elapsed = int(time.time() - t_start)
                     progress.progress(
-                        i / n_total,
-                        text=f"실행 중 ({i+1}/{n_total} · 경과 {elapsed}s): {name}",
+                        1.0,
+                        text=f"완료 ({total_elapsed}s) · 성공 {n_done_ok} · 실패 {n_done_fail}",
                     )
-                    res = _run_one_module(
-                        key=key,
-                        df=df,
-                        role_map=role_map,
-                        params=params_map.get(key, {}),
-                        all_results=new_results,
+                    status_text.markdown(
+                        f"<div style='background:#dcfce7;padding:8px 12px;border-radius:6px;"
+                        f"font-size:13px;color:#166534;font-weight:600'>"
+                        f"✅ 분석 완료! 성공 {n_done_ok} · 실패 {n_done_fail} ({total_elapsed}s) "
+                        f"— 잠시 후 Step 5로 이동합니다...</div>",
+                        unsafe_allow_html=True,
                     )
-                    new_results[key] = res
-                    if isinstance(res, dict) and res.get("status") == "failed":
-                        n_done_fail += 1
-                    else:
-                        n_done_ok += 1
-
-                # 최종 atomic 업데이트 — 부분 실패가 있어도 성공한 결과는 모두 보존
-                st.session_state["results"] = new_results
-
-                total_elapsed = int(time.time() - t_start)
-                progress.progress(
-                    1.0,
-                    text=f"완료 ({total_elapsed}s) · 성공 {n_done_ok} · 실패 {n_done_fail}",
-                )
-                go_to(5)
+                    time.sleep(1.0)    # 사용자가 완료 메시지 볼 시간
+                    go_to(5)
+                except Exception as e:
+                    # 최후의 안전망 — 어떤 에러든 fail 표시
+                    st.error(
+                        f"❌ 분석 실행 중 예상치 못한 에러: "
+                        f"**{type(e).__name__}**: {str(e)[:300]}"
+                    )
         else:
             st.button("▶ 분석 실행", disabled=True,
+                      use_container_width=True,
                       help="실행할 모듈을 하나 이상 선택하세요.")
+            st.caption("⚠️ 위 카드에서 분석 모듈을 최소 1개 선택해야 실행 버튼이 활성화됩니다.")
