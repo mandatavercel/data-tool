@@ -289,88 +289,105 @@ def _render_dart_match_ui(dart_api_val: str, pos_companies: list[str]) -> None:
 
     st.write("")
 
-    # ── 🔁 회사별 매핑 selectbox 그리드 (모든 회사) ──────────────────────────
-    st.markdown("**🔁 회사별 DART 매핑** — 자동 매칭이 default. 잘못된 매칭은 드롭다운에서 직접 정정.")
-    st.caption(
-        f"DART 상장사 {len(listed)}개를 검색 가능. 드롭다운 펼친 후 회사명·종목코드로 type-ahead 검색하세요. "
-        "💡 비슷한 이름 회사가 있을 때 드롭다운에 추천 후보군이 자동으로 위쪽에 표시됩니다."
-    )
+    # ── 🔁 회사별 매핑 (성능 안전 모드) ──────────────────────────
+    # 이전 버전: 모든 회사 × 1954개 옵션을 DOM에 렌더 → 페이지 멈춤.
+    # 신버전: 수동 정정이 필요한 회사(동명/실패)만 selectbox로 표시,
+    #        정확히 매칭된 회사는 가벼운 텍스트로.
+    st.markdown("**🔁 회사별 DART 매핑** — 자동 매칭이 default. 정정 필요한 회사만 아래 selectbox에서 직접 선택.")
 
-    # 전체 옵션 (검색 가능)
-    opt_codes_all  = [""] + [x["corp_code"] for x in listed]
-    opt_labels_all = ["─ 매핑 안 함 / 자동 매칭에 위임 ─"] + [
-        f"{x['name']} ({x['stock_code']})" for x in listed
-    ]
-    label_by_code  = {x["corp_code"]: f"{x['name']} ({x['stock_code']})" for x in listed}
-
-    def _options_for_row(row) -> tuple[list[str], list[str], int]:
-        """행 별 옵션 구성: 미매핑 + match_df 후보 (상단) + 전체 (하단). 자동 default index 반환."""
-        cands     = row.get("candidates") or []
-        cur_cc    = row.get("corp_code", "")
-        # 1) 추천 후보 (match_df candidates)
-        cand_codes  = [c.get("corp_code", "") for c in cands if c.get("corp_code")]
-        cand_labels = [
-            f"{c['corp_name']} ({c.get('stock_code','—')})"
-            for c in cands if c.get("corp_code")
-        ]
-        # 2) 전체에서 추천 제외한 나머지
-        rest_codes  = [cc for cc in opt_codes_all[1:] if cc not in cand_codes]
-        rest_labels = [label_by_code[cc] for cc in rest_codes]
-        # 3) 최종 옵션: "─ 미매핑" + 추천 후보들 + 구분선 + 전체 나머지
-        if cand_codes:
-            codes  = [""] + cand_codes + [""] + rest_codes
-            labels = (
-                ["─ 매핑 안 함"]
-                + [f"⭐ {l}" for l in cand_labels]
-                + [f"─── 전체 {len(rest_codes)}개사 ───"]
-                + rest_labels
-            )
-        else:
-            codes  = [""] + rest_codes
-            labels = ["─ 매핑 안 함"] + rest_labels
-        # default index
-        if cur_cc in codes:
-            idx = codes.index(cur_cc)
-        else:
-            idx = 0
-        return codes, labels, idx
-
-    # 그리드 렌더링 — 회사명(라벨) + selectbox 두 컬럼
+    # 정확히 매칭된 행은 텍스트로만 (DOM 가볍게)
+    needs_fix = []
+    auto_ok   = []
     for _, row in match_df.iterrows():
-        inp = row["input_name"]
-        codes, labels, default_idx = _options_for_row(row)
+        match_type = row.get("match_type", "")
+        if match_type in ("ambiguous", "none") or not row.get("corp_code"):
+            needs_fix.append(row)
+        else:
+            auto_ok.append(row)
 
-        c1, c2 = st.columns([1.2, 4])
-        c1.markdown(
-            f"<div style='padding:7px 0;font-size:13px'><b>{inp}</b></div>",
+    # 정확 매칭 회사 요약 (펼침)
+    if auto_ok:
+        with st.expander(
+            f"✅ 자동 매칭 완료 {len(auto_ok)}개 — 펼쳐서 확인 (수정 필요시 정정 영역에서 검색)",
+            expanded=False,
+        ):
+            rows = []
+            for r in auto_ok:
+                rows.append({
+                    "회사 (POS)": r["input_name"],
+                    "매핑된 DART 회사": r.get("corp_name", ""),
+                    "종목코드": r.get("stock_code", "—"),
+                })
+            import pandas as _pd
+            st.dataframe(_pd.DataFrame(rows), hide_index=True, use_container_width=True)
+
+    # 수동 정정 필요 — 동명·실패만 selectbox 표시
+    if needs_fix:
+        st.markdown(
+            f"<div style='background:#fffbeb;border-left:3px solid #fbbf24;"
+            f"padding:8px 12px;margin:6px 0;border-radius:4px;font-size:12.5px'>"
+            f"⚠️ <b>{len(needs_fix)}개 회사</b>는 자동 매칭이 모호하거나 실패. "
+            f"드롭다운에서 직접 선택하세요.</div>",
             unsafe_allow_html=True,
         )
-        sel_idx = c2.selectbox(
-            f"_dart_grid_{inp}",
-            options=range(len(labels)),
-            index=default_idx,
-            format_func=lambda i, ls=labels: ls[i],
-            label_visibility="collapsed",
-            key=f"p_dart_grid__{inp}",
-        )
-        new_cc = codes[sel_idx]
 
-        # 구분선("─── 전체 ───") 옵션 선택 방지: 빈 코드면 미매핑 처리
-        if not new_cc:
-            mask = match_df["input_name"] == inp
-            match_df.loc[mask, "corp_code"]     = ""
-            match_df.loc[mask, "corp_name"]     = ""
-            match_df.loc[mask, "corp_name_eng"] = ""
-            match_df.loc[mask, "stock_code"]    = ""
-        else:
-            # listed에서 정보 찾아서 모든 컬럼 업데이트
-            chosen = next((x for x in listed if x["corp_code"] == new_cc), None)
-            if chosen:
+        # 옵션 풀 — 한 번만 생성 (lazy)
+        opt_codes_all  = [""] + [x["corp_code"] for x in listed]
+        label_by_code  = {x["corp_code"]: f"{x['name']} ({x['stock_code']})" for x in listed}
+
+        for row in needs_fix:
+            inp = row["input_name"]
+            cands     = row.get("candidates") or []
+            cur_cc    = row.get("corp_code", "")
+            cand_codes  = [c.get("corp_code", "") for c in cands if c.get("corp_code")]
+            cand_labels = [
+                f"⭐ {c['corp_name']} ({c.get('stock_code','—')})"
+                for c in cands if c.get("corp_code")
+            ]
+            # 옵션: 미매핑 + 추천 후보 + 전체 풀
+            codes  = [""] + cand_codes + [c for c in opt_codes_all[1:] if c not in cand_codes]
+            labels = (
+                ["─ 매핑 안 함"]
+                + cand_labels
+                + [label_by_code[c] for c in opt_codes_all[1:] if c not in cand_codes]
+            )
+            default_idx = codes.index(cur_cc) if cur_cc in codes else 0
+
+            c1, c2 = st.columns([1.2, 4])
+            c1.markdown(
+                f"<div style='padding:7px 0;font-size:13px'><b>{inp}</b></div>",
+                unsafe_allow_html=True,
+            )
+            sel_idx = c2.selectbox(
+                f"_dart_grid_{inp}",
+                options=range(len(labels)),
+                index=default_idx,
+                format_func=lambda i, ls=labels: ls[i],
+                label_visibility="collapsed",
+                key=f"p_dart_grid__{inp}",
+            )
+            new_cc = codes[sel_idx]
+            if not new_cc:
                 mask = match_df["input_name"] == inp
-                match_df.loc[mask, "corp_code"]     = chosen["corp_code"]
-                match_df.loc[mask, "corp_name"]     = chosen["name"]
-                match_df.loc[mask, "corp_name_eng"] = chosen.get("name_eng", "")
-                match_df.loc[mask, "stock_code"]    = chosen.get("stock_code", "")
+                match_df.loc[mask, "corp_code"]     = ""
+                match_df.loc[mask, "corp_name"]     = ""
+                match_df.loc[mask, "corp_name_eng"] = ""
+                match_df.loc[mask, "stock_code"]    = ""
+            else:
+                chosen = next((x for x in listed if x["corp_code"] == new_cc), None)
+                if chosen:
+                    mask = match_df["input_name"] == inp
+                    match_df.loc[mask, "corp_code"]     = chosen["corp_code"]
+                    match_df.loc[mask, "corp_name"]     = chosen["name"]
+                    match_df.loc[mask, "corp_name_eng"] = chosen.get("name_eng", "")
+                    match_df.loc[mask, "stock_code"]    = chosen.get("stock_code", "")
+    else:
+        st.markdown(
+            "<div style='background:#dcfce7;border-left:3px solid #16a34a;"
+            "padding:8px 12px;margin:6px 0;border-radius:4px;font-size:12.5px'>"
+            "🎉 모든 회사가 자동 매칭 완료! 수동 정정 불필요.</div>",
+            unsafe_allow_html=True,
+        )
 
     st.session_state["p_dart_match"] = match_df
 
