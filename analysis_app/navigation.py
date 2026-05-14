@@ -1,5 +1,5 @@
 """
-스텝 네비게이션 — go_to(step), render_stepper().
+스텝 네비게이션 — go_to(step), render_stepper(), require_state().
 """
 from __future__ import annotations
 
@@ -12,6 +12,25 @@ def go_to(step: int) -> None:
     """현재 step을 변경하고 즉시 rerun."""
     st.session_state["step"] = step
     st.rerun()
+
+
+def require_state(keys: list[str], redirect_step: int,
+                  hint: str = "이전 단계를 완료하세요.") -> None:
+    """필요한 session_state 키 존재 여부 확인 후 없으면 안전하게 redirect.
+
+    사용:
+        from analysis_app.navigation import require_state
+        require_state(["raw_df", "role_map"], redirect_step=2)
+
+    동작:
+        - 모든 key가 session_state에 있고 truthy → 통과
+        - 하나라도 없거나 falsy → warning + go_to(redirect_step)
+        - go_to가 st.rerun()을 호출하므로 호출 측 함수는 자동 중단
+    """
+    missing = [k for k in keys if not st.session_state.get(k)]
+    if missing:
+        st.warning(f"⚠️ {hint} (필요: {', '.join(missing)})")
+        go_to(redirect_step)
 
 
 def render_stepper() -> None:

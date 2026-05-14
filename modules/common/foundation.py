@@ -39,10 +39,32 @@ ROLE_OPTIONS = [
 # 사용자는 sales_quantity / sales_count만 선택하면 충분.
 _HIDDEN_ALIAS_ROLES = {"quantity", "number_of_tx"}
 
+# Alias → 사용자 노출 부모 role 매핑 (단일 출처 — UI 정규화 전용).
+# step2_schema·foundation의 selectbox 둘 다 이 dict를 import해서 사용.
+ALIAS_TO_PARENT = {
+    "quantity":      "sales_quantity",
+    "number_of_tx":  "sales_count",
+}
+
 
 def user_role_options() -> list[str]:
     """사용자 selectbox에 표시할 role 목록 — 백엔드 alias 숨김."""
     return [r for r in ROLE_OPTIONS if r not in _HIDDEN_ALIAS_ROLES]
+
+
+def normalize_to_user_role(role: str | None, opts: list[str] | None = None) -> str:
+    """alias·invalid role을 사용자 노출 옵션 안 값으로 정규화.
+
+    사용처: step2_schema, foundation의 selectbox 직전 정규화.
+    옛 session_state가 'quantity' 같은 alias를 들고 있어도 안전하게 'sales_quantity'로.
+    옵션 밖이면 'unknown' 반환.
+    """
+    if role is None:
+        return "unknown"
+    v = ALIAS_TO_PARENT.get(role, role)
+    if opts is None:
+        opts = user_role_options()
+    return v if v in opts else "unknown"
 
 
 # UI selectbox에 표시할 한국어 라벨 (내부 값은 영문 유지)
@@ -1401,7 +1423,6 @@ def render(go_to):
     duplicates: dict[str, list[str]] = {}
 
     # 사용자 노출 옵션 — 백엔드 alias 숨김
-    _ALIAS_TO_PARENT = {"quantity": "sales_quantity", "number_of_tx": "sales_count"}
     user_opts = user_role_options()
 
     grid_cols = st.columns(2)
@@ -1413,19 +1434,9 @@ def render(go_to):
             session_key = f"found_role_{col_name}"
 
             # 세션 정규화 — selectbox 호출 전에 옵션 안 값으로 정렬.
-            # 안 그러면 옛 alias가 session_state에 있을 때 Streamlit이
-            # options에서 못 찾아 ValueError 발생.
-            if session_key not in st.session_state:
-                init_val = _ALIAS_TO_PARENT.get(current, current)
-                if init_val not in user_opts:
-                    init_val = "unknown"
-                st.session_state[session_key] = init_val
-            else:
-                cur = st.session_state[session_key]
-                cur = _ALIAS_TO_PARENT.get(cur, cur)
-                if cur not in user_opts:
-                    cur = "unknown"
-                st.session_state[session_key] = cur
+            # normalize_to_user_role 단일 helper 사용 — 중복 dict 제거.
+            existing = st.session_state.get(session_key, current)
+            st.session_state[session_key] = normalize_to_user_role(existing, user_opts)
 
             new_role = st.selectbox(
                 f"**{col_name}**  ·  *{row['dtype']}*",

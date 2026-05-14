@@ -5,7 +5,8 @@ import streamlit as st
 
 from modules.common.foundation import (
     infer_schema, ROLE_OPTIONS, ROLE_LABEL, ROLE_COLOR, ROLE_DESCRIPTION,
-    role_label, role_help_text, normalize_role_map, user_role_options,
+    role_label, role_help_text, normalize_role_map,
+    user_role_options, ALIAS_TO_PARENT, normalize_to_user_role,
 )
 from modules.analysis.guides import render_guide
 from analysis_app.navigation import go_to
@@ -172,21 +173,16 @@ def render() -> None:
         if "unknown" not in opts:
             opts = list(opts) + ["unknown"]
 
-        _ALIAS_TO_PARENT = {"quantity": "sales_quantity",
-                            "number_of_tx": "sales_count"}
-
-        def _normalize_role(val):
-            """어떤 값이든 opts 안 값으로 변환 — selectbox 안전."""
-            if val is None:
-                return "unknown"
-            v = _ALIAS_TO_PARENT.get(val, val)
-            return v if v in opts else "unknown"
-
         # session_state 강제 정규화 (selectbox 호출 전에 반드시)
+        # 단일 출처 normalize_to_user_role 사용 — alias/invalid → 'unknown' 또는 부모
         if role_key not in st.session_state:
-            st.session_state[role_key] = _normalize_role(row.get("final_role"))
+            st.session_state[role_key] = normalize_to_user_role(
+                row.get("final_role"), opts
+            )
         else:
-            st.session_state[role_key] = _normalize_role(st.session_state[role_key])
+            st.session_state[role_key] = normalize_to_user_role(
+                st.session_state[role_key], opts
+            )
 
         try:
             new_role = c_role.selectbox(
