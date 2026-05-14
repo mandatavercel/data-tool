@@ -16,8 +16,10 @@ ROLE_OPTIONS = [
     # ── 매출 메트릭 ─────────────────────────────────────────────
     "sales_amount",           # 거래금액
     "sales_quantity",         # 거래량 (수량)
-    "sales_count",            # 거래건수
+    "sales_count",            # 거래건수 (결제·주문 건수)
     "unit_price",             # 단가
+    # ── 이용자 메트릭 (신규 — 거래건수와 의미가 다름) ──────────
+    "active_users",           # 활성 이용자수 (DAU/MAU/방문자/유저)
     # ── 호환용 alias (기존 모듈 호환 — 사용자 selectbox에선 숨김) ─
     "quantity", "number_of_tx",
     # ── 데모그래픽 ──────────────────────────────────────────────
@@ -63,6 +65,7 @@ ROLE_LABEL = {
     "sales_quantity":    "🔢 거래수량",
     "sales_count":       "🧾 거래건수",
     "unit_price":        "🏷 단가",
+    "active_users":      "👥 이용자수 (DAU·MAU·방문자)",
     # ── 백엔드 alias (사용자 selectbox에선 숨김 — 옛 session_state 표시용) ─
     "quantity":          "🔢 거래수량 (sales_quantity와 동일)",
     "number_of_tx":      "🧾 거래건수 (sales_count와 동일)",
@@ -95,6 +98,7 @@ ROLE_COLOR = {
     "unit_price":        "#dcfce7",
     "quantity":          "#d1fae5",
     "number_of_tx":      "#d1fae5",
+    "active_users":      "#bae6fd",   # 이용자는 청록 — 매출(green)과 시각 구분
     # 식별 (노랑)
     "company_name":      "#fef9c3",
     "brand_name":        "#fef3c7",
@@ -192,10 +196,20 @@ ROLE_DESCRIPTION: dict[str, dict[str, str]] = {
                 "성장 동인 정량 파악. 프리미엄화 vs 볼륨 확대 식별.",
     },
     "sales_count": {
-        "what": "거래 건수 (몇 번의 결제 발생).",
+        "what": "거래 건수 (몇 번의 결제·주문이 발생했나). 한 명이 여러 번 거래 가능.",
         "for":  "🧾 거래 빈도 분석 — Demand Intelligence(건수 vs 객단가 분해), "
-                "Anomaly Detection(평소 대비 거래량 급증·급감 자동 감지), "
-                "고객 활성도 추적.",
+                "Anomaly Detection(평소 대비 거래량 급증·급감 자동 감지). "
+                "💡 active_users도 함께 매핑되면 자동으로 '결제 빈도'(거래건수/이용자수) 파생.",
+    },
+    "active_users": {
+        "what": "활성 이용자수 — 해당 기간 서비스를 이용한 unique 사용자 수 "
+                "(DAU·MAU·방문자수·구독자수 등). 거래건수와 다름: "
+                "한 명이 여러 번 거래해도 1명으로 카운트.",
+        "for":  "👥 이용자 기반 분석 — ARPU(매출/이용자수, 1인당 매출력), "
+                "Penetration(이용자 성장 vs 매출 성장 — 어느게 driver?), "
+                "결제 빈도(거래건수/이용자수, 1인당 결제 횟수). "
+                "💡 sales_amount와 함께 매핑되면 ARPU 자동 계산. "
+                "💡 핀테크·구독·모바일앱·SaaS·이커머스 분석의 핵심 변수.",
     },
     "unit_price": {
         "what": "단가 / 객단가 (ATV — Average Transaction Value).",
@@ -448,26 +462,35 @@ def infer_schema(df: pd.DataFrame, sample_n: int = _INFER_SAMPLE_N) -> list[dict
             "qty", "quantity", "수량", "ea", "개수", "pcs", "unit_qty",
         ], 60),
         ("sales_count", [
+            # 결제·거래·주문 카운트 — 한 명이 여러 번 결제 가능 (>= active_users)
             "sales_count", "tx_count", "tx_cnt", "거래건수",
             "거래수", "건수", "횟수", "transaction_count",
             "num_tx", "number_of_tx", "txn_count", "트랜잭션수",
-            # 유니크 고객/유저/거래자 카운트 (semantic 유사 — count metric per period)
-            "거래자수", "거래자_수", "구매자수", "구매자_수",
-            "방문자수", "방문자_수", "사용자수", "사용자_수",
-            "이용자수", "이용자_수", "고객수", "고객_수",
-            "유저수", "유저_수", "회원수", "회원_수",
-            "가입자수", "손님수",
-            "number_of_users", "number_of_user", "number_of_buyers",
-            "number_of_customers", "number_of_visitors",
-            "n_users", "n_user", "num_users", "num_user",
-            "user_count", "users_count", "customer_count", "customers_count",
-            "buyer_count", "buyers_count", "visitor_count", "visitors_count",
-            "unique_users", "unique_buyers", "unique_customers", "unique_visitors",
-            "uu", "dau", "mau", "wau", "distinct_users", "distinct_buyers",
+            "n_orders", "order_count", "orders_count", "주문건수", "주문수",
+            "payment_count", "결제건수", "결제수",
+            # 구매자수는 sales_count에 가깝지만 ambiguous → 약하게
+            "구매자수", "구매자_수", "buyer_count",
         ], 65),
+        ("active_users", [
+            # 활성 이용자수 — 서비스를 사용한 unique 사용자 (< sales_count)
+            "active_users", "active_user", "n_users", "n_user",
+            "num_users", "num_user", "user_count", "users_count",
+            "number_of_users", "number_of_user",
+            "unique_users", "unique_visitors", "uniq_users",
+            "uu", "uv",  # unique users / unique visitors
+            "dau", "mau", "wau",   # daily/monthly/weekly active users
+            "visitor_count", "visitors_count", "number_of_visitors",
+            # 한국어 — unique 사람 수
+            "이용자수", "이용자_수", "사용자수", "사용자_수",
+            "유저수", "유저_수", "방문자수", "방문자_수",
+            "거래자수", "거래자_수",   # unique 거래자(사람) — 결제 1회/N회 모두 1명
+            "활성이용자", "활성사용자", "월활성", "일활성",
+            "가입자수", "회원수", "회원_수",
+            "고객수", "고객_수",
+            "subscriber_count", "구독자수", "구독자_수",
+        ], 70),  # sales_count(65)보다 약간 높게 — "이용자수"가 명시되면 정확히 잡음
         ("number_of_tx", [
             "number_of_tx", "tx_n", "n_tx", "n_transactions",
-            "n_orders", "order_count", "orders_count", "주문건수", "주문수",
         ], 55),
         ("unit_price", [
             "unit_price", "단가", "price_per_unit", "asp",

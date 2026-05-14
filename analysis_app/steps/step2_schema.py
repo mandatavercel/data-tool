@@ -263,6 +263,51 @@ def render() -> None:
         excluded = [r["column_name"] for r in updated_rows if not r["included"]]
         if excluded:
             st.caption(f"제외된 컬럼: {', '.join(excluded)}")
+
+        # ── 🎯 활성화된 파생 메트릭 / 가능 분석 ──────────────────────────
+        try:
+            from modules.common.derived_metrics import suggest_derived
+            derived = suggest_derived(raw_role_map)
+            active   = [d for d in derived if d["active_now"]]
+            possible = [d for d in derived if not d["active_now"]]
+
+            if active:
+                st.markdown(
+                    "<div style='margin-top:14px;font-size:13px;font-weight:700;"
+                    "color:#0f172a'>✅ 자동으로 가능해진 파생 분석</div>",
+                    unsafe_allow_html=True,
+                )
+                for d in active:
+                    st.markdown(
+                        f"<div style='background:#ecfdf5;border-left:3px solid #10b981;"
+                        f"padding:8px 12px;margin:4px 0;border-radius:4px;font-size:12.5px'>"
+                        f"<b>{d['name']}</b> &nbsp; "
+                        f"<code style='font-size:11px;color:#065f46'>{d['formula']}</code><br>"
+                        f"<span style='color:#475569;line-height:1.5'>{d['describes']}</span><br>"
+                        f"<span style='color:#94a3b8;font-size:11px'>예: {d['example']}</span>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+            if possible:
+                with st.expander(
+                    f"💡 추가로 매핑하면 가능해질 분석 ({len(possible)}개)",
+                    expanded=False,
+                ):
+                    for d in possible:
+                        missing = [m for m in d["requires"]
+                                   if m not in raw_role_map]
+                        st.markdown(
+                            f"<div style='background:#fffbeb;border-left:3px solid #fbbf24;"
+                            f"padding:8px 12px;margin:4px 0;border-radius:4px;font-size:12.5px'>"
+                            f"<b>{d['name']}</b><br>"
+                            f"<span style='color:#475569'>{d['describes']}</span><br>"
+                            f"<span style='font-size:11px;color:#92400e'>"
+                            f"필요 역할: {', '.join('`'+m+'`' for m in missing)}</span>"
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+        except Exception:
+            pass
     else:
         st.info("역할이 매핑되지 않았습니다.")
 

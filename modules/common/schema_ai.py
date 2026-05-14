@@ -39,7 +39,8 @@ _ROLE_CATALOG = {
     "category_name":     "단일 카테고리 (계층 없음)",
     "sales_amount":      "거래금액·매출 (원/달러 등 통화 단위)",
     "sales_quantity":    "거래수량·판매량 (개수)",
-    "sales_count":       "거래/주문/유저 등 카운트 메트릭 (예: 거래건수, 거래자수, DAU, 사용자수, n_orders)",
+    "sales_count":       "거래/주문/결제 건수 — 한 명이 여러 번 거래 가능 (>= active_users)",
+    "active_users":      "활성 이용자수·DAU·MAU·방문자수·UU·구독자수 — 한 명이 N번 거래해도 1명 (< sales_count)",
     "unit_price":        "단가·객단가",
     "gender":            "성별 (M/F, 남/여)",
     "age_group":         "연령대 (20대, 30s 등)",
@@ -66,7 +67,12 @@ _SYSTEM_PROMPT = (
     "}\n\n"
     "Available roles:\n" + "\n".join(f"- {k}: {v}" for k, v in _ROLE_CATALOG.items()) + "\n\n"
     "Decision rules:\n"
-    "- '거래자수', 'number_of_users', 'DAU' 같은 카운트는 sales_count.\n"
+    "- 'DAU/MAU/이용자수/유저수/방문자수/사용자수/unique_users/n_users/number_of_users' "
+    "→ active_users (개별 유저 카운트, 한 명이 여러 번 거래해도 1명).\n"
+    "- '거래건수/결제건수/주문건수/n_orders/tx_count/transaction_count' "
+    "→ sales_count (결제 횟수, 한 명이 여러 번 가능).\n"
+    "- 'sales_count' vs 'active_users' 헷갈리면 active_users 우선 "
+    "(보통 sales_count >= active_users 관계).\n"
     "- 회사명은 '회사명'이라 적혀있지 않아도 텍스트값이 회사명 패턴이면 company_name.\n"
     "- YYYYMM(6자리), YYYYMMDD(8자리), YYYY-MM-DD 모두 transaction_date.\n"
     "- 10자리 정수는 사업자번호로 unknown.\n"
