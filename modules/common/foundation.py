@@ -18,7 +18,7 @@ ROLE_OPTIONS = [
     "sales_quantity",         # 거래량 (수량)
     "sales_count",            # 거래건수
     "unit_price",             # 단가
-    # ── 호환용 alias (기존 모듈 호환) ──────────────────────────
+    # ── 호환용 alias (기존 모듈 호환 — 사용자 selectbox에선 숨김) ─
     "quantity", "number_of_tx",
     # ── 데모그래픽 ──────────────────────────────────────────────
     "gender", "age_group", "region",
@@ -31,6 +31,16 @@ ROLE_OPTIONS = [
     # ── Fallback ───────────────────────────────────────────────
     "unknown",
 ]
+
+# 백엔드 alias 전용 — 사용자가 직접 선택할 필요 없는 role (selectbox에서 숨김).
+# sales_quantity → quantity, sales_count → number_of_tx 자동 alias 등록되므로
+# 사용자는 sales_quantity / sales_count만 선택하면 충분.
+_HIDDEN_ALIAS_ROLES = {"quantity", "number_of_tx"}
+
+
+def user_role_options() -> list[str]:
+    """사용자 selectbox에 표시할 role 목록 — 백엔드 alias 숨김."""
+    return [r for r in ROLE_OPTIONS if r not in _HIDDEN_ALIAS_ROLES]
 
 
 # UI selectbox에 표시할 한국어 라벨 (내부 값은 영문 유지)
@@ -53,9 +63,9 @@ ROLE_LABEL = {
     "sales_quantity":    "🔢 거래수량",
     "sales_count":       "🧾 거래건수",
     "unit_price":        "🏷 단가",
-    # ── 자동 등록 (sales_quantity / sales_count 매핑 시 함께 등록 — 사용자가 직접 선택 불필요) ──
-    "quantity":          "└ 수량 (자동)",
-    "number_of_tx":      "└ 트랜잭션 수 (자동)",
+    # ── 백엔드 alias (사용자 selectbox에선 숨김 — 옛 session_state 표시용) ─
+    "quantity":          "🔢 거래수량 (sales_quantity와 동일)",
+    "number_of_tx":      "🧾 거래건수 (sales_count와 동일)",
     # ── 데모그래픽 ───────────────────
     "gender":            "🚻 성별",
     "age_group":         "🎂 연령대",
@@ -1304,20 +1314,26 @@ def render(go_to):
     role_map: dict[str, str] = {}
     duplicates: dict[str, list[str]] = {}
 
+    # 사용자 노출 옵션 — 백엔드 alias 숨김
+    _ALIAS_TO_PARENT = {"quantity": "sales_quantity", "number_of_tx": "sales_count"}
+    user_opts = user_role_options()
+
     grid_cols = st.columns(2)
     for i, row in enumerate(schema):
         container = grid_cols[i % 2]
         with container:
             col_name = row["column_name"]
             current  = row["inferred_role"]
+            # alias로 추론됐으면 부모로 표시
+            display_role = _ALIAS_TO_PARENT.get(current, current)
             default_idx = (
-                ROLE_OPTIONS.index(current)
-                if current in ROLE_OPTIONS
-                else ROLE_OPTIONS.index("unknown")
+                user_opts.index(display_role)
+                if display_role in user_opts
+                else user_opts.index("unknown")
             )
             new_role = st.selectbox(
                 f"**{col_name}**  ·  *{row['dtype']}*",
-                options=ROLE_OPTIONS,
+                options=user_opts,
                 index=default_idx,
                 key=f"found_role_{col_name}",
                 format_func=lambda r: ROLE_LABEL.get(r, r),

@@ -5,7 +5,7 @@ import streamlit as st
 
 from modules.common.foundation import (
     infer_schema, ROLE_OPTIONS, ROLE_LABEL, ROLE_COLOR, ROLE_DESCRIPTION,
-    role_label, role_help_text, normalize_role_map,
+    role_label, role_help_text, normalize_role_map, user_role_options,
 )
 from modules.analysis.guides import render_guide
 from analysis_app.navigation import go_to
@@ -128,20 +128,26 @@ def render() -> None:
             unsafe_allow_html=True,
         )
 
-        # 역할 selectbox (한국어 라벨로 표시)
+        # 역할 selectbox (한국어 라벨로 표시 — 백엔드 alias는 숨김)
         role_key = f"role_{i}"
         if role_key not in st.session_state:
             st.session_state[role_key] = row["final_role"]
         cur_role = st.session_state[role_key]
-        idx = ROLE_OPTIONS.index(cur_role) if cur_role in ROLE_OPTIONS else len(ROLE_OPTIONS) - 1
+        # 사용자에게 보일 옵션만 — quantity/number_of_tx 같은 alias 숨김
+        opts = user_role_options()
+        # 추론 결과가 alias 라면 그 사용자용 부모(sales_quantity/sales_count)로 표시
+        _ALIAS_TO_PARENT = {"quantity": "sales_quantity",
+                            "number_of_tx": "sales_count"}
+        display_role = _ALIAS_TO_PARENT.get(cur_role, cur_role)
+        idx = opts.index(display_role) if display_role in opts else opts.index("unknown")
         new_role = c_role.selectbox(
-            "", ROLE_OPTIONS,
+            "", opts,
             index=idx,
             key=role_key,
             format_func=role_label,
             label_visibility="collapsed",
             disabled=not included,
-            help=role_help_text(cur_role),    # 현재 선택된 역할의 의미 + 활용처
+            help=role_help_text(display_role),  # 표시된 역할의 의미 + 활용처
         )
 
         # 현재 매핑된 역할 뱃지
