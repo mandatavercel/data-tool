@@ -104,28 +104,34 @@ def compute_derived(df: pd.DataFrame, role_map: dict[str, str]) -> pd.DataFrame:
     cnt = col("sales_count")
     usr = col("active_users")
 
+    import numpy as np
+
+    def _safe_div(a_col: str, b_col: str) -> pd.Series:
+        """0/0, inf 처리 — pandas 2.2 호환 (option_context 미사용)."""
+        a = pd.to_numeric(out[a_col], errors="coerce")
+        b = pd.to_numeric(out[b_col], errors="coerce")
+        # 0으로 나누면 inf 발생 → NaN으로 변환
+        r = a / b
+        return r.replace([np.inf, -np.inf], np.nan)
+
     # ARPU = 매출 / 이용자수
     if amt and usr:
-        with pd.option_context("mode.use_inf_as_na", True):
-            try:
-                out["arpu"] = pd.to_numeric(out[amt], errors="coerce") / \
-                              pd.to_numeric(out[usr], errors="coerce")
-            except Exception:
-                pass
+        try:
+            out["arpu"] = _safe_div(amt, usr)
+        except Exception:
+            pass
 
     # 결제 빈도 = 거래건수 / 이용자수
     if cnt and usr:
         try:
-            out["tx_per_user"] = pd.to_numeric(out[cnt], errors="coerce") / \
-                                  pd.to_numeric(out[usr], errors="coerce")
+            out["tx_per_user"] = _safe_div(cnt, usr)
         except Exception:
             pass
 
     # ATV = 매출 / 거래건수
     if amt and cnt:
         try:
-            out["atv"] = pd.to_numeric(out[amt], errors="coerce") / \
-                         pd.to_numeric(out[cnt], errors="coerce")
+            out["atv"] = _safe_div(amt, cnt)
         except Exception:
             pass
 
