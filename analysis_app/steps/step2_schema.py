@@ -64,18 +64,31 @@ def render() -> None:
 
     # ── 최초 1회만 추론, 이후 rerun은 session_state 사용 ─────────────────────
     if "schema_rows" not in st.session_state:
-        with st.spinner("스키마 추론 중... (패턴 매칭 + AI 보강 — 약 5~15초)"):
-            st.session_state["schema_rows"] = infer_schema(df)
+        try:
+            with st.spinner("스키마 추론 중... (패턴 매칭 + AI 보강 — 약 5~15초)"):
+                st.session_state["schema_rows"] = infer_schema(df)
+        except Exception as e:
+            st.error(f"스키마 추론 실패: {type(e).__name__}: {str(e)[:200]}")
+            # 최소한의 빈 schema로 폴백
+            st.session_state["schema_rows"] = [
+                {"column_name": c, "dtype": str(df[c].dtype),
+                 "sample": "", "null_pct": 0, "n_unique": 0,
+                 "inferred_role": "unknown", "confidence": 0,
+                 "reason": "추론 실패 — 수동 매핑", "final_role": "unknown"}
+                for c in df.columns
+            ]
 
     schema_rows = st.session_state["schema_rows"]
 
-    # ── AI 사용 가능 여부 표시 ───────────────────────────────────────────────
+    # ── AI 사용 가능 여부 표시 (실패해도 앱 중단 안 됨) ───────────────────────
+    ai_enabled = False
+    n_llm_enhanced = 0
     try:
         from modules.common.schema_ai import is_available as _ai_ok
         ai_enabled = _ai_ok()
+        n_llm_enhanced = sum(1 for r in schema_rows if r.get("llm_reasoning"))
     except Exception:
-        ai_enabled = False
-    n_llm_enhanced = sum(1 for r in schema_rows if r.get("llm_reasoning"))
+        pass
 
     # ── 헤더 ──────────────────────────────────────────────────────────────────
     hcol, bcol = st.columns([5, 1])
@@ -150,38 +163,48 @@ def render() -> None:
             unsafe_allow_html=True,
         )
 
-        # 역할 selectbox (한국어 라벨로 표시 — 백엔드 alias는 숨김)
+        # 역할 selectbox (한국어 라벨 + 백엔드 alias 숨김 + 방어적 정규화)
         role_key = f"role_{i}"
-        # 사용자에게 보일 옵션만 — quantity/number_of_tx 같은 alias 숨김
-        opts = user_role_options()
-        # 옛 세션·신규 추론이 alias라면 부모(sales_quantity/sales_count)로 정규화.
-        # 정규화는 selectbox 호출 *전에* session_state에 반영 — 안 그러면
-        # Streamlit이 session_state 값을 options에서 못 찾아 ValueError 발생.
+        try:
+            opts = user_role_options()
+        except Exception:
+            opts = ["unknown"]
+        if "unknown" not in opts:
+            opts = list(opts) + ["unknown"]
+
         _ALIAS_TO_PARENT = {"quantity": "sales_quantity",
                             "number_of_tx": "sales_count"}
 
-        # 초기값 세팅: 추론 결과를 부모로 정규화 후 저장
-        if role_key not in st.session_state:
-            init_val = _ALIAS_TO_PARENT.get(row["final_role"], row["final_role"])
-            if init_val not in opts:
-                init_val = "unknown"
-            st.session_state[role_key] = init_val
-        else:
-            # 기존 session_state 값이 alias 또는 옵션 밖이면 정규화
-            cur = st.session_state[role_key]
-            cur = _ALIAS_TO_PARENT.get(cur, cur)
-            if cur not in opts:
-                cur = "unknown"
-            st.session_state[role_key] = cur
+        def _normalize_role(val):
+            """어떤 값이든 opts 안 값으로 변환 — selectbox 안전."""
+            if val is None:
+                return "unknown"
+            v = _ALIAS_TO_PARENT.get(val, val)
+            return v if v in opts else "unknown"
 
-        new_role = c_role.selectbox(
-            "", opts,
-            key=role_key,                  # session_state 기반 — index 불필요
-            format_func=role_label,
-            label_visibility="collapsed",
-            disabled=not included,
-            help=role_help_text(st.session_state[role_key]),
-        )
+        # session_state 강제 정규화 (selectbox 호출 전에 반드시)
+        if role_key not in st.session_state:
+            st.session_state[role_key] = _normalize_role(row.get("final_role"))
+        else:
+            st.session_state[role_key] = _normalize_role(st.session_state[role_key])
+
+        try:
+            new_role = c_role.selectbox(
+                "", opts,
+                key=role_key,
+                format_func=role_label,
+                label_visibility="collapsed",
+                disabled=not included,
+                help=role_help_text(st.session_state.get(role_key, "unknown")),
+            )
+        except Exception as e:
+            # 어떤 상황이든 selectbox가 죽지 않도록 — fallback display
+            new_role = st.session_state.get(role_key, "unknown")
+            c_role.markdown(
+                f"<div style='font-size:11px;color:#dc2626'>"
+                f"역할 선택 UI 오류 (현재: {new_role})</div>",
+                unsafe_allow_html=True,
+            )
 
         # 현재 매핑된 역할 뱃지
         if included and new_role != "unknown":
@@ -209,20 +232,25 @@ def render() -> None:
             unsafe_allow_html=True,
         )
 
-        # 근거 + AI 분석 힌트
-        rsn_html = (
-            f"<div style='padding:6px 0;font-size:11px;color:#6b7280'>"
-            f"{row['reason']}</div>"
-        )
-        # LLM이 제안한 분석 활용처가 있으면 추가 표시
-        hint = row.get("llm_analysis_hint", "")
-        if hint:
-            rsn_html += (
-                f"<div style='font-size:11px;color:#1e40af;background:#eff6ff;"
-                f"border-radius:4px;padding:3px 6px;margin-top:2px;line-height:1.4'>"
-                f"💡 {hint}</div>"
+        # 근거 + AI 분석 힌트 (방어적 — 어떤 키든 빠져도 OK)
+        try:
+            rsn_html = (
+                f"<div style='padding:6px 0;font-size:11px;color:#6b7280'>"
+                f"{row.get('reason', '')}</div>"
             )
-        c_rsn.markdown(rsn_html, unsafe_allow_html=True)
+            hint = row.get("llm_analysis_hint") or ""
+            if hint:
+                rsn_html += (
+                    f"<div style='font-size:11px;color:#1e40af;background:#eff6ff;"
+                    f"border-radius:4px;padding:3px 6px;margin-top:2px;line-height:1.4'>"
+                    f"💡 {hint}</div>"
+                )
+            c_rsn.markdown(rsn_html, unsafe_allow_html=True)
+        except Exception:
+            c_rsn.markdown(
+                f"<div style='font-size:11px;color:#9ca3af'>—</div>",
+                unsafe_allow_html=True,
+            )
 
         updated_rows.append({**row, "final_role": new_role, "included": included})
 
