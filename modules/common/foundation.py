@@ -526,9 +526,12 @@ def infer_schema(df: pd.DataFrame, sample_n: int = _INFER_SAMPLE_N) -> list[dict
             "store_code", "branch", "branch_id",
         ], 65),
         ("customer_id", [
-            "customer_id", "customer", "고객", "고객id", "고객번호",
-            "user_id", "user", "member_id", "회원", "회원번호", "회원id",
-            "buyer_id",
+            # ID 형식만 강하게 매칭 — bare "user"/"customer"는 너무 broad해서
+            # "number_of_users", "user_count" 같은 카운트 컬럼에도 매칭됨 → 제거.
+            "customer_id", "customer_no", "고객id", "고객번호", "고객_id",
+            "user_id", "user_no", "userid", "uid",
+            "member_id", "member_no", "회원id", "회원번호", "회원_id",
+            "buyer_id", "buyer_no",
         ], 65),
 
         # ── 리텐션 ────────────────────────────────────────────
