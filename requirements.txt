@@ -20,9 +20,10 @@ plotly==5.24.1
 pytest==8.3.3
 
 # Factor research — KRX 산업분류 / 종목 데이터
-# 1.0.51 = pandas 2.2 호환 안 됨, 1.2.x = API breaking change.
-# 1.1.x 범위 안정 버전으로 pin.
-pykrx>=1.1.0,<1.2.0
+# 1.0.51: pandas 2.2 호환 안 됨 (import 단계 실패).
+# 1.1.x: dev 빌드만 존재, stable 없음.
+# 1.2.x: 정상 동작 확인됨 (이전 배포에서 1.2.6 작동).
+pykrx>=1.2.3,<1.3.0
 
 # 브랜드·제품 영문화 — Claude API
 anthropic==0.40.0
