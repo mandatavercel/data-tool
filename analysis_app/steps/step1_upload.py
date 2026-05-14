@@ -23,30 +23,55 @@ def render() -> None:
         st.stop()
 
     # 파일 읽기 — 메모리 cap (Streamlit Cloud 무료 티어 1GB 대응)
+    # 핵심: 읽을 때부터 행 제한해서 OOM 자체를 막음 (다운샘플 후가 아니라 읽기 단계에서)
+    _ROW_HARD_CAP = 500_000   # 50만행으로 보수적 — 안전 첫째
+
+    file_size_mb = (uploaded.size or 0) / (1024 * 1024) if hasattr(uploaded, "size") else 0
+    is_large = file_size_mb > 50    # 50MB 넘으면 대용량 모드
+
     try:
-        with st.spinner(f"파일 읽는 중... ({uploaded.name})"):
-            df = (
-                pd.read_excel(uploaded)
-                if uploaded.name.endswith(".xlsx")
-                else pd.read_csv(uploaded)
-            )
+        with st.spinner(f"파일 읽는 중... ({uploaded.name}, {file_size_mb:.1f}MB)"):
+            if uploaded.name.endswith(".xlsx"):
+                # 첫 행 수 체크
+                if is_large:
+                    # xlsx는 chunksize 미지원 → 일단 nrows로 cap해서 읽음
+                    df = pd.read_excel(uploaded, nrows=_ROW_HARD_CAP)
+                    truncated_at_read = True
+                else:
+                    df = pd.read_excel(uploaded)
+                    truncated_at_read = False
+            else:  # csv
+                if is_large:
+                    df = pd.read_csv(uploaded, nrows=_ROW_HARD_CAP)
+                    truncated_at_read = True
+                else:
+                    df = pd.read_csv(uploaded)
+                    truncated_at_read = False
+    except MemoryError:
+        st.error(
+            "❌ **메모리 부족** — 파일이 클라우드 한계(1GB RAM)를 초과합니다.\n\n"
+            "**해결 방법**:\n"
+            "1. **파일을 더 작게 분할** 후 업로드 (예: 월별 분할)\n"
+            "2. **CSV로 변환** 후 업로드 (xlsx보다 메모리 효율적)\n"
+            "3. **유료 티어** ($20/월, 16GB RAM) 업그레이드"
+        )
+        st.stop()
     except Exception as e:
         st.error(
-            f"❌ 파일 읽기 실패: {type(e).__name__}: {str(e)[:200]}\n\n"
-            "→ 파일이 너무 크거나(>500MB), 형식 오류일 수 있습니다."
+            f"❌ 파일 읽기 실패: **{type(e).__name__}**: {str(e)[:200]}\n\n"
+            "→ 파일 형식 오류 또는 메모리 초과 가능성."
         )
         st.stop()
 
-    # 대용량 자동 다운샘플 — 100만행 초과시 무작위 샘플로 분석 가능하도록
-    _ROW_HARD_CAP = 1_000_000
     n_orig = len(df)
-    if n_orig > _ROW_HARD_CAP:
+    if truncated_at_read:
         st.warning(
-            f"⚠️ {n_orig:,}행은 클라우드 메모리 한계(1GB)를 초과할 수 있어, "
-            f"{_ROW_HARD_CAP:,}행으로 무작위 다운샘플 적용. "
-            "분석 결과는 전체 데이터를 대표함."
+            f"⚠️ **대용량 파일 감지** ({file_size_mb:.1f}MB) — "
+            f"메모리 안전을 위해 **상위 {n_orig:,}행만 로드**했습니다.\n\n"
+            "전체 데이터 분석이 필요하면: (1) 파일을 분할하거나, "
+            "(2) Streamlit Cloud 유료 티어 사용, "
+            "(3) CSV 형식 사용."
         )
-        df = df.sample(n=_ROW_HARD_CAP, random_state=42).reset_index(drop=True)
 
     # 파일이 바뀌면 이전 스키마 캐시 + 개별 위젯 상태 초기화
     prev_file = st.session_state.get("_uploaded_filename")
