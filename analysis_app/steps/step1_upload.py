@@ -22,11 +22,31 @@ def render() -> None:
         st.info("xlsx 또는 csv 파일을 업로드하세요.")
         st.stop()
 
-    df = (
-        pd.read_excel(uploaded)
-        if uploaded.name.endswith(".xlsx")
-        else pd.read_csv(uploaded)
-    )
+    # 파일 읽기 — 메모리 cap (Streamlit Cloud 무료 티어 1GB 대응)
+    try:
+        with st.spinner(f"파일 읽는 중... ({uploaded.name})"):
+            df = (
+                pd.read_excel(uploaded)
+                if uploaded.name.endswith(".xlsx")
+                else pd.read_csv(uploaded)
+            )
+    except Exception as e:
+        st.error(
+            f"❌ 파일 읽기 실패: {type(e).__name__}: {str(e)[:200]}\n\n"
+            "→ 파일이 너무 크거나(>500MB), 형식 오류일 수 있습니다."
+        )
+        st.stop()
+
+    # 대용량 자동 다운샘플 — 100만행 초과시 무작위 샘플로 분석 가능하도록
+    _ROW_HARD_CAP = 1_000_000
+    n_orig = len(df)
+    if n_orig > _ROW_HARD_CAP:
+        st.warning(
+            f"⚠️ {n_orig:,}행은 클라우드 메모리 한계(1GB)를 초과할 수 있어, "
+            f"{_ROW_HARD_CAP:,}행으로 무작위 다운샘플 적용. "
+            "분석 결과는 전체 데이터를 대표함."
+        )
+        df = df.sample(n=_ROW_HARD_CAP, random_state=42).reset_index(drop=True)
 
     # 파일이 바뀌면 이전 스키마 캐시 + 개별 위젯 상태 초기화
     prev_file = st.session_state.get("_uploaded_filename")

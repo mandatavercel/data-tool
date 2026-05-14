@@ -184,36 +184,54 @@ def is_available() -> bool:
         return False
 
 
-def enhance_schema(schema: list[dict], confidence_threshold: int = 40) -> list[dict]:
+def enhance_schema(schema: list[dict], confidence_threshold: int = 40,
+                   max_llm_calls: int = 8, overall_timeout_s: float = 25.0) -> list[dict]:
     """패턴 추론 결과 list[dict] 에 LLM 결과를 병합.
-
-    각 schema row가 다음 키를 가진다고 가정:
-      column_name, dtype, sample, null_pct, n_unique,
-      inferred_role, confidence (0-100), reason, final_role
 
     동작:
       - confidence < threshold 인 row만 LLM에 위임
       - LLM이 더 신뢰할 만한 추론(0.6+) 반환하면 inferred_role / final_role 덮어쓰기
       - llm_reasoning / llm_analysis_hint 키 추가
 
-    LLM 사용 불가 환경(API key 없음 등)에선 schema를 그대로 반환.
+    안전장치:
+      - max_llm_calls (기본 8): 가장 ambiguous한 컬럼 위주로 제한.
+        나머지는 패턴 결과 유지 — Cloud 무료 티어 1GB / timeout 대응.
+      - overall_timeout_s (기본 25s): 전체 LLM 보강에 사용할 최대 시간.
+        초과 시 남은 컬럼은 enhancement 없이 패턴 결과만.
+
+    LLM 사용 불가 환경에선 schema를 그대로 반환.
     """
     if not is_available():
         return schema
 
+    import time
+
+    # 1) LLM 위임할 후보를 confidence 오름차순(가장 모호한 것부터)으로 정렬
+    candidates = [
+        (i, row) for i, row in enumerate(schema)
+        if int(row.get("confidence", 0) or 0) < confidence_threshold
+    ]
+    candidates.sort(key=lambda x: int(x[1].get("confidence", 0) or 0))
+    # 상위 max_llm_calls 만 LLM 호출
+    targets = {i for i, _ in candidates[:max_llm_calls]}
+
+    t_start = time.time()
     out = []
-    for row in schema:
+    for idx, row in enumerate(schema):
         new_row = dict(row)
-        cur_conf = int(row.get("confidence", 0) or 0)
-        if cur_conf < confidence_threshold:
-            llm = _classify_one(
-                col_name  = str(row.get("column_name", "")),
-                dtype     = str(row.get("dtype", "")),
-                sample_str= str(row.get("sample", "")),
-                n_unique  = int(row.get("n_unique", 0) or 0),
-                null_pct  = float(row.get("null_pct", 0) or 0),
-            )
-            if llm and llm["confidence"] >= 0.6:
+        # 타임아웃 또는 호출 대상 아니면 패턴 결과 그대로
+        if idx in targets and (time.time() - t_start) < overall_timeout_s:
+            try:
+                llm = _classify_one(
+                    col_name  = str(row.get("column_name", "")),
+                    dtype     = str(row.get("dtype", "")),
+                    sample_str= str(row.get("sample", ""))[:200],  # 메모리 cap
+                    n_unique  = int(row.get("n_unique", 0) or 0),
+                    null_pct  = float(row.get("null_pct", 0) or 0),
+                )
+            except Exception:
+                llm = None
+            if llm and llm.get("confidence", 0) >= 0.6:
                 new_row["inferred_role"]    = llm["role"]
                 new_row["final_role"]       = llm["role"]
                 new_row["confidence"]       = int(llm["confidence"] * 100)
@@ -221,8 +239,7 @@ def enhance_schema(schema: list[dict], confidence_threshold: int = 40) -> list[d
                 new_row["llm_reasoning"]    = llm["reasoning"]
                 new_row["llm_analysis_hint"]= llm["analysis_hint"]
             elif llm:
-                # 낮은 confidence라도 분석 힌트는 보존
-                new_row["llm_reasoning"]    = llm["reasoning"]
-                new_row["llm_analysis_hint"]= llm["analysis_hint"]
+                new_row["llm_reasoning"]    = llm.get("reasoning", "")
+                new_row["llm_analysis_hint"]= llm.get("analysis_hint", "")
         out.append(new_row)
     return out
