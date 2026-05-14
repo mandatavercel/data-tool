@@ -275,11 +275,17 @@ def run_anomaly_detection(df: pd.DataFrame, role_map: dict, params: dict) -> dic
 def _timeline_chart(sub: pd.DataFrame, date_col: str,
                     val_col: str, prefix: str,
                     threshold: float, title: str) -> go.Figure:
-    """실제값 + rolling band + 이상치 마커 차트."""
-    rm   = sub[f"{prefix}_rmean"]
-    rs   = sub[f"{prefix}_rstd"]
-    spk  = sub[sub[f"{prefix}_spike"]]
-    drp  = sub[sub[f"{prefix}_drop"]]
+    """실제값 + rolling band + 이상치 마커 차트.
+
+    방어: spike/drop/flag 컬럼이 비-bool dtype이어도 안전하게 처리.
+    """
+    rm = sub[f"{prefix}_rmean"]
+    rs = sub[f"{prefix}_rstd"]
+    # 명시적 bool 변환 — pandas fancy indexing 오해 방지
+    spike_mask = sub[f"{prefix}_spike"].fillna(False).astype(bool).to_numpy()
+    drop_mask  = sub[f"{prefix}_drop"].fillna(False).astype(bool).to_numpy()
+    spk = sub.loc[spike_mask] if len(spike_mask) == len(sub) else sub.iloc[0:0]
+    drp = sub.loc[drop_mask]  if len(drop_mask)  == len(sub) else sub.iloc[0:0]
 
     fig = go.Figure()
 
@@ -308,8 +314,10 @@ def _timeline_chart(sub: pd.DataFrame, date_col: str,
         line=dict(color=C_BLUE, width=2),
     )
 
-    # 정상 점
-    normal = sub[~sub[f"{prefix}_flag"]]
+    # 정상 점 — flag bool 캐스팅 + 반전
+    flag_mask = sub[f"{prefix}_flag"].fillna(False).astype(bool).to_numpy()
+    normal_mask = ~flag_mask
+    normal = sub.loc[normal_mask] if len(normal_mask) == len(sub) else sub.iloc[0:0]
     fig.add_scatter(
         x=normal[date_col], y=normal[val_col],
         mode="markers", name="정상",
@@ -451,7 +459,13 @@ def _render(result: dict):
                     date_col: "날짜", sales_col: "매출액",
                     "s_rmean": "Rolling 기준선", "s_z": "Z-score", "s_type": "유형",
                 })
-                show_anm = show[sub["s_flag"]].sort_values("날짜", ascending=False)
+                # 명시적 bool 캐스팅 — int/NaN 등 비-bool 값이 있어도 안전 (fancy
+                # indexing 오해 방지 → KeyError "Index([-1,-1...])" 차단)
+                mask = sub["s_flag"].fillna(False).astype(bool).to_numpy()
+                if len(mask) == len(show):
+                    show_anm = show[mask].sort_values("날짜", ascending=False)
+                else:
+                    show_anm = show.iloc[0:0]
                 if show_anm.empty:
                     st.info("매출 이상치가 없습니다.")
                 else:
@@ -474,7 +488,11 @@ def _render(result: dict):
                     date_col: "날짜", "tx_count": "거래건수",
                     "t_rmean": "Rolling 기준선", "t_z": "Z-score", "t_type": "유형",
                 })
-                show_anm = show[sub["t_flag"]].sort_values("날짜", ascending=False)
+                mask = sub["t_flag"].fillna(False).astype(bool).to_numpy()
+                if len(mask) == len(show):
+                    show_anm = show[mask].sort_values("날짜", ascending=False)
+                else:
+                    show_anm = show.iloc[0:0]
                 if show_anm.empty:
                     st.info("거래건수 이상치가 없습니다.")
                 else:
