@@ -130,24 +130,35 @@ def render() -> None:
 
         # 역할 selectbox (한국어 라벨로 표시 — 백엔드 alias는 숨김)
         role_key = f"role_{i}"
-        if role_key not in st.session_state:
-            st.session_state[role_key] = row["final_role"]
-        cur_role = st.session_state[role_key]
         # 사용자에게 보일 옵션만 — quantity/number_of_tx 같은 alias 숨김
         opts = user_role_options()
-        # 추론 결과가 alias 라면 그 사용자용 부모(sales_quantity/sales_count)로 표시
+        # 옛 세션·신규 추론이 alias라면 부모(sales_quantity/sales_count)로 정규화.
+        # 정규화는 selectbox 호출 *전에* session_state에 반영 — 안 그러면
+        # Streamlit이 session_state 값을 options에서 못 찾아 ValueError 발생.
         _ALIAS_TO_PARENT = {"quantity": "sales_quantity",
                             "number_of_tx": "sales_count"}
-        display_role = _ALIAS_TO_PARENT.get(cur_role, cur_role)
-        idx = opts.index(display_role) if display_role in opts else opts.index("unknown")
+
+        # 초기값 세팅: 추론 결과를 부모로 정규화 후 저장
+        if role_key not in st.session_state:
+            init_val = _ALIAS_TO_PARENT.get(row["final_role"], row["final_role"])
+            if init_val not in opts:
+                init_val = "unknown"
+            st.session_state[role_key] = init_val
+        else:
+            # 기존 session_state 값이 alias 또는 옵션 밖이면 정규화
+            cur = st.session_state[role_key]
+            cur = _ALIAS_TO_PARENT.get(cur, cur)
+            if cur not in opts:
+                cur = "unknown"
+            st.session_state[role_key] = cur
+
         new_role = c_role.selectbox(
             "", opts,
-            index=idx,
-            key=role_key,
+            key=role_key,                  # session_state 기반 — index 불필요
             format_func=role_label,
             label_visibility="collapsed",
             disabled=not included,
-            help=role_help_text(display_role),  # 표시된 역할의 의미 + 활용처
+            help=role_help_text(st.session_state[role_key]),
         )
 
         # 현재 매핑된 역할 뱃지

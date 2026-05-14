@@ -1324,18 +1324,27 @@ def render(go_to):
         with container:
             col_name = row["column_name"]
             current  = row["inferred_role"]
-            # alias로 추론됐으면 부모로 표시
-            display_role = _ALIAS_TO_PARENT.get(current, current)
-            default_idx = (
-                user_opts.index(display_role)
-                if display_role in user_opts
-                else user_opts.index("unknown")
-            )
+            session_key = f"found_role_{col_name}"
+
+            # 세션 정규화 — selectbox 호출 전에 옵션 안 값으로 정렬.
+            # 안 그러면 옛 alias가 session_state에 있을 때 Streamlit이
+            # options에서 못 찾아 ValueError 발생.
+            if session_key not in st.session_state:
+                init_val = _ALIAS_TO_PARENT.get(current, current)
+                if init_val not in user_opts:
+                    init_val = "unknown"
+                st.session_state[session_key] = init_val
+            else:
+                cur = st.session_state[session_key]
+                cur = _ALIAS_TO_PARENT.get(cur, cur)
+                if cur not in user_opts:
+                    cur = "unknown"
+                st.session_state[session_key] = cur
+
             new_role = st.selectbox(
                 f"**{col_name}**  ·  *{row['dtype']}*",
                 options=user_opts,
-                index=default_idx,
-                key=f"found_role_{col_name}",
+                key=session_key,             # session_state 기반 — index 불필요
                 format_func=lambda r: ROLE_LABEL.get(r, r),
                 help=(
                     f"샘플: {row['sample']}\n\n"
