@@ -219,18 +219,25 @@ def calc_unit_price(row: pd.Series, selected_sources: Optional[list[str]] = None
 
 def attach_unit_price(df: pd.DataFrame,
                       selected_sources: Optional[list[str]] = None) -> pd.DataFrame:
-    """카탈로그 전체에 unit_price + matched_sources_count + combined_coverage 컬럼 추가."""
+    """카탈로그 전체에 unit_price·matched·coverage·icons 컬럼 추가."""
+    from catalog_app.sources import matched_icons
     if df.empty:
         return df.assign(
             unit_price=pd.Series(dtype="float64"),
             matched_sources_n=pd.Series(dtype="int64"),
             combined_coverage_pct=pd.Series(dtype="float64"),
+            matched_icons=pd.Series(dtype="str"),
         )
     prices = [calc_unit_price(r, selected_sources) for _, r in df.iterrows()]
+    sel_for_icons = selected_sources if selected_sources is not None else []
     out = df.copy()
     out["unit_price"]            = [p.unit_price for p in prices]
     out["matched_sources_n"]     = [len(p.matched_sources) for p in prices]
     out["combined_coverage_pct"] = [round(p.combined_coverage, 1) for p in prices]
+    if sel_for_icons:
+        out["matched_icons"] = [matched_icons(r, sel_for_icons) for _, r in df.iterrows()]
+    else:
+        out["matched_icons"] = "—"
     return out
 
 

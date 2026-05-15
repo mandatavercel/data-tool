@@ -90,3 +90,57 @@ def available_sources(row: pd.Series) -> list[str]:
 def default_selection() -> list[str]:
     """디폴트 — 가용성 높은 4개 소스."""
     return ["card", "pos", "foot_traffic", "web"]
+
+
+# ── 매칭 시각화 — 어떤 소스가 매칭됐는지 한눈에 ─────────────────────────────
+def _source_emoji(key: str) -> str:
+    """소스 키 → 단일 이모지 (라벨에서 첫 토큰)."""
+    for k, lbl, *_ in CANONICAL_SOURCES:
+        if k == key:
+            return lbl.split()[0]
+    return "·"
+
+
+def matched_icons(row: pd.Series, selected: list[str]) -> str:
+    """선택 소스 순서대로 매칭 여부 시각화.
+
+    매칭: 컬러 이모지 (💳)
+    미매칭: 회색 점 (·)
+    예: 사용자가 [card, pos, satellite, web] 선택, 회사가 card+web만 보유 →
+        '💳 · · 🌐'
+    """
+    if not selected:
+        return "—"
+    parts: list[str] = []
+    for k in selected:
+        hc = has_col(k)
+        if hc in row.index and bool(row.get(hc, False)):
+            parts.append(_source_emoji(k))
+        else:
+            parts.append("·")
+    return " ".join(parts)
+
+
+def matched_icons_compact(row: pd.Series, selected: list[str]) -> str:
+    """매칭된 소스의 이모지만 (미매칭 자리 표시 X)."""
+    if not selected:
+        return "—"
+    parts: list[str] = []
+    for k in selected:
+        hc = has_col(k)
+        if hc in row.index and bool(row.get(hc, False)):
+            parts.append(_source_emoji(k))
+    return " ".join(parts) if parts else "(없음)"
+
+
+def matched_icons_legend(selected: list[str]) -> str:
+    """범례 — 사용자가 선택한 소스의 이모지 + 한글 라벨."""
+    if not selected:
+        return ""
+    items: list[str] = []
+    for k in selected:
+        for ck, lbl, *_ in CANONICAL_SOURCES:
+            if ck == k:
+                items.append(lbl)  # "💳 Card" 형태
+                break
+    return "  ".join(items)

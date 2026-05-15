@@ -220,6 +220,29 @@ with st.container():
                 unsafe_allow_html=True,
             )
 
+    # 매칭 컬럼 범례 — 사용자가 이모지의 의미를 한눈에 매핑할 수 있게
+    if sel_keys:
+        legend_items = []
+        for k in sel_keys:
+            for ck, lbl, *_ in CANONICAL_SOURCES:
+                if ck == k:
+                    # lbl 은 "💳 Card" 형태 — 이모지 + 영문라벨
+                    legend_items.append(
+                        f"<span style='display:inline-block;background:#F1F5F9;"
+                        f"padding:2px 8px;border-radius:10px;margin:2px 3px;"
+                        f"font-size:11px;color:#334155;border:1px solid #E2E8F0'>"
+                        f"{lbl}</span>"
+                    )
+                    break
+        st.markdown(
+            f"<div style='margin:6px 0 0 0;padding:4px 0;border-top:1px dashed #CBD5E1'>"
+            f"<span style='font-size:10px;color:#94A3B8;letter-spacing:0.05em'>"
+            f"📡 카탈로그 표의 '소스 매칭' 컬럼 — 좌에서 우 순서로:</span><br>"
+            f"{''.join(legend_items)}"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 # 선택된 소스 기준으로 단가·합산 커버리지 부착
@@ -555,7 +578,7 @@ _DISPLAY_PRIORITY = [
     ("gics_sector",           "GICS"),
     ("market_cap_usd",        "MCap (M$)"),
     ("signal_score",          "시그널"),
-    ("matched_sources_n",     "📡 소스 매칭"),
+    ("matched_icons",         "📡 소스 매칭"),
     ("combined_coverage_pct", "합산 커버리지"),
     ("backtest_sharpe",       "Sharpe"),
     ("mom_growth",            "MoM %"),
@@ -580,15 +603,19 @@ with tcol_left:
         st.caption("행 클릭(Shift/Cmd-Click) 으로 다중 선택 → 우측 ‘카트 추가’")
         show_df = _display_df(filt)
         n_src_sel = len(_sel_keys) if _sel_keys else 0
+        # 매칭 아이콘 컬럼 폭 — 선택 소스 수에 비례 (소스당 ~22px)
+        match_col_width = max(110, min(280, 28 * n_src_sel + 20))
         col_config = {}
         if "MCap (M$)" in show_df.columns:
             col_config["MCap (M$)"] = st.column_config.NumberColumn(format="$%.0fM")
         if "시그널" in show_df.columns:
             col_config["시그널"] = st.column_config.ProgressColumn(min_value=0, max_value=1, format="%.2f")
         if "📡 소스 매칭" in show_df.columns and n_src_sel > 0:
-            col_config["📡 소스 매칭"] = st.column_config.ProgressColumn(
-                min_value=0, max_value=n_src_sel, format=f"%d / {n_src_sel}",
-                help="선택한 소스 중 회사가 보유한 개수",
+            # 선택 소스의 한글 라벨 모음을 help 로
+            legend_help = " · ".join(source_label(k) for k in _sel_keys)
+            col_config["📡 소스 매칭"] = st.column_config.TextColumn(
+                width=match_col_width,
+                help=f"선택 순서대로 매칭(이모지) / 미매칭(·) 표시 — {legend_help}",
             )
         if "합산 커버리지" in show_df.columns:
             col_config["합산 커버리지"] = st.column_config.ProgressColumn(
@@ -779,13 +806,27 @@ def _checkout_dialog():
         f"선택 소스 {len(_sel_keys)}개 기준</span>",
         unsafe_allow_html=True,
     )
+    # 매칭 아이콘 — selected 순서대로 매칭/미매칭 시각화
+    def _icons_for_line(line) -> str:
+        if not _sel_keys:
+            return "—"
+        matched_set = set(line.matched_sources)
+        parts: list[str] = []
+        for k in _sel_keys:
+            for ck, lbl, *_ in CANONICAL_SOURCES:
+                if ck == k:
+                    emoji = lbl.split()[0]
+                    parts.append(emoji if k in matched_set else "·")
+                    break
+        return " ".join(parts)
+
     line_df = pd.DataFrame([{
         "회사":         l.company,
         "티커":         l.ticker,
         "지역":         l.region,
-        "📡 소스 매칭":  f"{len(l.matched_sources)} / {len(_sel_keys) or '—'}",
+        "📡 소스 매칭":  _icons_for_line(l),
         "합산 커버리지": f"{l.combined_coverage:.1f}%",
-        "보유 소스":    ", ".join(l.matched_sources) if l.matched_sources else "(없음)",
+        "보유 수":      f"{len(l.matched_sources)} / {len(_sel_keys) or '—'}",
         "단가":         l.unit_price,
     } for l in lines])
     st.dataframe(
