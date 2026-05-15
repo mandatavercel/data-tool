@@ -23,7 +23,11 @@ from catalog_app.data_loader import (
 from catalog_app.cart import (
     get_cart, add_to_cart, remove_from_cart, clear_cart, cart_size,
 )
-from catalog_app.export import build_export_xlsx, export_filename
+from catalog_app.export import (
+    build_export_xlsx, export_filename,
+    build_paid_data_xlsx, paid_filename,
+)
+from catalog_app.sample_data import monthly_aggregates
 from catalog_app.filters import (
     CATEGORY_REGISTRY, PRESETS,
     empty_selection, apply_filters, summarize_selection,
@@ -548,13 +552,90 @@ with tcol_right:
                     st.rerun()
 
 
-# ── 결제하기 Dialog ───────────────────────────────────────────────────────
-@st.dialog("💳 결제 상세", width="large")
+# ── 결제하기 Dialog (결제 전 / 결제 후 2단계) ─────────────────────────────
+@st.dialog("💳 결제 · 데이터 다운로드", width="large")
 def _checkout_dialog():
     cart_now = get_cart()
+    paid = st.session_state.get("payment_completed", False)
+
+    # ── 결제 완료 후 — 다운로드 화면 ──────────────────────────────────
+    if paid:
+        paid_companies = st.session_state.get("paid_companies", [])
+        paid_totals = st.session_state.get("paid_totals")
+        paid_order_id = st.session_state.get("paid_order_id", "—")
+
+        st.success(
+            f"✅ 결제 완료 · {len(paid_companies)}개 회사 · "
+            f"{fmt_usd(getattr(paid_totals, 'grand_total', 0))}",
+            icon="🎉",
+        )
+        st.caption(f"Order ID: `{paid_order_id}`")
+
+        st.markdown("#### 📥 데이터 다운로드")
+        st.markdown(
+            "다운로드 파일은 다음 시트를 포함합니다:\n"
+            "- **invoice** — 영수증·결제 내역\n"
+            "- **companies** — 구매 회사 메타·단가\n"
+            "- **monthly_aggregates** — 회사별 24개월 매출·거래·이용자 시계열\n"
+            "- **signal_history** — 회사별 시그널 점수 추이\n"
+            "- **summary_by_month** — 전체 합산 월별\n"
+            "- **notes** — 데이터 사용 가이드"
+        )
+
+        try:
+            with st.spinner("데이터 패키지 생성 중..."):
+                xlsx_bytes = build_paid_data_xlsx(
+                    catalog, list(paid_companies), paid_totals,
+                    filter_summary=summarize_selection(sel),
+                    n_months=24,
+                )
+            st.download_button(
+                f"📥 데이터 패키지 다운로드 (xlsx · {len(paid_companies)}개 회사 × 24개월)",
+                data=xlsx_bytes,
+                file_name=paid_filename(),
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                type="primary", use_container_width=True,
+                key="dl_paid_data",
+            )
+        except Exception as e:
+            st.error(f"패키지 생성 실패: {type(e).__name__}: {e}")
+
+        st.divider()
+
+        # 영수증 미리보기
+        with st.expander("🧾 영수증 보기", expanded=True):
+            if paid_totals is not None:
+                rows = [
+                    ("Order ID",            paid_order_id),
+                    ("회사 수",             str(getattr(paid_totals, "qty", len(paid_companies)))),
+                    ("소계",                fmt_usd(getattr(paid_totals, "subtotal", 0))),
+                    ("묶음 할인",
+                     f"{getattr(paid_totals, 'volume_tier_label', '-')} · "
+                     f"-{fmt_usd(getattr(paid_totals, 'volume_discount', 0))}"),
+                    ("할인 후",             fmt_usd(getattr(paid_totals, "after_discount", 0))),
+                    (f"VAT ({VAT_RATE*100:.0f}%)", fmt_usd(getattr(paid_totals, "tax", 0))),
+                    ("총 결제액",           fmt_usd(getattr(paid_totals, "grand_total", 0))),
+                ]
+                st.dataframe(pd.DataFrame(rows, columns=["항목", "값"]),
+                             hide_index=True, use_container_width=True)
+
+        # 닫기 — 카트도 비움
+        if st.button("닫기 (카트 비움)", use_container_width=True):
+            clear_cart()
+            st.session_state["show_checkout"] = False
+            st.session_state["payment_completed"] = False
+            st.session_state["paid_companies"] = []
+            st.session_state["paid_totals"] = None
+            st.session_state["paid_order_id"] = None
+            st.rerun()
+        return
+
+    # ── 결제 전 — 라인아이템·샘플·합산 ────────────────────────────────
     if not cart_now:
         st.info("카트가 비어있습니다.")
-        if st.button("닫기"): st.rerun()
+        if st.button("닫기"):
+            st.session_state["show_checkout"] = False
+            st.rerun()
         return
 
     lines = build_checkout_lines(catalog, cart_now)
@@ -583,25 +664,55 @@ def _checkout_dialog():
         "단가":   l.unit_price,
     } for l in lines])
     st.dataframe(
-        line_df, hide_index=True, use_container_width=True, height=280,
+        line_df, hide_index=True, use_container_width=True, height=240,
         column_config={"단가": st.column_config.NumberColumn(format="$%,.0f")},
     )
 
-    # 가격 산정 breakdown (선택 회사)
-    st.markdown("#### 🔬 단가 산정 내역")
+    # 회사 선택 — 단가 + 샘플 미리보기 (한 회사 선택해서 두 가지 보기)
     co_pick = st.selectbox(
-        "회사 선택 — 단가 구성요소 보기",
+        "🔎 회사 선택 — 단가 산정 내역 + 데이터 샘플 미리보기",
         [l.company for l in lines],
         index=0,
-        label_visibility="collapsed",
     )
-    chosen = next(l for l in lines if l.company == co_pick)
-    bd_df = pd.DataFrame(chosen.breakdown, columns=["구성요소", "금액 (USD)"])
-    st.dataframe(
-        bd_df, hide_index=True, use_container_width=True,
-        column_config={"금액 (USD)": st.column_config.NumberColumn(format="$%,.2f")},
-    )
-    st.caption(f"→ **{chosen.company}** 단가 합계: **{fmt_usd(chosen.unit_price)}**")
+
+    cc1, cc2 = st.columns([1, 1.4])
+
+    with cc1:
+        st.markdown("##### 🔬 단가 산정")
+        chosen = next(l for l in lines if l.company == co_pick)
+        bd_df = pd.DataFrame(chosen.breakdown, columns=["구성요소", "금액"])
+        st.dataframe(
+            bd_df, hide_index=True, use_container_width=True, height=260,
+            column_config={"금액": st.column_config.NumberColumn(format="$%,.2f")},
+        )
+        st.caption(f"→ **{chosen.company}** 단가 합계: **{fmt_usd(chosen.unit_price)}**")
+
+    with cc2:
+        st.markdown("##### 📊 데이터 샘플 (최근 6개월)")
+        chosen_row = catalog[catalog["company"] == co_pick].iloc[0]
+        try:
+            sample = monthly_aggregates(chosen_row, n_months=6)
+            st.dataframe(
+                sample, hide_index=True, use_container_width=True, height=260,
+                column_config={
+                    "revenue_usd_m": st.column_config.NumberColumn("매출 (M$)", format="$%.2fM"),
+                    "transactions":  st.column_config.NumberColumn("거래", format="%,d"),
+                    "unique_users":  st.column_config.NumberColumn("이용자", format="%,d"),
+                    "mom_pct":       st.column_config.NumberColumn("MoM %", format="%+.1f %%"),
+                    "yoy_pct":       st.column_config.NumberColumn("YoY %", format="%+.1f %%"),
+                    "signal_score":  st.column_config.ProgressColumn(
+                        "시그널", min_value=0.0, max_value=1.0, format="%.2f"),
+                },
+            )
+            # 미니 라인 차트
+            chart_df = sample.set_index("month")[["revenue_usd_m"]]
+            st.caption("매출 추이 (USD M)")
+            st.line_chart(chart_df, height=120)
+            st.caption(
+                "💡 결제 진행 시 **24개월 전체 시계열** 다운로드 (매출·거래·이용자·시그널 history)"
+            )
+        except Exception as e:
+            st.warning(f"샘플 생성 실패: {e}")
 
     st.divider()
 
@@ -613,7 +724,7 @@ def _checkout_dialog():
          f"{totals.volume_rate*100:.0f}%)",          -totals.volume_discount),
         ("할인 후 (Net)",                            totals.after_discount),
         (f"VAT ({VAT_RATE*100:.0f}%)",               totals.tax),
-        ("**총 결제액 (Grand Total)**",              totals.grand_total),
+        ("총 결제액 (Grand Total)",                  totals.grand_total),
     ]
     sum_df = pd.DataFrame(summary_rows, columns=["항목", "금액 (USD)"])
     st.dataframe(
@@ -621,7 +732,6 @@ def _checkout_dialog():
         column_config={"금액 (USD)": st.column_config.NumberColumn(format="$%,.2f")},
     )
 
-    # 묶음 할인 안내
     with st.expander("📊 묶음 할인 테이블", expanded=False):
         vt = pd.DataFrame(
             [(qty, f"{rate*100:.0f}%", lbl) for qty, rate, lbl in VOLUME_TIERS],
@@ -633,25 +743,34 @@ def _checkout_dialog():
     st.divider()
     c1, c2, c3 = st.columns([1, 1, 2])
     with c1:
-        if st.button("취소", use_container_width=True):
+        if st.button("취소", use_container_width=True, key="checkout_cancel"):
             st.session_state["show_checkout"] = False
             st.rerun()
     with c2:
-        # xlsx 다운로드
-        xlsx_bytes = build_export_xlsx(catalog, cart_now,
-                                       summarize_selection(sel))
+        # 견적서 다운로드 (결제 전 단계)
+        quote_bytes = build_export_xlsx(catalog, cart_now,
+                                        summarize_selection(sel))
         st.download_button(
-            "📥 견적 (xlsx)",
-            data=xlsx_bytes,
-            file_name=export_filename(),
+            "📋 견적서 (xlsx)",
+            data=quote_bytes,
+            file_name=export_filename(prefix="mandata_quote"),
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
+            key="dl_quote",
         )
     with c3:
         if st.button(f"✅ 결제 진행 · {fmt_usd(totals.grand_total)}",
-                     type="primary", use_container_width=True):
-            st.success("결제가 접수되었습니다. (Mock — 실 결제 게이트웨이 연동 예정)")
-            st.balloons()
+                     type="primary", use_container_width=True,
+                     key="confirm_payment"):
+            # 결제 처리 (Mock) — 스냅샷 저장 후 결제 후 화면으로 전환
+            from datetime import datetime as _dt
+            st.session_state["payment_completed"] = True
+            st.session_state["paid_companies"] = list(cart_now)
+            st.session_state["paid_totals"] = totals
+            st.session_state["paid_order_id"] = (
+                f"MAN-{_dt.now().strftime('%Y%m%d-%H%M%S')}"
+            )
+            st.rerun()
 
 
 if st.session_state.get("show_checkout"):
