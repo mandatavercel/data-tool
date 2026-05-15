@@ -1,0 +1,19 @@
+# ════════════════════════════════════════════════════════════════════════
+# Catalog App 전용 슬림 requirements
+# (분석 앱과 분리 — pykrx, yfinance, anthropic 등 무거운 dep 제외)
+#
+# Streamlit Cloud 카탈로그 앱 배포 시:
+#   Settings → Advanced settings → Requirements file
+#   값: requirements-catalog.txt
+# ════════════════════════════════════════════════════════════════════════
+
+streamlit==1.40.0
+pandas==2.2.3
+numpy==1.26.4
+
+# 엑셀 다운로드
+openpyxl==3.1.5
+xlsxwriter==3.2.0
+
+# parquet 카탈로그 로드
+pyarrow==16.1.0
