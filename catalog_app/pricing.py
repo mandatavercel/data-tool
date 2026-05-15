@@ -26,13 +26,20 @@ import pandas as pd
 
 
 # ── 가격 파라미터 ─────────────────────────────────────────────────────────
-BASE_PRICE_USD          = 2_000.0   # 기본 단가
+BASE_PRICE_USD          = 1_500.0   # 기본 단가 (소스 미선택 시)
 SIGNAL_MULT_RANGE       = (0.5, 2.5)  # signal 0~1 → 0.5x~2.5x
 COMPLETENESS_BONUS_MAX  = 400.0     # 완전성 100% 시 최대 +$400
-SOURCE_BONUS_PER        = 200.0     # 소스당 +$200
 COVERAGE_BONUS_PER_YEAR = 150.0     # 1년당 +$150 (캡 36개월)
 FRESHNESS_BONUS_FRESH   = 250.0     # latency ≤ 7d 시 +$250
 FRESHNESS_PENALTY_STALE = -200.0    # latency > 30d 시 -$200
+
+# 데이터 소스 — 핵심
+SRC_PER_SOURCE_FEE      = 600.0     # 선택한 *보유* 소스 1개당 라이선스 fee
+# 합산 커버리지 → multiplier:
+#   coverage 0%   → 1.00x
+#   coverage 50%  → 1.75x
+#   coverage 100% → 2.50x
+COVERAGE_QUALITY_SLOPE  = 1.5
 
 # 시가총액 티어 (USD millions)
 SIZE_TIERS = [
@@ -65,21 +72,31 @@ class UnitPrice:
     signal_mult:  float          # 1.0 기준 multiplier
     size_mult:    float          # 1.0 기준 multiplier
     size_tier:    str
+    # ── 데이터 소스 (핵심) ──
+    matched_sources:  list[str]  # 회사가 보유 + 사용자가 선택한 소스
+    combined_coverage: float     # 합산 커버리지 % (cap 100)
+    coverage_quality_mult: float  # 합산 커버리지 → multiplier
+    source_license_fee: float    # 선택 소스 × 라이선스 fee
+    # ── 보너스 ──
     completeness_bonus: float
-    source_bonus:       float
     coverage_bonus:     float
     freshness_bonus:    float
     unit_price:   float
 
     def components_summary(self) -> list[tuple[str, float]]:
+        srcs_str = ", ".join(self.matched_sources) if self.matched_sources else "(없음)"
         return [
-            ("Base",              self.base),
-            (f"Signal × {self.signal_mult:.2f}",  self.base * (self.signal_mult - 1.0)),
-            (f"Size × {self.size_mult:.2f} ({self.size_tier})", self.base * self.signal_mult * (self.size_mult - 1.0)),
-            ("Data Completeness", self.completeness_bonus),
-            ("Source Diversity",  self.source_bonus),
-            ("History Coverage",  self.coverage_bonus),
-            ("Freshness",         self.freshness_bonus),
+            ("Base",                                              self.base),
+            (f"Signal × {self.signal_mult:.2f}",                  self.base * (self.signal_mult - 1.0)),
+            (f"Size × {self.size_mult:.2f} ({self.size_tier})",   self.base * self.signal_mult * (self.size_mult - 1.0)),
+            (f"Coverage × {self.coverage_quality_mult:.2f} "
+             f"({self.combined_coverage:.1f}% from {srcs_str})",
+             self.base * self.signal_mult * self.size_mult *
+             (self.coverage_quality_mult - 1.0)),
+            (f"Source License × {len(self.matched_sources)}",     self.source_license_fee),
+            ("Data Completeness",                                 self.completeness_bonus),
+            ("History Coverage",                                  self.coverage_bonus),
+            ("Freshness",                                         self.freshness_bonus),
         ]
 
 
@@ -108,21 +125,57 @@ def _row_value(row: pd.Series, col: str, default: Any = None) -> Any:
     return default
 
 
-def calc_unit_price(row: pd.Series) -> UnitPrice:
-    """카탈로그 한 행 → UnitPrice."""
+def calc_unit_price(row: pd.Series, selected_sources: Optional[list[str]] = None) -> UnitPrice:
+    """카탈로그 한 행 → UnitPrice.
+
+    selected_sources: 사용자가 구매하기로 한 소스 키 리스트.
+        None 또는 빈 리스트면 회사가 보유한 *모든* 소스를 기본 적용.
+    """
+    from catalog_app.sources import SOURCE_KEYS, coverage_col, has_col
+
     signal     = float(_row_value(row, "signal_score", 0.0) or 0.0)
     mc_usd_m   = _row_value(row, "market_cap_usd", None)
     complet    = float(_row_value(row, "completeness_pct", 0.0) or 0.0)
-    n_sources  = float(_row_value(row, "n_sources", 0.0) or 0.0)
     coverage_m = float(_row_value(row, "coverage_months", 0.0) or 0.0)
     latency_d  = _row_value(row, "data_latency_days", None)
 
     sig_mult = _signal_mult(signal)
     size_mult, size_label = _size_tier(mc_usd_m if mc_usd_m is None else float(mc_usd_m))
 
+    # ── 데이터 소스 — 핵심 ──
+    # selected_sources 가 비어있으면 회사가 보유한 모든 소스를 기본
+    company_has: list[str] = []
+    for k in SOURCE_KEYS:
+        hc = has_col(k)
+        if hc in row.index and bool(row.get(hc, False)):
+            company_has.append(k)
+
+    if selected_sources is None:
+        # 호출자가 selection 을 명시 안 한 경우 — 회사 보유 전체로 추정
+        matched = list(company_has)
+    else:
+        # 명시적 selection — 빈 리스트면 매칭 0개 (가격 디스카운트)
+        matched = [k for k in selected_sources if k in company_has]
+
+    # 합산 커버리지 (cap 100%)
+    combined_cov = 0.0
+    for k in matched:
+        cc = coverage_col(k)
+        if cc in row.index:
+            v = row.get(cc, 0.0)
+            try:
+                combined_cov += float(v) if not pd.isna(v) else 0.0
+            except (TypeError, ValueError):
+                pass
+    combined_cov = min(combined_cov, 100.0)
+
+    # 커버리지 quality multiplier — 0% → 1.0, 100% → 2.5
+    coverage_mult = 1.0 + COVERAGE_QUALITY_SLOPE * (combined_cov / 100.0)
+    # 소스 라이선스 fee — 매칭된 소스 1개당
+    src_license = SRC_PER_SOURCE_FEE * len(matched)
+
     base = BASE_PRICE_USD
     completeness_bonus = COMPLETENESS_BONUS_MAX * (max(0.0, complet - 50.0) / 50.0)
-    source_bonus       = SOURCE_BONUS_PER * max(0.0, n_sources - 1.0)
     coverage_bonus     = COVERAGE_BONUS_PER_YEAR * min(coverage_m / 12.0, 3.0)
 
     if latency_d is None:
@@ -137,11 +190,15 @@ def calc_unit_price(row: pd.Series) -> UnitPrice:
             freshness_bonus = 0.0
 
     unit_price = (
-        base * sig_mult * size_mult
-        + completeness_bonus + source_bonus + coverage_bonus + freshness_bonus
+        base * sig_mult * size_mult * coverage_mult
+        + src_license
+        + completeness_bonus + coverage_bonus + freshness_bonus
     )
-    # 가격은 음수 금지, $10 단위 반올림
-    unit_price = max(500.0, round(unit_price / 10.0) * 10.0)
+    # 매칭 소스 0개면 가격 절반 (구매 가치 적음)
+    if not matched:
+        unit_price *= 0.5
+    # 가격은 최소 $300, $10 단위 반올림
+    unit_price = max(300.0, round(unit_price / 10.0) * 10.0)
 
     return UnitPrice(
         company=str(_row_value(row, "company", "")),
@@ -149,21 +206,31 @@ def calc_unit_price(row: pd.Series) -> UnitPrice:
         signal_mult=sig_mult,
         size_mult=size_mult,
         size_tier=size_label,
+        matched_sources=matched,
+        combined_coverage=combined_cov,
+        coverage_quality_mult=coverage_mult,
+        source_license_fee=src_license,
         completeness_bonus=completeness_bonus,
-        source_bonus=source_bonus,
         coverage_bonus=coverage_bonus,
         freshness_bonus=freshness_bonus,
         unit_price=unit_price,
     )
 
 
-def attach_unit_price(df: pd.DataFrame) -> pd.DataFrame:
-    """카탈로그 전체에 unit_price 컬럼 추가."""
+def attach_unit_price(df: pd.DataFrame,
+                      selected_sources: Optional[list[str]] = None) -> pd.DataFrame:
+    """카탈로그 전체에 unit_price + matched_sources_count + combined_coverage 컬럼 추가."""
     if df.empty:
-        return df.assign(unit_price=pd.Series(dtype="float64"))
-    prices = df.apply(calc_unit_price, axis=1)
+        return df.assign(
+            unit_price=pd.Series(dtype="float64"),
+            matched_sources_n=pd.Series(dtype="int64"),
+            combined_coverage_pct=pd.Series(dtype="float64"),
+        )
+    prices = [calc_unit_price(r, selected_sources) for _, r in df.iterrows()]
     out = df.copy()
-    out["unit_price"] = [p.unit_price for p in prices]
+    out["unit_price"]            = [p.unit_price for p in prices]
+    out["matched_sources_n"]     = [len(p.matched_sources) for p in prices]
+    out["combined_coverage_pct"] = [round(p.combined_coverage, 1) for p in prices]
     return out
 
 
@@ -230,6 +297,8 @@ class CheckoutLine:
     region:     str
     sector:     str
     unit_price: float
+    matched_sources:    list[str]
+    combined_coverage:  float
     breakdown:  list[tuple[str, float]]
 
 
@@ -245,23 +314,28 @@ class CheckoutTotals:
     grand_total:       float
 
 
-def build_checkout_lines(catalog: pd.DataFrame, cart: set[str]) -> list[CheckoutLine]:
-    """카트에 담긴 회사 → CheckoutLine 리스트."""
+def build_checkout_lines(
+    catalog: pd.DataFrame,
+    cart: set[str],
+    selected_sources: Optional[list[str]] = None,
+) -> list[CheckoutLine]:
+    """카트에 담긴 회사 → CheckoutLine 리스트. 선택 소스 반영."""
     if not cart or catalog.empty:
         return []
     sub = catalog[catalog["company"].isin(cart)].copy()
     lines: list[CheckoutLine] = []
     for _, row in sub.iterrows():
-        up = calc_unit_price(row)
+        up = calc_unit_price(row, selected_sources)
         lines.append(CheckoutLine(
             company=str(_row_value(row, "company", "")),
             ticker=str(_row_value(row, "ticker", "")),
             region=str(_row_value(row, "region", "")),
             sector=str(_row_value(row, "sector", "")),
             unit_price=up.unit_price,
+            matched_sources=up.matched_sources,
+            combined_coverage=up.combined_coverage,
             breakdown=up.components_summary(),
         ))
-    # company 알파벳 정렬 (결제내역 안정성)
     lines.sort(key=lambda l: l.company)
     return lines
 

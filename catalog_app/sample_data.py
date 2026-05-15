@@ -156,3 +156,59 @@ def monthly_aggregates_multi(catalog: pd.DataFrame, companies: list[str],
     if not frames:
         return pd.DataFrame()
     return pd.concat(frames, ignore_index=True)
+
+
+# ── 소스별 월별 기여도 (다운로드용) ──────────────────────────────────────
+def monthly_by_source(row: pd.Series, selected_sources: list[str],
+                      n_months: int = 24) -> pd.DataFrame:
+    """한 회사의 *선택된 소스*별 월별 매출 추정.
+
+    Returns wide format: month, src_card, src_pos, ... (USD millions)
+    각 소스의 기여도 = 회사 총매출 × (소스 coverage% / 합산 coverage%)
+    """
+    from catalog_app.sources import coverage_col, has_col
+
+    base = monthly_aggregates(row, n_months=n_months)
+    out = pd.DataFrame({"month": base["month"], "total_revenue_usd_m": base["revenue_usd_m"]})
+
+    # 회사가 *실제로 보유* 한 소스 중 selected_sources 교집합
+    matched: list[tuple[str, float]] = []
+    for k in selected_sources:
+        hc, cc = has_col(k), coverage_col(k)
+        if hc not in row.index or not bool(row.get(hc, False)):
+            continue
+        cov = float(row.get(cc, 0.0) or 0.0)
+        if cov > 0:
+            matched.append((k, cov))
+
+    if not matched:
+        return out
+
+    total_cov = sum(c for _, c in matched)
+    # 매출 = total × source_cov / total_cov, 약간의 source-특이 변동 추가
+    company = str(row.get("company", ""))
+    seed_base = _seed(company)
+    for k, cov in matched:
+        share = cov / total_cov
+        rng = np.random.default_rng(seed_base + hash(k) & 0xFFFFFFFF)
+        noise = rng.normal(1.0, 0.08, n_months)  # 8% 소스별 변동
+        out[f"src_{k}"] = (base["revenue_usd_m"].values * share * noise).round(3)
+    return out
+
+
+def monthly_by_source_multi(catalog: pd.DataFrame, companies: list[str],
+                            selected_sources: list[str],
+                            n_months: int = 24) -> pd.DataFrame:
+    """여러 회사 × 선택 소스 — long format."""
+    if not companies or not selected_sources:
+        return pd.DataFrame()
+    sub = catalog[catalog["company"].isin(companies)]
+    frames = []
+    for _, row in sub.iterrows():
+        df = monthly_by_source(row, selected_sources, n_months=n_months)
+        df.insert(0, "company", row["company"])
+        df.insert(1, "ticker", str(row.get("ticker", "")) if hasattr(row, "get") else "")
+        frames.append(df)
+    if not frames:
+        return pd.DataFrame()
+    return pd.concat(frames, ignore_index=True)

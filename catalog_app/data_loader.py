@@ -106,11 +106,6 @@ _THEMES = [
     "Cybersecurity", "Robotics", "BioTech", "Fintech", "Metaverse", "Korean-Wave",
 ]
 
-_DATA_SOURCES = [
-    "card", "web", "app", "foot_traffic", "ecommerce",
-    "reviews", "jobs", "satellite", "geo", "social", "sms",
-]
-
 _UPDATE_FREQ = ["daily", "weekly", "monthly", "quarterly"]
 
 
@@ -138,9 +133,24 @@ def demo_catalog() -> pd.DataFrame:
         industry = f"{gics} — Industry"
         themes = ",".join(rng.choice(_THEMES, size=int(rng.integers(0, 3)), replace=False).tolist())
 
-        # 데이터 소스 — 1~4 종
-        srcs = rng.choice(_DATA_SOURCES, size=int(rng.integers(1, 5)), replace=False).tolist()
-        data_sources = ",".join(srcs)
+        # 데이터 소스 — 회사별로 각 canonical 소스에 대해 가용성 확률 → 커버리지%
+        from catalog_app.sources import CANONICAL_SOURCES as _CS, coverage_col as _cc
+        src_coverage: dict[str, float] = {}
+        src_has: dict[str, bool] = {}
+        for s_key, _lbl, _en, _desc, prob in _CS:
+            has = bool(rng.random() < prob)
+            if has:
+                # 커버리지 — 베타 분포로 0~30%
+                cov = float(rng.beta(2, 6)) * 30.0  # 평균 ~7.5%, max ~25%
+                cov = round(cov, 1)
+            else:
+                cov = 0.0
+            src_coverage[s_key] = cov
+            src_has[s_key] = (cov > 0.0)
+
+        # legacy data_sources 문자열 (호환성)
+        data_sources = ",".join(k for k, h in src_has.items() if h)
+        n_sources_owned = sum(src_has.values())
 
         # 시가총액 — 로그스케일 (10M ~ 1T USD)
         mc = float(10 ** rng.uniform(1.0, 6.0))  # USD millions
@@ -193,9 +203,12 @@ def demo_catalog() -> pd.DataFrame:
             "data_latency_days": int(rng.integers(0, 30)),
             "completeness_pct":  round(float(rng.uniform(55, 99.5)), 1),
             "panel_size":        int(10 ** rng.uniform(3, 7)),
-            "n_sources":         int(rng.integers(1, 6)),
+            "n_sources":         n_sources_owned,
             # ── 📡 data sources ──
             "data_sources":      data_sources,
+            # 회사별 소스 커버리지 + 보유 플래그 (확장)
+            **{f"src_{k}_coverage": v for k, v in src_coverage.items()},
+            **{f"src_{k}":          v for k, v in src_has.items()},
             # ── 🎯 signal performance ──
             "ic":                round(float(rng.normal(0.04, 0.06)), 3),
             "ic_tstat":          round(float(rng.normal(1.5, 1.2)), 2),
@@ -290,7 +303,20 @@ def _normalize_ticker(t: str) -> str:
 
 def normalize_catalog(df: pd.DataFrame) -> pd.DataFrame:
     """필수 컬럼 보장 + 누락 컬럼은 자동 채움. 확장 컬럼은 dtype 정규화만."""
+    from catalog_app.sources import SOURCE_KEYS, coverage_col, has_col
     out = df.copy()
+
+    # 데이터 소스 컬럼 — 없으면 0/False 로 채움 (legacy 카탈로그 호환)
+    for k in SOURCE_KEYS:
+        cc, hc = coverage_col(k), has_col(k)
+        if cc not in out.columns:
+            out[cc] = 0.0
+        if hc not in out.columns:
+            # has 플래그가 없으면 coverage > 0 에서 파생
+            out[hc] = pd.to_numeric(out[cc], errors="coerce").fillna(0.0) > 0
+        # 타입 보정
+        out[cc] = pd.to_numeric(out[cc], errors="coerce").fillna(0.0).clip(lower=0.0)
+        out[hc] = out[hc].fillna(False).astype(bool)
 
     # legacy 필수 — 무조건 채움
     for c, default in _DEFAULTS.items():

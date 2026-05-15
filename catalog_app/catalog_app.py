@@ -38,6 +38,10 @@ from catalog_app.pricing import (
     attach_unit_price, top_n_companies,
     build_checkout_lines, calc_totals, fmt_usd, VAT_RATE, VOLUME_TIERS,
 )
+from catalog_app.sources import (
+    CANONICAL_SOURCES, SOURCE_KEYS, coverage_col, has_col,
+    combined_coverage, matched_count, default_selection, source_label,
+)
 
 
 # ── 페이지 설정 ────────────────────────────────────────────────────────────
@@ -139,7 +143,87 @@ if catalog is None or catalog.empty:
     st.stop()
 
 catalog = normalize_catalog(catalog)
-catalog = attach_unit_price(catalog)
+
+
+# ── 데이터 소스 (원천) Picker — 메인, prominent ────────────────────────────
+# 카탈로그에 실제로 존재하는 소스만 옵션으로 노출 (어떤 회사라도 1개 이상 보유)
+_available_src_keys: list[str] = []
+for _k in SOURCE_KEYS:
+    _hc = has_col(_k)
+    if _hc in catalog.columns and bool(catalog[_hc].any()):
+        _available_src_keys.append(_k)
+
+if "source_sel" not in st.session_state:
+    st.session_state["source_sel"] = [k for k in default_selection() if k in _available_src_keys]
+# 카탈로그 갱신 후 옵션 외 키가 남아있으면 청소
+st.session_state["source_sel"] = [
+    k for k in st.session_state["source_sel"] if k in _available_src_keys
+]
+
+with st.container():
+    st.markdown(
+        "<div style='background:linear-gradient(180deg,#EFF6FF,#FFFFFF);"
+        "border:1px solid #BFDBFE;border-radius:10px;padding:14px 18px;margin:8px 0 12px 0'>"
+        "<div style='font-size:11px;color:#1E3A8A;letter-spacing:0.08em;margin-bottom:6px'>"
+        "📡 STEP 1 · 데이터 소스(원천) 선택 — 필수, 다중 선택"
+        "</div>"
+        "<div style='font-size:12px;color:#475569;margin-bottom:8px'>"
+        "원하는 데이터 원천을 모두 선택하세요. "
+        "더 많은 소스를 선택할수록 회사별 합산 커버리지가 높아지고, 데이터 품질이 올라가며, 단가도 올라갑니다."
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    src_cols = st.columns(min(6, max(1, len(_available_src_keys))))
+    new_src_sel: list[str] = []
+    for i, k in enumerate(_available_src_keys):
+        # 라벨에 회사 보유율도 표시
+        owned_pct = float(catalog[has_col(k)].mean() * 100)
+        lbl = f"{source_label(k)}  ({owned_pct:.0f}%)"
+        is_on = k in st.session_state["source_sel"]
+        col = src_cols[i % len(src_cols)]
+        if col.checkbox(lbl, value=is_on, key=f"src_chk_{k}",
+                        help=f"카탈로그 회사 중 {owned_pct:.0f}% 가 이 소스를 보유"):
+            new_src_sel.append(k)
+    st.session_state["source_sel"] = new_src_sel
+
+    src_picker_b1, src_picker_b2, src_picker_summary = st.columns([1, 1, 3])
+    with src_picker_b1:
+        if st.button("모두 선택", use_container_width=True, key="src_all"):
+            st.session_state["source_sel"] = list(_available_src_keys)
+            st.rerun()
+    with src_picker_b2:
+        if st.button("초기화", use_container_width=True, key="src_reset"):
+            st.session_state["source_sel"] = []
+            st.rerun()
+
+    sel_keys = st.session_state["source_sel"]
+    # 카탈로그 전체에 대해 합산 커버리지 평균 (선택 소스 기준)
+    if sel_keys:
+        avg_cov = float(combined_coverage(catalog, sel_keys).mean())
+        n_covered = int((combined_coverage(catalog, sel_keys) > 0).sum())
+        with src_picker_summary:
+            st.markdown(
+                f"<div style='padding-top:6px;text-align:right;font-size:12px;color:#64748B'>"
+                f"선택 <b>{len(sel_keys)}개 소스</b> · "
+                f"카탈로그 평균 합산 커버리지 <b>{avg_cov:.1f}%</b> · "
+                f"커버 회사 <b>{n_covered:,}/{len(catalog):,}</b>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+    else:
+        with src_picker_summary:
+            st.markdown(
+                "<div style='padding-top:6px;text-align:right;font-size:12px;color:#DC2626'>"
+                "⚠️ 소스 미선택 — 가격이 50% 디스카운트로 표시됩니다 (구매가치 ↓)"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# 선택된 소스 기준으로 단가·합산 커버리지 부착
+catalog = attach_unit_price(catalog, st.session_state["source_sel"])
 
 
 # ── 필터 선택 상태 (session) ──────────────────────────────────────────────
@@ -147,6 +231,10 @@ if "filter_sel" not in st.session_state:
     st.session_state["filter_sel"] = empty_selection()
 
 sel: dict = st.session_state["filter_sel"]
+
+# 사이드바 필터에 적용할 추가 옵션 — '선택 소스 모두 보유' AND 모드
+if "source_match_all" not in st.session_state:
+    st.session_state["source_match_all"] = False
 
 
 # ── 사이드바 — 12 카테고리 필터 ───────────────────────────────────────────
@@ -212,6 +300,16 @@ with st.sidebar:
         label_visibility="collapsed",
     )
 
+    # 데이터 소스 매칭 모드 — 상단 토글
+    if st.session_state.get("source_sel"):
+        st.markdown("#### 📡 데이터 소스 매칭")
+        st.session_state["source_match_all"] = st.toggle(
+            "선택한 소스를 *모두* 보유 (AND)",
+            value=st.session_state.get("source_match_all", False),
+            help="OFF: 선택 소스 중 하나 이상 보유 (OR) · "
+                 "ON: 선택한 소스를 모두 보유한 회사만",
+        )
+
     available_cats = available_categories(catalog)
     for cat_key in available_cats:
         meta = CATEGORY_REGISTRY[cat_key]
@@ -276,6 +374,16 @@ with st.sidebar:
 # ── 필터 적용 ─────────────────────────────────────────────────────────────
 filt = apply_filters(catalog, sel)
 
+# 추가: 선택 소스 매칭 모드 (AND) — 선택한 소스를 모두 보유한 회사만
+_sel_keys: list[str] = st.session_state.get("source_sel", []) or []
+if _sel_keys and st.session_state.get("source_match_all"):
+    mask = pd.Series(True, index=filt.index)
+    for k in _sel_keys:
+        hc = has_col(k)
+        if hc in filt.columns:
+            mask &= filt[hc].astype(bool)
+    filt = filt[mask]
+
 # ── 활성 필터 칩 ──────────────────────────────────────────────────────────
 chips = active_chips(sel, catalog)
 if chips:
@@ -294,7 +402,7 @@ if chips:
 
 # ── 결과 요약 ─────────────────────────────────────────────────────────────
 cart_set_now = get_cart()
-cart_lines_now = build_checkout_lines(catalog, cart_set_now)
+cart_lines_now = build_checkout_lines(catalog, cart_set_now, _sel_keys)
 totals_now = calc_totals(cart_lines_now)
 
 m1, m2, m3, m4, m5 = st.columns(5)
@@ -441,18 +549,18 @@ if preview_n is not None and len(filt):
 tcol_left, tcol_right = st.columns([5, 1.3])
 
 _DISPLAY_PRIORITY = [
-    ("company",          "회사"),
-    ("ticker",           "티커"),
-    ("region",           "지역"),
-    ("gics_sector",      "GICS"),
-    ("market_cap_usd",   "MCap (M$)"),
-    ("signal_score",     "시그널"),
-    ("ic",               "IC"),
-    ("backtest_sharpe",  "Sharpe"),
-    ("mom_growth",       "MoM %"),
-    ("data_latency_days","지연(일)"),
-    ("esg_score",        "ESG"),
-    ("unit_price",       "단가 (USD)"),
+    ("company",               "회사"),
+    ("ticker",                "티커"),
+    ("region",                "지역"),
+    ("gics_sector",           "GICS"),
+    ("market_cap_usd",        "MCap (M$)"),
+    ("signal_score",          "시그널"),
+    ("matched_sources_n",     "📡 소스 매칭"),
+    ("combined_coverage_pct", "합산 커버리지"),
+    ("backtest_sharpe",       "Sharpe"),
+    ("mom_growth",            "MoM %"),
+    ("data_latency_days",     "지연(일)"),
+    ("unit_price",            "단가 (USD)"),
 ]
 
 
@@ -471,13 +579,22 @@ with tcol_left:
     else:
         st.caption("행 클릭(Shift/Cmd-Click) 으로 다중 선택 → 우측 ‘카트 추가’")
         show_df = _display_df(filt)
+        n_src_sel = len(_sel_keys) if _sel_keys else 0
         col_config = {}
         if "MCap (M$)" in show_df.columns:
             col_config["MCap (M$)"] = st.column_config.NumberColumn(format="$%.0fM")
         if "시그널" in show_df.columns:
             col_config["시그널"] = st.column_config.ProgressColumn(min_value=0, max_value=1, format="%.2f")
-        if "ESG" in show_df.columns:
-            col_config["ESG"] = st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.0f")
+        if "📡 소스 매칭" in show_df.columns and n_src_sel > 0:
+            col_config["📡 소스 매칭"] = st.column_config.ProgressColumn(
+                min_value=0, max_value=n_src_sel, format=f"%d / {n_src_sel}",
+                help="선택한 소스 중 회사가 보유한 개수",
+            )
+        if "합산 커버리지" in show_df.columns:
+            col_config["합산 커버리지"] = st.column_config.ProgressColumn(
+                min_value=0, max_value=100, format="%.1f%%",
+                help="선택한 소스의 회사별 합산 커버리지 (cap 100%)",
+            )
         if "MoM %" in show_df.columns:
             col_config["MoM %"] = st.column_config.NumberColumn(format="%+.1f %%")
         if "단가 (USD)" in show_df.columns:
@@ -588,6 +705,7 @@ def _checkout_dialog():
                     catalog, list(paid_companies), paid_totals,
                     filter_summary=summarize_selection(sel),
                     n_months=24,
+                    selected_sources=st.session_state.get("paid_sources", _sel_keys),
                 )
             st.download_button(
                 f"📥 데이터 패키지 다운로드 (xlsx · {len(paid_companies)}개 회사 × 24개월)",
@@ -638,7 +756,7 @@ def _checkout_dialog():
             st.rerun()
         return
 
-    lines = build_checkout_lines(catalog, cart_now)
+    lines = build_checkout_lines(catalog, cart_now, _sel_keys)
     totals = calc_totals(lines)
 
     # 상단 — 요약
@@ -655,13 +773,20 @@ def _checkout_dialog():
     st.divider()
 
     # 라인아이템
-    st.markdown("#### 📑 라인 아이템")
+    st.markdown(
+        f"#### 📑 라인 아이템 "
+        f"<span style='font-size:12px;color:#64748B;font-weight:normal'>"
+        f"선택 소스 {len(_sel_keys)}개 기준</span>",
+        unsafe_allow_html=True,
+    )
     line_df = pd.DataFrame([{
-        "회사":   l.company,
-        "티커":   l.ticker,
-        "지역":   l.region,
-        "섹터":   l.sector,
-        "단가":   l.unit_price,
+        "회사":         l.company,
+        "티커":         l.ticker,
+        "지역":         l.region,
+        "📡 소스 매칭":  f"{len(l.matched_sources)} / {len(_sel_keys) or '—'}",
+        "합산 커버리지": f"{l.combined_coverage:.1f}%",
+        "보유 소스":    ", ".join(l.matched_sources) if l.matched_sources else "(없음)",
+        "단가":         l.unit_price,
     } for l in lines])
     st.dataframe(
         line_df, hide_index=True, use_container_width=True, height=240,
@@ -690,6 +815,14 @@ def _checkout_dialog():
     with cc2:
         st.markdown("##### 📊 데이터 샘플 (최근 6개월)")
         chosen_row = catalog[catalog["company"] == co_pick].iloc[0]
+        chosen_line = next(l for l in lines if l.company == co_pick)
+        if chosen_line.matched_sources:
+            st.caption(
+                f"🎯 매칭 소스: **{', '.join(chosen_line.matched_sources)}** · "
+                f"합산 커버리지 **{chosen_line.combined_coverage:.1f}%**"
+            )
+        else:
+            st.caption("⚠️ 선택한 소스를 회사가 보유하지 않음 — 가격 50% 디스카운트")
         try:
             sample = monthly_aggregates(chosen_row, n_months=6)
             st.dataframe(
@@ -767,6 +900,7 @@ def _checkout_dialog():
             st.session_state["payment_completed"] = True
             st.session_state["paid_companies"] = list(cart_now)
             st.session_state["paid_totals"] = totals
+            st.session_state["paid_sources"] = list(_sel_keys)
             st.session_state["paid_order_id"] = (
                 f"MAN-{_dt.now().strftime('%Y%m%d-%H%M%S')}"
             )

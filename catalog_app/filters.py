@@ -64,9 +64,11 @@ DATA_QUALITY_COLS = {
     "n_sources":         ("데이터 소스 수",         "numeric"),
 }
 
+# 데이터 소스(원천) 필터는 메인 영역 picker 로 처리.
+# 사이드바에서는 합산 커버리지·매칭 카운트만 노출.
 DATA_SOURCE_COLS = {
-    "data_sources":    ("데이터 소스 유형",   "tag_list"),
-    # 'card,web,app,foot_traffic,reviews,jobs,satellite,geo,ecommerce'
+    "combined_coverage_pct": ("선택 소스 합산 커버리지 (%)", "numeric"),
+    "matched_sources_n":     ("선택 소스 매칭 개수",          "numeric"),
 }
 
 SIGNAL_COLS = {

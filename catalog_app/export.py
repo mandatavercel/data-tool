@@ -76,6 +76,7 @@ def build_paid_data_xlsx(
     totals: object,
     filter_summary: str = "",
     n_months: int = 24,
+    selected_sources: list[str] | None = None,
 ) -> bytes:
     """결제 완료 후 다운로드되는 풀 데이터 xlsx.
 
@@ -87,20 +88,30 @@ def build_paid_data_xlsx(
         5. summary_by_month — 모든 회사 합산 월별
         6. notes            — 컨텍스트/면책
     """
-    from catalog_app.sample_data import monthly_aggregates_multi
+    from catalog_app.sample_data import monthly_aggregates_multi, monthly_by_source_multi
     from catalog_app.pricing import calc_unit_price
 
+    selected_sources = selected_sources or []
     sub = catalog[catalog["company"].isin(purchased)].copy()
 
-    # 단가 계산
+    # 단가 계산 (선택 소스 기준)
     unit_prices = []
+    matched_n = []
+    coverages = []
     for _, r in sub.iterrows():
-        up = calc_unit_price(r)
+        up = calc_unit_price(r, selected_sources)
         unit_prices.append(up.unit_price)
-    sub["unit_price_usd"] = unit_prices
+        matched_n.append(len(up.matched_sources))
+        coverages.append(round(up.combined_coverage, 1))
+    sub["unit_price_usd"]        = unit_prices
+    sub["matched_sources_n"]     = matched_n
+    sub["combined_coverage_pct"] = coverages
 
     # 시계열 (long format)
     series = monthly_aggregates_multi(sub, sub["company"].tolist(), n_months=n_months)
+    # 소스별 분해 시계열
+    src_series = monthly_by_source_multi(sub, sub["company"].tolist(),
+                                         selected_sources, n_months=n_months)
 
     buf = io.BytesIO()
     engine = "xlsxwriter"
@@ -115,6 +126,7 @@ def build_paid_data_xlsx(
             ("Order ID",       f"MAN-{datetime.now().strftime('%Y%m%d-%H%M%S')}"),
             ("Order Time",     datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
             ("Companies",      str(len(purchased))),
+            ("Selected Sources", ", ".join(selected_sources) if selected_sources else "(none)"),
             ("Subtotal (USD)", f"${getattr(totals, 'subtotal', 0):,.2f}"),
             ("Volume Tier",    str(getattr(totals, 'volume_tier_label', '-'))),
             ("Volume Discount Rate", f"{getattr(totals, 'volume_rate', 0)*100:.0f}%"),
@@ -128,14 +140,15 @@ def build_paid_data_xlsx(
             writer, index=False, sheet_name="invoice",
         )
 
-        # 2) companies (메타)
+        # 2) companies (메타 + 소스 매칭/커버리지)
         meta_cols = [c for c in [
             "company", "ticker", "isin", "region", "country", "exchange",
             "currency", "gics_sector", "sector", "market_cap_usd",
             "adv_usd", "signal_score", "ic", "backtest_sharpe",
             "coverage_months", "data_latency_days", "update_frequency",
-            "n_sources", "data_sources", "esg_score",
-            "unit_price_usd",
+            "n_sources", "data_sources",
+            "matched_sources_n", "combined_coverage_pct",
+            "esg_score", "unit_price_usd",
         ] if c in sub.columns]
         sub[meta_cols].to_excel(writer, index=False, sheet_name="companies")
 
@@ -158,6 +171,10 @@ def build_paid_data_xlsx(
             agg.columns = ["month", "total_revenue_usd_m", "total_transactions",
                            "total_unique_users", "avg_signal_score"]
             agg.to_excel(writer, index=False, sheet_name="summary_by_month")
+
+        # 6) source_breakdown — 소스별 월별 매출 (long)
+        if not src_series.empty:
+            src_series.to_excel(writer, index=False, sheet_name="source_breakdown")
 
         # 6) notes
         notes = pd.DataFrame({
