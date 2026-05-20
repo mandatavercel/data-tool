@@ -40,8 +40,8 @@ if _logo:
         <div style="display:flex; align-items:center; gap:18px; margin:0 0 4px 0;">
           {_logo}
           <div style="line-height:1.1;">
-            <div style="font-size:1.05rem; font-weight:600; color:#0F172A;">Internal Tool Launcher</div>
-            <div style="font-size:0.85rem; color:rgba(15,23,42,0.6); margin-top:2px;">
+            <div style="font-size:1.05rem; font-weight:600; color:#F1F5F9;">Internal Tool Launcher</div>
+            <div style="font-size:0.85rem; color:rgba(241,245,249,0.65); margin-top:2px;">
               카테고리로 필터링하고, 카드의 <b>열기</b>를 누르면 앱이 열립니다.
             </div>
           </div>
@@ -149,7 +149,7 @@ else:
                     # 3행: 설명 (2~3줄 자동 줄바꿈, 카드 높이 통일)
                     st.markdown(
                         f"<div style='font-size:0.85em; line-height:1.45; "
-                        f"color:rgba(49,51,63,0.7); margin:0.25rem 0 0.5rem 0; "
+                        f"color:rgba(241,245,249,0.72); margin:0.25rem 0 0.5rem 0; "
                         f"min-height:3.6em;'>{app.description}</div>",
                         unsafe_allow_html=True,
                     )

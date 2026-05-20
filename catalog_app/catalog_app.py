@@ -289,8 +289,8 @@ with st.sidebar:
     st.markdown(
         f"<div style='display:flex;align-items:baseline;justify-content:space-between;"
         f"margin:-4px 0 8px 0'>"
-        f"<div style='font-size:18px;font-weight:800;color:#0F172A'>🎛 필터</div>"
-        f"<div style='font-size:11px;color:#64748B'>"
+        f"<div style='font-size:18px;font-weight:800;color:#F1F5F9'>🎛 필터</div>"
+        f"<div style='font-size:11px;color:rgba(241,245,249,0.55)'>"
         f"{len(catalog):,} 회사 · {len(catalog.columns)} 컬럼</div>"
         f"</div>",
         unsafe_allow_html=True,
