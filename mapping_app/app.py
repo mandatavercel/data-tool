@@ -59,6 +59,118 @@ from mapping_app import output as _out
 from mapping_app import ui_common as _ui
 from mapping_app import validation as _val
 from mapping_app import master_builder as _master
+from mapping_app import simple_layout as _simple
+from mapping_app import df_editor as _editor
+
+
+def _render_llm_df_editor(
+    df: pd.DataFrame,
+    key_prefix: str,
+    state_key: str,
+    *,
+    title: str = "🤖 자연어로 데이터 편집",
+):
+    """미리보기 df 옆에 LLM 편집 expander.
+
+    Args:
+        df: 현재 df (편집 대상)
+        key_prefix: widget key 충돌 방지 prefix (mode 별 고유)
+        state_key: 편집된 df 를 저장할 session_state 키
+                   (예: 'sl_out_df', 'sg_df', 'out_df_cache' 등)
+
+    동작:
+        - 자연어 명령 입력
+        - 🤖 코드 생성 → 코드 표시
+        - ✅ 실행 → df 갱신 (state_key 에 새 df 저장 + 직렬화 캐시 무효화)
+        - ↩️ 되돌리기 (직전 df 백업)
+    """
+    if df is None or df.empty:
+        return
+
+    _kipris_key, anthropic_key = _trans_get_keys()
+    with st.expander(title + " (xlsx 생성 전 수정)", expanded=False):
+        if not anthropic_key:
+            st.caption("⚠️ Anthropic API 키 없음 — 다른 모드에서 키 등록 필요")
+            return
+
+        st.caption(
+            "자연어 명령을 입력하면 Claude 가 pandas 편집 코드를 생성합니다. "
+            "**코드를 검토 후 [✅ 실행]** 하면 미리보기에 즉시 반영됩니다. "
+            "exec 환경은 sandbox (import/exec/open 등 차단)."
+        )
+
+        req = st.text_input(
+            "편집 요청 (예: 'sales_amount 가 0 인 행 제거', "
+            "'company_name_en 의 _CO_LTD suffix 제거', '모든 컬럼 trim')",
+            key=f"{key_prefix}_edit_req",
+        )
+
+        cc1, cc2, cc3 = st.columns([1, 1, 1])
+        with cc1:
+            do_gen = st.button(
+                "🤖 코드 생성", key=f"{key_prefix}_edit_gen",
+                disabled=not (req or "").strip(), width="stretch",
+            )
+        with cc2:
+            do_apply = st.button(
+                "✅ 실행", key=f"{key_prefix}_edit_apply",
+                disabled=not st.session_state.get(f"{key_prefix}_edit_code"),
+                type="primary", width="stretch",
+            )
+        with cc3:
+            do_undo = st.button(
+                "↩️ 되돌리기", key=f"{key_prefix}_edit_undo",
+                disabled=not st.session_state.get(f"{key_prefix}_edit_backup"),
+                width="stretch",
+            )
+
+        if do_gen:
+            with st.spinner("Claude 호출 중…"):
+                code, err = _editor.llm_generate_edit_code(
+                    df, (req or "").strip(), anthropic_key,
+                )
+            if err:
+                st.error(f"코드 생성 실패: {err}")
+            else:
+                st.session_state[f"{key_prefix}_edit_code"] = code
+
+        code = st.session_state.get(f"{key_prefix}_edit_code", "")
+        if code:
+            st.code(code, language="python")
+
+        if do_apply and code:
+            new_df, err = _editor.apply_edit_code(df, code)
+            if err:
+                st.error(err)
+            else:
+                # 직전 df 백업 (되돌리기용)
+                st.session_state[f"{key_prefix}_edit_backup"] = df.copy()
+                st.session_state[state_key] = new_df
+                # 직렬화 캐시 무효화 — 다운로드 버튼 재생성 유도
+                for k in (f"{key_prefix}_csv_bytes",
+                          f"{key_prefix}_xlsx_bytes",
+                          f"{key_prefix}_xlsx_trunc"):
+                    st.session_state.pop(k, None)
+                # 매핑 모드(⑧) 호환 — 또 다른 캐시 키
+                for k in ("csv_bytes_cache", "xlsx_bytes_cache",
+                          "xlsx_truncated_cache"):
+                    st.session_state.pop(k, None)
+                st.success(f"✅ 편집 적용됨 ({len(new_df):,}행 × "
+                           f"{len(new_df.columns)}열) — 미리보기 갱신")
+                st.rerun()
+
+        if do_undo:
+            backup = st.session_state.pop(f"{key_prefix}_edit_backup", None)
+            if backup is not None:
+                st.session_state[state_key] = backup
+                for k in (f"{key_prefix}_csv_bytes",
+                          f"{key_prefix}_xlsx_bytes",
+                          f"{key_prefix}_xlsx_trunc",
+                          "csv_bytes_cache", "xlsx_bytes_cache",
+                          "xlsx_truncated_cache"):
+                    st.session_state.pop(k, None)
+                st.info("↩️ 직전 상태로 복원")
+                st.rerun()
 
 # streamlit hot-reload 가 새 심볼을 못 잡을 때 강제 reload — 한 번만
 def _ensure_master_fresh():
@@ -189,7 +301,7 @@ def render_step_upload():
                 f"{len(df):,}행 × {len(df.columns)}열"
             )
             with st.expander("상위 5행 미리보기", expanded=False):
-                st.dataframe(df.head(5), use_container_width=True)
+                st.dataframe(df.head(5), width="stretch")
 
     # ── (b) 표준 레이아웃 ──────────────────────────────────────────────────────
     with c_right:
@@ -247,7 +359,7 @@ def render_step_upload():
                     "추론된 유형": [KIND_LABEL.get(k, KIND_LABEL['text'])[0] for k in kinds],
                 })
                 with st.expander("표준 컬럼 목록 + 유형 추론", expanded=False):
-                    st.dataframe(preview, use_container_width=True, hide_index=True)
+                    st.dataframe(preview, width="stretch", hide_index=True)
             else:
                 st.error(
                     "❌ 표준 레이아웃 파일에서 컬럼을 인식하지 못했습니다. "
@@ -259,7 +371,7 @@ def render_step_upload():
                     if tried:
                         st.dataframe(
                             pd.DataFrame(tried),
-                            use_container_width=True,
+                            width="stretch",
                             hide_index=True,
                         )
                     else:
@@ -292,7 +404,7 @@ def render_step_upload():
             type="primary",
             disabled=not (ready_raw and ready_std),
             key="up_next",
-            use_container_width=True,
+            width="stretch",
         ):
             go_to(2)
 
@@ -519,7 +631,7 @@ def render_step_mapping():
     st.divider()
     left, _, right = st.columns([1, 4, 1])
     with left:
-        if st.button("← 이전", key="map_prev", use_container_width=True):
+        if st.button("← 이전", key="map_prev", width="stretch"):
             go_to(1)
     with right:
         if st.button(
@@ -527,7 +639,7 @@ def render_step_mapping():
             type="primary",
             disabled=(len(std_to_raw) == 0),
             key="map_next",
-            use_container_width=True,
+            width="stretch",
         ):
             go_to(3)
 
@@ -563,11 +675,11 @@ def render_step_isin():
         left, _, right = st.columns([1, 4, 1])
         with left:
             if st.button("← DART 매칭으로", key="isin_back_no_dart",
-                         use_container_width=True):
+                         width="stretch"):
                 go_to(3)
         with right:
             if st.button("건너뛰기 →", type="primary",
-                         key="isin_skip_no_dart", use_container_width=True):
+                         key="isin_skip_no_dart", width="stretch"):
                 st.session_state.pop("isin_match", None)
                 go_to(5)
         st.stop()
@@ -601,7 +713,7 @@ def render_step_isin():
                     user_master = load_user_master(up_master)
                     st.success(f"✅ {len(user_master):,}개 종목 로드됨")
                     with st.expander("미리보기 (상위 5행)"):
-                        st.dataframe(user_master.head(5), use_container_width=True, hide_index=True)
+                        st.dataframe(user_master.head(5), width="stretch", hide_index=True)
                 except Exception as e:
                     st.error(f"❌ 매핑 파일 읽기 실패: {e}")
     elif method == METHOD_AUTO:
@@ -617,7 +729,7 @@ def render_step_isin():
     btn_col, msg_col = st.columns([1, 3])
     with btn_col:
         if st.button("🚀 ISIN 매핑 시작", type="primary", disabled=not can_start,
-                     use_container_width=True, key="isin_start"):
+                     width="stretch", key="isin_start"):
             with st.spinner(f"{len(dart_match):,}개 회사 ISIN 처리 중…"):
                 if method == METHOD_AUTO:
                     st.session_state["isin_match"] = isin_compute_from_dart_match(
@@ -648,10 +760,10 @@ def render_step_isin():
     st.divider()
     left, _, right = st.columns([1, 4, 1])
     with left:
-        if st.button("← 이전", key="isin_prev", use_container_width=True):
+        if st.button("← 이전", key="isin_prev", width="stretch"):
             go_to(3)
     with right:
-        if st.button("다음 →", type="primary", key="isin_next", use_container_width=True):
+        if st.button("다음 →", type="primary", key="isin_next", width="stretch"):
             go_to(5)
 
 
@@ -696,7 +808,7 @@ def _render_isin_result(dart_match: pd.DataFrame, dart_info: dict):
         "market":       "시장",
         "source":       "출처",
     })[["상태","법인등록번호","입력 회사명","한글명","단축코드","ISIN","시장","출처"]]
-    st.dataframe(display_df, use_container_width=True, hide_index=True, height=420)
+    st.dataframe(display_df, width="stretch", hide_index=True, height=420)
 
     # 수동 입력 UI — expander 로 감싸 기본 접힘, 100개 초과 시 일부만 노출
     failed_rows = match_df[match_df["isin"].astype(str).str.len() == 0]
@@ -780,10 +892,10 @@ def render_step_dart():
         )
         left, _, right = st.columns([1, 4, 1])
         with left:
-            if st.button("← 이전", key="dart_back_no_comp", use_container_width=True):
+            if st.button("← 이전", key="dart_back_no_comp", width="stretch"):
                 go_to(2)
         with right:
-            if st.button("건너뛰기 →", type="primary", key="dart_skip", use_container_width=True):
+            if st.button("건너뛰기 →", type="primary", key="dart_skip", width="stretch"):
                 st.session_state.pop("dart_match", None)
                 go_to(4)
         st.stop()
@@ -816,7 +928,7 @@ def render_step_dart():
             )
         with csave:
             st.write("")
-            if st.button("🔒 영구 저장", key="dart_save_key", use_container_width=True,
+            if st.button("🔒 영구 저장", key="dart_save_key", width="stretch",
                          disabled=not key_input.strip(),
                          help="현재 입력된 키를 mapping_app/.streamlit/secrets.toml 에 저장"):
                 try:
@@ -835,10 +947,10 @@ def render_step_dart():
         st.info("📝 DART 인증키를 입력하면 자동 매칭이 시작됩니다. 인증키가 없으면 건너뛰고 다음 단계로 진행할 수 있어요.")
         left, _, right = st.columns([1, 4, 1])
         with left:
-            if st.button("← 이전", key="dart_back_no_key", use_container_width=True):
+            if st.button("← 이전", key="dart_back_no_key", width="stretch"):
                 go_to(2)
         with right:
-            if st.button("건너뛰기 →", type="primary", key="dart_skip_no_key", use_container_width=True):
+            if st.button("건너뛰기 →", type="primary", key="dart_skip_no_key", width="stretch"):
                 st.session_state.pop("dart_match", None)
                 go_to(4)
         st.stop()
@@ -861,14 +973,14 @@ def render_step_dart():
         do_match = st.button(
             "🚀 DART 매칭 시작" if not has_match else "🔁 매칭 다시 실행",
             type="primary" if not has_match else "secondary",
-            use_container_width=True,
+            width="stretch",
             key="dart_btn_match",
             help="회사명 → corp_code/한글정식명/영문명/단축코드 일괄 매칭",
         )
     with a2:
         do_refresh = st.button(
             "🔄 마스터 재다운로드",
-            use_container_width=True,
+            width="stretch",
             key="dart_btn_refresh",
             help="DART corpCode 캐시 무효화 후 다시 받기",
         )
@@ -909,10 +1021,10 @@ def render_step_dart():
         st.divider()
         left, _, right = st.columns([1, 4, 1])
         with left:
-            if st.button("← 이전", key="dart_prev_pre", use_container_width=True):
+            if st.button("← 이전", key="dart_prev_pre", width="stretch"):
                 go_to(2)
         with right:
-            if st.button("건너뛰기 →", type="primary", key="dart_skip_pre", use_container_width=True):
+            if st.button("건너뛰기 →", type="primary", key="dart_skip_pre", width="stretch"):
                 go_to(4)
         st.stop()
 
@@ -1009,7 +1121,7 @@ def render_step_dart():
         do_jurir = st.button(
             f"📡 조회 시작 ({n_jurir_left}개 남음)" if n_jurir_left else "📡 조회 완료",
             type="primary" if n_jurir_left else "secondary",
-            use_container_width=True,
+            width="stretch",
             key="dart_btn_jurir",
             disabled=n_jurir_left == 0,
             help="매칭된 회사들의 jurir_no(법인등록번호) 조회 — 동명 후보 선택 후 실행",
@@ -1063,16 +1175,16 @@ def render_step_dart():
             by="상태",
             key=lambda s: s.map({"❌ 실패": 0, "🟡 부분": 1, "✅ 완전": 2}),
         ).reset_index(drop=True)
-    st.dataframe(display_df, use_container_width=True, hide_index=True, height=420)
+    st.dataframe(display_df, width="stretch", hide_index=True, height=420)
 
     # ── 진행 버튼 ─────────────────────────────────────────────────────────────
     st.divider()
     left, _, right = st.columns([1, 4, 1])
     with left:
-        if st.button("← 이전", key="dart_prev", use_container_width=True):
+        if st.button("← 이전", key="dart_prev", width="stretch"):
             go_to(2)
     with right:
-        if st.button("다음 →", type="primary", key="dart_next", use_container_width=True):
+        if st.button("다음 →", type="primary", key="dart_next", width="stretch"):
             go_to(4)
 
 
@@ -1084,11 +1196,11 @@ def _trans_nav(suffix: str = "top"):
     """⑤ 영문화 step 상/하단에 공통으로 두는 navigation row."""
     left, _, right = st.columns([1, 4, 1])
     with left:
-        if st.button("← 이전 (④ ISIN)", key=f"trans_prev_{suffix}", use_container_width=True):
+        if st.button("← 이전 (④ ISIN)", key=f"trans_prev_{suffix}", width="stretch"):
             go_to(4)
     with right:
         if st.button("다음 → (⑥ 최종 매핑)", type="primary",
-                     key=f"trans_next_{suffix}", use_container_width=True):
+                     key=f"trans_next_{suffix}", width="stretch"):
             go_to(6)
 
 
@@ -1243,7 +1355,7 @@ def render_step_brand_product_en():
             f"🚀 브랜드 영문화 ({len(unique_brands)}개)",
             type="primary",
             disabled=(len(unique_brands) == 0),
-            use_container_width=True,
+            width="stretch",
             key="trans_btn_brand",
         )
     with a2:
@@ -1251,7 +1363,7 @@ def render_step_brand_product_en():
             f"🚀 제품 영문화 ({len(unique_skus)}개)",
             type="primary",
             disabled=(len(unique_skus) == 0),
-            use_container_width=True,
+            width="stretch",
             key="trans_btn_sku",
         )
 
@@ -1342,13 +1454,13 @@ def render_step_brand_product_en():
                 "고유 한글값": f"{len(uniq):,}개",
                 "예시": " · ".join(uniq[:3]) + ("…" if len(uniq) > 3 else ""),
             })
-        st.dataframe(pd.DataFrame(preview_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(preview_rows), width="stretch", hide_index=True)
 
         total_free = sum(len(v) for v in free_unique.values())
         run_free = st.button(
             f"🚀 선택한 {len(free_picks)}개 컬럼 일괄 영문화 (총 {total_free:,}개 한글값)",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             key="trans_btn_free",
             disabled=(total_free == 0),
         )
@@ -1386,21 +1498,21 @@ def render_step_brand_product_en():
         st.markdown("#### ③ 일괄 작업")
         bb1, bb2, bb3, bb4, bb5 = st.columns(5)
         with bb1:
-            if st.button("🎯 일괄 확정 (브랜드)", use_container_width=True,
+            if st.button("🎯 일괄 확정 (브랜드)", width="stretch",
                          key="trans_bulk_brand",
                          disabled=not unique_brands):
                 n = _trans_db.bulk_select_top("brand", reviewer="auto")
                 st.success(f"✅ 브랜드 {n}개 자동 확정 — 1순위 후보로")
                 st.rerun()
         with bb2:
-            if st.button("🎯 일괄 확정 (제품)", use_container_width=True,
+            if st.button("🎯 일괄 확정 (제품)", width="stretch",
                          key="trans_bulk_sku",
                          disabled=not unique_skus):
                 n = _trans_db.bulk_select_top("product", reviewer="auto")
                 st.success(f"✅ 제품 {n}개 자동 확정 — 1순위 후보로")
                 st.rerun()
         with bb3:
-            if st.button("🎯 일괄 확정 (자유 영문화)", use_container_width=True,
+            if st.button("🎯 일괄 확정 (자유 영문화)", width="stretch",
                          key="trans_bulk_free",
                          disabled=not free_picks,
                          help="multiselect 한 모든 자유 영문화 컬럼의 1순위 후보를 일괄 확정"):
@@ -1408,7 +1520,7 @@ def render_step_brand_product_en():
                 st.success(f"✅ 자유 영문화 {n}개 자동 확정 — 1순위 후보로")
                 st.rerun()
         with bb4:
-            if st.button("🧹 옛 규칙기반·한글 후보 정리", use_container_width=True,
+            if st.button("🧹 옛 규칙기반·한글 후보 정리", width="stretch",
                          key="trans_purge_partial",
                          help="규칙기반(official_site) 후보 + 한글 섞인 후보를 모두 삭제하고 "
                               "해당 항목 확정도 해제합니다. 이후 🚀 영문화 다시 실행 권장."):
@@ -1444,7 +1556,7 @@ def render_step_brand_product_en():
                     data=buf.getvalue(),
                     file_name="brand_product_category_master.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
+                    width="stretch",
                     key="trans_master_dl",
                     help="확정된 영문 매핑을 회사 표준 사전 파일로 export (3시트)",
                 )
@@ -1762,10 +1874,10 @@ def render_step_final_mapping():
     st.divider()
     left, _, right = st.columns([1, 4, 1])
     with left:
-        if st.button("← 이전", key="final_prev", use_container_width=True):
+        if st.button("← 이전", key="final_prev", width="stretch"):
             go_to(5)
     with right:
-        if st.button("다음 →", type="primary", key="final_next", use_container_width=True):
+        if st.button("다음 →", type="primary", key="final_next", width="stretch"):
             go_to(7)
 
 
@@ -1824,10 +1936,10 @@ def render_step_validation():
     st.divider()
     left, _, right = st.columns([1, 4, 1])
     with left:
-        if st.button("← 이전", key="val_prev", use_container_width=True):
+        if st.button("← 이전", key="val_prev", width="stretch"):
             go_to(6)
     with right:
-        if st.button("다음 →", type="primary", key="val_next", use_container_width=True):
+        if st.button("다음 →", type="primary", key="val_next", width="stretch"):
             go_to(8)
 
 
@@ -1959,7 +2071,7 @@ def render_step_download():
                 "예시 (상위 3행)": sample_str or "(빈 값)",
             })
         preview_df = pd.DataFrame(rows)
-        st.dataframe(preview_df, use_container_width=True, hide_index=True)
+        st.dataframe(preview_df, width="stretch", hide_index=True)
     except Exception as e:
         st.warning(f"⚠️ 미리보기 생성 실패 (변환은 그래도 시도 가능): {type(e).__name__}: {e}")
 
@@ -1969,7 +2081,7 @@ def render_step_download():
         do_build = st.button(
             "🛠 변환 결과 생성" if not is_built else "🔁 다시 생성",
             type="primary" if not is_built else "secondary",
-            use_container_width=True,
+            width="stretch",
             key="dl_btn_build",
             help="표준 레이아웃 데이터를 생성합니다. 대용량은 수초~수십초 소요될 수 있어요.",
         )
@@ -2046,7 +2158,10 @@ def render_step_download():
                 short = vsrc.replace("[KRX] ", "🔐").replace("[DART] ", "🏛")
                 cols[i % len(cols)].metric(short, f"{n:,} / {n_rows:,}")
 
-        st.dataframe(out_df.head(20), use_container_width=True)
+        st.dataframe(out_df.head(20), width="stretch")
+
+        # LLM 자연어 편집
+        _render_llm_df_editor(out_df, key_prefix="m1", state_key="out_df_cache")
 
         # ── 다운로드 ──────────────────────────────────────────────────────────
         st.markdown("#### 다운로드")
@@ -2071,7 +2186,7 @@ def render_step_download():
                 "📦 CSV 파일 생성 (전체 행, 권장)" if csv_bytes is None
                 else f"✅ CSV 생성됨 ({len(csv_bytes)/1024/1024:.1f} MB)",
                 type="primary" if csv_bytes is None else "secondary",
-                use_container_width=True,
+                width="stretch",
                 key="dl_make_csv",
                 disabled=csv_bytes is not None,
             )
@@ -2083,7 +2198,7 @@ def render_step_download():
                  if xlsx_bytes is None
                  else f"✅ XLSX 생성됨 ({len(xlsx_bytes)/1024/1024:.1f} MB)"),
                 type="secondary",
-                use_container_width=True,
+                width="stretch",
                 key="dl_make_xlsx",
                 disabled=xlsx_bytes is not None,
             )
@@ -2121,7 +2236,7 @@ def render_step_download():
                     file_name=f"{base_name}.csv",
                     mime="text/csv",
                     type="primary",
-                    use_container_width=True,
+                    width="stretch",
                     key="dl_csv",
                 )
         with d2:
@@ -2132,17 +2247,17 @@ def render_step_download():
                     file_name=f"{base_name}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     type="primary" if not xlsx_truncated else "secondary",
-                    use_container_width=True,
+                    width="stretch",
                     key="dl_xlsx",
                 )
             else:
-                st.button("CSV 변환 실패", disabled=True, use_container_width=True, key="dl_csv_dis")
+                st.button("CSV 변환 실패", disabled=True, width="stretch", key="dl_csv_dis")
 
     # ── 진행 버튼 (변환 성공/실패와 무관하게 항상 노출) ──────────────────────
     st.divider()
     left, _ = st.columns([1, 5])
     with left:
-        if st.button("← 이전", key="dl_prev", use_container_width=True):
+        if st.button("← 이전", key="dl_prev", width="stretch"):
             go_to(7)
 
 
@@ -2156,14 +2271,14 @@ def _master_nav(suffix: str, prev_step: int | None, next_step: int | None,
     left, _, right = st.columns([1, 4, 1])
     with left:
         if prev_step is not None:
-            if st.button("← 이전", key=f"m_prev_{suffix}", use_container_width=True):
+            if st.button("← 이전", key=f"m_prev_{suffix}", width="stretch"):
                 st.session_state["master_step"] = prev_step
                 st.rerun()
     with right:
         if next_step is not None:
             if st.button(next_label, type="primary",
                          disabled=next_disabled,
-                         key=f"m_next_{suffix}", use_container_width=True):
+                         key=f"m_next_{suffix}", width="stretch"):
                 st.session_state["master_step"] = next_step
                 st.rerun()
 
@@ -2226,7 +2341,7 @@ def render_master_step_input():
                 "회사 + 브랜드 + 제품 3계층. mandata_brand_name 은 "
                 "`{회사}_{브랜드}_{제품}` 형식. 회사당 001/002/003 순번."
             )
-        st.dataframe(example, use_container_width=True, hide_index=True)
+        st.dataframe(example, width="stretch", hide_index=True)
 
     tab_editor, tab_file = st.tabs(["📝 직접 입력", "📁 파일 업로드"])
 
@@ -2237,7 +2352,7 @@ def render_master_step_input():
         edited = st.data_editor(
             pairs_df,
             num_rows="dynamic",
-            use_container_width=True, height=420,
+            width="stretch", height=420,
             key="m_pairs_editor",
         )
         st.session_state["master_pairs_df"] = edited
@@ -2265,7 +2380,7 @@ def render_master_step_input():
                 st.success(f"✅ {len(df)}행 로드됨")
                 st.session_state["master_pairs_df"] = df
                 with st.expander("미리보기 (상위 10)"):
-                    st.dataframe(df.head(10), use_container_width=True, hide_index=True)
+                    st.dataframe(df.head(10), width="stretch", hide_index=True)
             except Exception as e:
                 st.error(f"읽기 실패: {e}")
 
@@ -2441,7 +2556,7 @@ def render_master_step_dart():
             "시장":          info.get("corp_cls", ""),
             "corp_code":     cc,
         })
-    st.dataframe(pd.DataFrame(rows_view), use_container_width=True, hide_index=True, height=360)
+    st.dataframe(pd.DataFrame(rows_view), width="stretch", hide_index=True, height=360)
 
     _master_nav("dart", prev_step=1, next_step=3,
                 next_disabled=(n_left > 0 and len(matched_cc) > 0))
@@ -2493,7 +2608,7 @@ def render_master_step_isin():
             "ISIN":      isin_map.get(r["input_name"], ""),
             "시장":      _master.CORP_CLS_TO_STATUS.get(info.get("corp_cls", ""), "Not listed"),
         })
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True, height=360)
+    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True, height=360)
     n_isin = sum(1 for v in isin_map.values() if v)
     st.caption(f"✅ ISIN 채움: {n_isin} / {len(isin_map)} (비상장은 빈 값)")
 
@@ -2534,7 +2649,7 @@ def render_master_step_isin():
                 f"🤖 Claude 로 모회사 추정 ({len(nonlisted) - n_filled}개)",
                 type="primary",
                 disabled=(len(nonlisted) - n_filled == 0 or not anthropic_key),
-                use_container_width=True,
+                width="stretch",
                 key="m_parent_llm",
                 help="Anthropic API 키 필요. 비상장 회사들의 모회사를 LLM 추정.",
             )
@@ -2607,7 +2722,7 @@ def render_master_step_isin():
                     help="subsidiary=일반 자회사 / delisted=상장폐지 / international=해외상장",
                 ),
             },
-            use_container_width=True, hide_index=True, height=360,
+            width="stretch", hide_index=True, height=360,
             key="m_parent_editor",
         )
         for _, r in edited_p.iterrows():
@@ -2644,7 +2759,7 @@ def render_master_step_isin():
 
         # 캐시 저장 + 다음으로
         if st.button("💾 자회사 매핑 캐시에 저장 + 다음으로",
-                     type="primary", use_container_width=True, key="m_parent_save_next"):
+                     type="primary", width="stretch", key="m_parent_save_next"):
             save_rows: list[dict] = []
             for inp, p in parent_overrides.items():
                 if not p.get("parent_kr"):
@@ -2729,7 +2844,7 @@ def render_master_step_gics():
             f"🤖 Claude 로 누락 GICS 채우기 ({len(missing)}개)",
             type="primary",
             disabled=(len(missing) == 0 or not anthropic_key),
-            use_container_width=True,
+            width="stretch",
             key="m_gics_llm",
             help="Anthropic API 키 필요. 회사명+KSIC+영문명 컨텍스트로 GICS 추론.",
         )
@@ -2799,7 +2914,7 @@ def render_master_step_gics():
             "회사":     st.column_config.TextColumn(disabled=True),
             "업종코드": st.column_config.TextColumn(disabled=True),
         },
-        use_container_width=True, hide_index=True, height=420,
+        width="stretch", hide_index=True, height=420,
         key="m_gics_editor",
     )
     # 변경사항을 session 에 저장
@@ -2817,7 +2932,7 @@ def render_master_step_gics():
 
     # ── 다음 → 시 캐시에 누적 저장 ─────────────────────────────────────────
     if st.button("💾 검수 결과 KSIC→GICS 캐시에 저장 + 다음으로",
-                 type="primary", use_container_width=True, key="m_gics_save_next"):
+                 type="primary", width="stretch", key="m_gics_save_next"):
         save_rows: list[dict] = []
         for inp, g in gics_map.items():
             ksic = company_ksic.get(inp, "")
@@ -2879,7 +2994,7 @@ def render_master_step_download():
             f"🚀 영문화 실행 (브랜드 {n_brands_kr} · 제품 {n_products_kr})",
             type="primary",
             disabled=(not _anth0 or (n_brands_kr + n_products_kr == 0)),
-            use_container_width=True,
+            width="stretch",
             key="m_translate_run",
             help="브랜드·제품 한글값을 LLM 으로 영문 변환. 회사 영문은 DART 결과 사용.",
         )
@@ -2956,12 +3071,11 @@ def render_master_step_download():
     shareholder_map: dict = st.session_state.setdefault("master_shareholder", {})
 
     # ── 📡 DART 최대주주 1차 조회 ──────────────────────────────────────────
-    st.markdown("#### 📡 최대주주 조회")
+    st.markdown("#### ① 📡 DART 최대주주 조회")
     st.caption(
-        "**1순위 — DART**: `hyslrSttus.json` 사업보고서 기반 최대주주 한글명을 가져와 "
-        "dart_master 에서 영문/상장정보/ISIN 자동 산출. "
-        "**2순위 — LLM (Claude)**: DART 매칭 실패 / 해외 모회사 / 정의(mandata_brand_name_definition) "
-        "는 LLM 으로 fallback."
+        "DART `hyslrSttus.json` 사업보고서 기반 최대주주 한글명 → dart_master 에서 "
+        "영문/상장정보/ISIN 자동 산출. 매칭 실패·상장정보 누락·정의 컬럼은 "
+        "**②** LLM 으로 보강. 결과는 **③** 검증 표에서 확인 가능."
     )
 
     try:
@@ -2987,7 +3101,7 @@ def render_master_step_download():
             f"📡 DART 최대주주 조회 ({len(missing_sh)}개)",
             type="primary",
             disabled=(len(missing_sh) == 0 or not dart_api_key),
-            use_container_width=True,
+            width="stretch",
             key="m_sh_dart",
             help="DART hyslrSttus.json 호출 → dart_master 자동 매칭",
         )
@@ -3089,7 +3203,7 @@ def render_master_step_download():
         })
     if verify_rows:
         with st.expander(
-            f"🔍 최대주주 매칭 검증 ({len(verify_rows)}건) — DART 응답 vs 영문 변환 결과",
+            f"③ 🔍 최대주주 매칭 검증 ({len(verify_rows)}건) — DART 응답 vs 영문 변환 결과",
             expanded=False,
         ):
             st.caption(
@@ -3097,11 +3211,13 @@ def render_master_step_download():
                 "`DART unmatched` 매칭 실패 / `Individual (heuristic)` 자연인 / "
                 "`Institution (NPS)` 기관 / `LLM` 보강 / `Manual` 수동 / `DART no_data` 응답 없음"
             )
-            st.dataframe(pd.DataFrame(verify_rows), use_container_width=True, hide_index=True, height=320)
+            st.dataframe(pd.DataFrame(verify_rows), width="stretch", hide_index=True, height=320)
 
-    # ── 🤖 LLM fallback (DART 매칭 실패 + 정의 항목) ────────────────────────
+    # ── ② 🤖 LLM 영문화 보강 (DART 한글 잔존 / listing 빈 값 / 정의 누락) ────
+    st.markdown("#### ② 🤖 LLM 영문화 보강")
     _kipris_key, anthropic_key = _trans_get_keys()
-    # 정의 비어있거나, 영문주주명이 한글로 남아있는 회사만 (고유 단위)
+    # 영문화 누락 조건:
+    #  (한글 잔존) OR (영문 빈 값) OR (상장정보 빈 값) OR (ISIN 빈 값) OR (정의 누락)
     missing_llm: list[str] = []
     _seen_llm: set = set()
     for i in range(len(list_df)):
@@ -3109,34 +3225,42 @@ def render_master_step_download():
         if not inp or inp in _seen_llm:
             continue
         _seen_llm.add(inp)
-        sh  = shareholder_map.get(inp) or {}
-        en  = (sh.get("largest_shareholder_company_name_en") or
-               list_df.iloc[i]["largest_shareholder_company_name_en"] or "")
-        de  = sh.get("mandata_brand_name_definition", "") or \
-              list_df.iloc[i]["mandata_brand_name_definition"]
+        sh = shareholder_map.get(inp) or {}
+        en = (sh.get("largest_shareholder_company_name_en") or
+              list_df.iloc[i]["largest_shareholder_company_name_en"] or "")
+        ls = (sh.get("largest_shareholder_listing_status") or
+              list_df.iloc[i]["largest_shareholder_listing_status"] or "")
+        sc = (sh.get("largest_shareholder_security_code") or
+              list_df.iloc[i]["largest_shareholder_security_code"] or "")
+        de = (sh.get("mandata_brand_name_definition", "") or
+              list_df.iloc[i]["mandata_brand_name_definition"] or "")
         has_korean = any('가' <= c <= '힣' for c in str(en))
-        if has_korean or not str(de).strip():
+        if (has_korean or not str(en).strip()
+                or not str(ls).strip() or not str(sc).strip()
+                or not str(de).strip()):
             missing_llm.append(inp)
 
     sc1, sc2 = st.columns([1, 3])
     with sc1:
         do_sh = st.button(
-            f"🤖 LLM fallback ({len(missing_llm)}개)",
-            type="secondary",
+            f"🤖 LLM 으로 영문화 보강 ({len(missing_llm)}개)",
+            type="primary" if len(missing_llm) > 0 else "secondary",
             disabled=(len(missing_llm) == 0 or not anthropic_key),
-            use_container_width=True,
+            width="stretch",
             key="m_sh_llm",
-            help="DART 매칭 실패한 행과 정의(definition) 컬럼을 LLM 으로 보강.",
+            help=("DART 매칭 실패한 행, 영문이 한글로 남은 행, 정의 누락 행을 "
+                  "LLM 으로 보강. LLM 응답은 normalize_en 자동 적용 (공백→언더바)."),
         )
     with sc2:
         if not anthropic_key:
-            st.caption("⚠️ Anthropic API 키 없음")
+            st.caption("⚠️ Anthropic API 키 없음 — ⑤ 영문화 step 에서 키 등록 필요")
         elif missing_llm:
             st.caption(
-                f"DART 매칭 실패 또는 정의 누락 {len(missing_llm)}개 → LLM 보강"
+                f"⚠️ **영문화 누락 {len(missing_llm)}개** → 위 버튼 클릭. "
+                f"(영문 비어있음 / 한글 잔존 / 정의 누락 자동 포함)"
             )
         else:
-            st.caption("✅ LLM 보강 필요 없음")
+            st.caption("✅ 영문화 누락 없음")
 
     if do_sh and missing_llm:
         _ensure_master_fresh()
@@ -3161,27 +3285,42 @@ def render_master_step_download():
             })
         with st.spinner(f"Claude 호출 중 ({len(items)}개)…"):
             results = _master.llm_largest_shareholder(items, anthropic_key)
+        from modules.mapping.translation import normalize_en as _norm
+        # 한글 포함 체크 — LLM 응답이 영문인지 확인
+        def _has_korean(s):
+            return any('가' <= c <= '힣' for c in (s or ""))
+
         n_ok = 0
         for inp, res in zip(missing_llm, results):
             if not res:
                 continue
             existing = shareholder_map.get(inp) or {}
             llm_filled_fields = []
-            # DART 결과 보존, LLM 은 빈 칸만 채움
-            def _take(key):
-                v = existing.get(key) or res.get(key, "")
-                if not existing.get(key) and res.get(key):
-                    llm_filled_fields.append(key)
-                return v
+
+            def _take(key, do_norm=False):
+                """DART 결과 우선. DART 가 비었거나 한글 포함이면 LLM 값으로."""
+                dv  = existing.get(key) or ""
+                llv = res.get(key, "") or ""
+                # DART 값이 한글 포함이면 LLM 값으로 덮어쓰기 (사용자가 영문 원함)
+                if (not dv) or _has_korean(dv):
+                    if llv and not _has_korean(llv):
+                        llm_filled_fields.append(key)
+                        return _norm(llv) if do_norm else llv
+                    return dv or llv
+                return dv
+
             updated = {
-                "largest_shareholder_company_name_en": _take("largest_shareholder_company_name_en"),
-                "largest_shareholder_listing_status":  _take("largest_shareholder_listing_status"),
-                "largest_shareholder_security_code":   _take("largest_shareholder_security_code"),
-                # 정의는 항상 LLM 결과로 채움
+                "largest_shareholder_company_name_en":
+                    _take("largest_shareholder_company_name_en", do_norm=True),
+                "largest_shareholder_listing_status":
+                    _take("largest_shareholder_listing_status"),
+                "largest_shareholder_security_code":
+                    _take("largest_shareholder_security_code"),
+                # 정의는 LLM 결과 우선 (DART 에 없음)
                 "mandata_brand_name_definition":
                     res.get("mandata_brand_name_definition", "") or
                     existing.get("mandata_brand_name_definition", ""),
-                # 검증 메타 보존 + LLM 보강 표시
+                # 검증 메타
                 "_dart_nm":      existing.get("_dart_nm", ""),
                 "_dart_qota_rt": existing.get("_dart_qota_rt", 0.0),
                 "_dart_year":    existing.get("_dart_year", ""),
@@ -3210,7 +3349,7 @@ def render_master_step_download():
             c: st.column_config.TextColumn(disabled=True)
             for c in _master.LIST_COLUMNS[:10]
         },
-        use_container_width=True, hide_index=True, height=420,
+        width="stretch", hide_index=True, height=420,
         key="m_list_editor",
     )
     # 사용자 수정값을 session 에 반영 (회사 단위 — 같은 회사 마지막 행 값으로)
@@ -3226,6 +3365,10 @@ def render_master_step_download():
         }
     st.session_state["master_shareholder"] = shareholder_map
     list_df = edited_df   # xlsx 생성 시 편집본 사용
+
+    # LLM 자연어 편집
+    _render_llm_df_editor(list_df, key_prefix="m2", state_key="m2_list_df_edited")
+    list_df = st.session_state.get("m2_list_df_edited", list_df)
 
     # LIST_PR 단일 시트 xlsx 빌드
     if st.button("🛠 LIST_PR xlsx 생성", type="primary", key="m_build_xlsx"):
@@ -3244,10 +3387,475 @@ def render_master_step_download():
             data=xlsx_bytes, file_name=fname,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             type="primary",
-            use_container_width=True, key="m_dl_xlsx",
+            width="stretch", key="m_dl_xlsx",
         )
 
     _master_nav("dl", prev_step=4, next_step=None)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 모드 C — 단순 레이아웃 변경 (2단계: 업로드 → 매핑+다운로드)
+# ══════════════════════════════════════════════════════════════════════════════
+
+SIMPLE_STEPS = ["원천 + 표준 업로드", "매핑·수동입력·다운로드"]
+
+
+def _simple_nav(suffix: str, prev_step: int | None, next_step: int | None,
+                next_label: str = "다음 →", next_disabled: bool = False):
+    left, _, right = st.columns([1, 4, 1])
+    with left:
+        if prev_step is not None:
+            if st.button("← 이전", key=f"sl_prev_{suffix}", width="stretch"):
+                st.session_state["simple_step"] = prev_step
+                st.rerun()
+    with right:
+        if next_step is not None:
+            if st.button(next_label, type="primary",
+                         disabled=next_disabled,
+                         key=f"sl_next_{suffix}", width="stretch"):
+                st.session_state["simple_step"] = next_step
+                st.rerun()
+
+
+def render_simple_step_upload():
+    """S1 — raw 데이터 + 표준 레이아웃 업로드."""
+    st.subheader("S1. 원천 + 표준 레이아웃 업로드")
+    st.caption(
+        "원천 raw 와 회사 표준 레이아웃 두 파일을 올리면 끝. 영문화·DART 매칭 없이 "
+        "**컬럼 이름·순서만 표준에 맞춰 단순 변환**합니다."
+    )
+
+    c_left, c_right = st.columns(2)
+    with c_left:
+        st.markdown("##### 📥 1) 원천 raw")
+        up_raw = st.file_uploader(
+            "raw (CSV / XLSX)",
+            type=["csv", "xlsx", "xls"], key="sl_up_raw",
+        )
+        if up_raw is not None:
+            fid = f"sl_raw__{up_raw.name}__{up_raw.size}"
+            if st.session_state.get("sl_raw_id") != fid:
+                try:
+                    df = (pd.read_csv(up_raw) if up_raw.name.lower().endswith(".csv")
+                          else pd.read_excel(up_raw))
+                except Exception as e:
+                    st.error(f"❌ raw 읽기 실패: {e}"); st.stop()
+                st.session_state["sl_raw_df"]   = df
+                st.session_state["sl_raw_id"]   = fid
+                st.session_state["sl_raw_name"] = up_raw.name
+                # 매핑·수동값 캐시 무효화
+                st.session_state.pop("sl_std_to_raw", None)
+                st.session_state.pop("sl_manual",     None)
+        if "sl_raw_df" in st.session_state:
+            df = st.session_state["sl_raw_df"]
+            st.success(f"✅ {st.session_state['sl_raw_name']} — "
+                       f"{len(df):,}행 × {len(df.columns)}열")
+            with st.expander("상위 5행 미리보기"):
+                st.dataframe(df.head(5), width="stretch")
+
+    with c_right:
+        st.markdown("##### 📐 2) 표준 레이아웃")
+        up_std = st.file_uploader(
+            "표준 (CSV / XLSX) — 헤더만 있어도 OK",
+            type=["csv", "xlsx", "xls"], key="sl_up_std",
+        )
+        if up_std is not None:
+            fid = f"sl_std__{up_std.name}__{up_std.size}"
+            if st.session_state.get("sl_std_id") != fid:
+                try:
+                    parse = read_standard_layout(up_std)
+                except Exception as e:
+                    st.error(f"❌ 표준 레이아웃 읽기 실패: {e}"); st.stop()
+                if isinstance(parse, list):
+                    cols = parse
+                else:
+                    cols = (parse or {}).get("columns", [])
+                st.session_state["sl_std_cols"] = list(cols)
+                st.session_state["sl_std_id"]   = fid
+                st.session_state["sl_std_name"] = up_std.name
+                st.session_state.pop("sl_std_to_raw", None)
+                st.session_state.pop("sl_manual",     None)
+
+        # 또는 직접 입력
+        with st.expander("✏️ 또는 표준 컬럼 직접 입력 (쉼표/줄바꿈 구분)"):
+            txt = st.text_area(
+                "표준 컬럼명들",
+                value=st.session_state.get("sl_std_text", ""),
+                placeholder="security_code, company_name_en, transaction_date, sales_amount, lag, data_source",
+                key="sl_std_text_input", height=120,
+            )
+            if st.button("적용", key="sl_std_apply"):
+                cols = []
+                for chunk in txt.replace("\n", ",").split(","):
+                    s = chunk.strip()
+                    if s: cols.append(s)
+                if cols:
+                    st.session_state["sl_std_cols"] = cols
+                    st.session_state["sl_std_text"] = txt
+                    st.session_state["sl_std_name"] = "(직접 입력)"
+                    st.session_state.pop("sl_std_to_raw", None)
+                    st.session_state.pop("sl_manual",     None)
+                    st.rerun()
+
+        if "sl_std_cols" in st.session_state:
+            cols = st.session_state["sl_std_cols"]
+            st.success(f"✅ {st.session_state.get('sl_std_name','?')} — {len(cols)}개 표준 컬럼")
+            with st.expander("표준 컬럼 목록"):
+                st.write(cols)
+
+    ready = "sl_raw_df" in st.session_state and bool(st.session_state.get("sl_std_cols"))
+    _simple_nav("up", prev_step=0, next_step=2, next_disabled=not ready)
+
+
+def render_simple_step_map_download():
+    """S2 — 매핑+수동입력+다운로드 또는 LLM 샘플 생성."""
+    st.subheader("S2. 변환·다운로드")
+
+    std_cols: list[str] = st.session_state.get("sl_std_cols") or []
+    if not std_cols:
+        st.warning("S1 에서 표준 레이아웃을 먼저 업로드/입력하세요.")
+        _simple_nav("map_no", prev_step=1, next_step=None); st.stop()
+
+    # raw 파일 → 표준 레이아웃 변환 (LLM 샘플 생성은 별도 모드 🎲 에서)
+    _render_simple_raw_convert(std_cols)
+
+    st.info(
+        "💡 raw 없이 자연어로 샘플을 만들거나 raw 패턴을 따라 변형하려면 "
+        "**🎲 LLM 샘플 데이터 생성** 모드를 사용하세요."
+    )
+
+    _simple_nav("s2", prev_step=1, next_step=None)
+
+
+def _render_simple_raw_convert(std_cols: list[str]) -> None:
+    """raw 파일 → 표준 레이아웃 변환 (컬럼 매핑 + 미매핑 수동 입력)."""
+    raw_df: pd.DataFrame = st.session_state.get("sl_raw_df")
+    if raw_df is None:
+        st.info(
+            "S1 에서 raw 파일을 업로드하면 여기에서 컬럼 매핑·수동 입력 후 변환할 수 있어요. "
+            "raw 없이 표준 레이아웃만으로 샘플을 만들고 싶다면 옆 탭 **🤖 LLM** 을 사용하세요."
+        )
+        return
+
+    raw_cols  = [str(c) for c in raw_df.columns]
+    _UNMAPPED = "— (수동 입력) —"
+    options   = [_UNMAPPED] + raw_cols
+
+    std_to_raw: dict[str, str] = dict(st.session_state.get("sl_std_to_raw") or {})
+    manual:     dict[str, str] = dict(st.session_state.get("sl_manual") or {})
+
+    st.markdown("#### 표준 컬럼 ← raw 컬럼 (또는 수동 입력값)")
+    st.caption(
+        "각 표준 컬럼에 매핑할 raw 컬럼을 선택. "
+        "**수동 입력** 선택 시 옆 입력 칸의 값이 모든 행에 그대로 들어갑니다 "
+        "(예: `lag`=0, `data_source`=POS-A)."
+    )
+
+    h1, h2, h3 = st.columns([2, 2, 3])
+    h1.markdown("**표준 컬럼**")
+    h2.markdown("**raw 컬럼**")
+    h3.markdown("**수동 입력값 (미매핑일 때)**")
+
+    for std in std_cols:
+        c1, c2, c3 = st.columns([2, 2, 3])
+        with c1:
+            st.markdown(f"`{std}`")
+        with c2:
+            current_raw = std_to_raw.get(std, _UNMAPPED)
+            if current_raw not in options:
+                current_raw = _UNMAPPED
+            chosen = st.selectbox(
+                std, options=options, index=options.index(current_raw),
+                key=f"sl_pick__{std}", label_visibility="collapsed",
+            )
+            std_to_raw[std] = "" if chosen == _UNMAPPED else chosen
+        with c3:
+            if std_to_raw[std]:
+                try:
+                    sample = (raw_df[std_to_raw[std]].dropna().drop_duplicates()
+                                .head(3).astype(str).tolist())
+                    st.caption(f"📋 raw 예: {' · '.join(sample) or '(빈 값)'}")
+                except Exception:
+                    pass
+            else:
+                manual[std] = st.text_input(
+                    f"수동입력_{std}",
+                    value=manual.get(std, ""),
+                    placeholder="모든 행에 broadcast 될 값",
+                    key=f"sl_manual__{std}", label_visibility="collapsed",
+                )
+
+    st.session_state["sl_std_to_raw"] = std_to_raw
+    st.session_state["sl_manual"]     = manual
+
+    # 미리보기
+    st.markdown("#### 미리보기 (상위 5행)")
+    sample_out = _simple.build_simple_output_df(
+        raw_df.head(5), std_cols, std_to_raw, manual,
+    )
+    st.dataframe(sample_out, width="stretch", hide_index=True)
+
+    # 전체 변환 또는 샘플 N행 변환 + 다운로드
+    st.divider()
+    st.markdown("#### 변환·다운로드")
+
+    bc1, bc2, bc3 = st.columns([2, 1, 2])
+    with bc1:
+        do_full = st.button(
+            f"🛠 전체 변환 ({len(raw_df):,}행)",
+            type="primary", key="sl_build_full", width="stretch",
+            help="원본 모든 행을 표준 레이아웃으로 변환",
+        )
+    with bc2:
+        n_sample = st.number_input(
+            "샘플 행 수",
+            min_value=5, max_value=min(1000, len(raw_df)),
+            value=min(50, len(raw_df)),
+            step=5, key="sl_n_sample", label_visibility="collapsed",
+        )
+    with bc3:
+        sample_kind = st.radio(
+            "샘플 방식",
+            options=["앞 N행", "랜덤 N행"],
+            index=0, horizontal=True, key="sl_sample_kind",
+            label_visibility="collapsed",
+        )
+        do_sample = st.button(
+            f"🎲 샘플 {int(n_sample)}행 변환",
+            type="secondary", key="sl_build_sample", width="stretch",
+            help="raw 에서 N행만 추출해 빠르게 변환·미리보기",
+        )
+
+    if do_full:
+        with st.spinner(f"변환 중 ({len(raw_df):,}행)…"):
+            out_df = _simple.build_simple_output_df(
+                raw_df, std_cols, std_to_raw, manual,
+            )
+        st.session_state["sl_out_df"] = out_df
+        for k in ("sl_csv_bytes","sl_xlsx_bytes","sl_xlsx_trunc"):
+            st.session_state.pop(k, None)
+        st.success(f"✅ 변환 완료 ({len(out_df):,}행 × {len(out_df.columns)}열)")
+
+    if do_sample:
+        n = int(n_sample)
+        if sample_kind.startswith("랜덤"):
+            sub = raw_df.sample(n=min(n, len(raw_df)),
+                                random_state=42).reset_index(drop=True)
+        else:
+            sub = raw_df.head(n).copy()
+        out_df = _simple.build_simple_output_df(sub, std_cols, std_to_raw, manual)
+        st.session_state["sl_out_df"] = out_df
+        for k in ("sl_csv_bytes","sl_xlsx_bytes","sl_xlsx_trunc"):
+            st.session_state.pop(k, None)
+        st.success(f"✅ 샘플 변환 완료 ({len(out_df):,}행, {sample_kind})")
+
+    out_df = st.session_state.get("sl_out_df")
+    if out_df is not None:
+        # LLM 자연어 편집
+        _render_llm_df_editor(out_df, key_prefix="sl", state_key="sl_out_df")
+        out_df = st.session_state.get("sl_out_df")   # 편집 반영
+
+        base_name = Path(st.session_state.get("sl_raw_name", "output")).stem + "__simple"
+        _render_simple_download_buttons(
+            out_df, base_name, key_prefix="sl",
+            csv_state_key="sl_csv_bytes",
+            xlsx_state_key="sl_xlsx_bytes",
+            trunc_state_key="sl_xlsx_trunc",
+        )
+
+
+def _render_simple_download_buttons(
+    out_df: pd.DataFrame,
+    base_name: str,
+    key_prefix: str,
+    csv_state_key: str,
+    xlsx_state_key: str,
+    trunc_state_key: str,
+) -> None:
+    """CSV / XLSX 생성 + 다운로드 버튼 페어 — raw/LLM 탭 공용."""
+    d1, d2 = st.columns(2)
+    with d1:
+        if st.button("📦 CSV 생성", key=f"{key_prefix}_make_csv",
+                     disabled=st.session_state.get(csv_state_key) is not None,
+                     width="stretch"):
+            with st.spinner("CSV 변환 중…"):
+                st.session_state[csv_state_key] = _simple.df_to_csv_bytes(out_df)
+            st.rerun()
+        if st.session_state.get(csv_state_key) is not None:
+            st.download_button(
+                "📥 CSV 다운로드", data=st.session_state[csv_state_key],
+                file_name=f"{base_name}.csv", mime="text/csv",
+                type="primary", width="stretch", key=f"{key_prefix}_dl_csv",
+            )
+    with d2:
+        if st.button("📦 XLSX 생성", key=f"{key_prefix}_make_xlsx",
+                     disabled=st.session_state.get(xlsx_state_key) is not None,
+                     width="stretch"):
+            with st.spinner("XLSX 변환 중…"):
+                b, trunc = _simple.df_to_xlsx_bytes(out_df)
+            st.session_state[xlsx_state_key] = b
+            st.session_state[trunc_state_key] = trunc
+            st.rerun()
+        if st.session_state.get(xlsx_state_key) is not None:
+            trunc = st.session_state.get(trunc_state_key)
+            st.download_button(
+                "📥 XLSX 다운로드" + (" (1M 행 잘림)" if trunc else ""),
+                data=st.session_state[xlsx_state_key],
+                file_name=f"{base_name}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                type="primary" if not trunc else "secondary",
+                width="stretch", key=f"{key_prefix}_dl_xlsx",
+            )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 모드 D — 🎲 LLM 샘플 데이터 생성 (자연어 OR reference 복제)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def render_sample_generator():
+    """단일 페이지 — 두 입력 모드 탭."""
+    st.title("🎲 LLM 샘플 데이터 생성")
+    st.caption(
+        "표준 컬럼 + 자연어 요청으로 새 데이터를 만들거나, "
+        "**기존 raw 데이터를 업로드해 그 패턴 그대로 회사·산업만 바꿔서** 변형 샘플을 생성합니다."
+    )
+
+    _kipris_key, anthropic_key = _trans_get_keys()
+    if not anthropic_key:
+        st.error(
+            "⚠️ Anthropic API 키가 필요합니다. (다른 모드의 영문화 step 에서 등록)"
+        )
+        return
+
+    tab_blank, tab_clone = st.tabs([
+        "📝 빈 컬럼 + 자연어",
+        "📁 reference 데이터 + 자연어 변형",
+    ])
+
+    # ── (A) 빈 컬럼 + 자연어 ────────────────────────────────────────────────
+    with tab_blank:
+        st.markdown("##### 표준 컬럼 입력 (쉼표/줄바꿈 구분)")
+        std_text = st.text_area(
+            "컬럼명",
+            value=st.session_state.get("sg_blank_cols_text", ""),
+            placeholder="transaction_date, sales_amount, company_name_en, brand_name, region, channel",
+            height=100, key="sg_blank_cols_input",
+        )
+        if std_text != st.session_state.get("sg_blank_cols_text", ""):
+            st.session_state["sg_blank_cols_text"] = std_text
+        std_cols = [c.strip() for c in std_text.replace("\n", ",").split(",") if c.strip()]
+        if std_cols:
+            st.caption(f"📋 {len(std_cols)}개 컬럼: {' · '.join(std_cols[:8])}"
+                       + (" …" if len(std_cols) > 8 else ""))
+
+        prompt = st.text_area(
+            "자연어 요청",
+            value=st.session_state.get("sg_blank_prompt", ""),
+            placeholder="예: 한국 화장품 브랜드 POS 거래 데이터 50줄",
+            height=100, key="sg_blank_prompt_input",
+        )
+        st.session_state["sg_blank_prompt"] = prompt
+        n_rows_a = st.number_input("행 수", 5, 200, 50, 5, key="sg_blank_n")
+        if st.button(
+            f"🤖 Claude 로 {int(n_rows_a)}행 생성",
+            type="primary", width="stretch",
+            disabled=not (std_cols and (prompt or "").strip()),
+            key="sg_blank_run",
+        ):
+            with st.spinner("Claude 호출 중…"):
+                df, err = _simple.llm_generate_sample_data(
+                    std_cols=std_cols, user_prompt=prompt.strip(),
+                    api_key=anthropic_key, n_rows=int(n_rows_a),
+                )
+            if err:
+                st.error(f"❌ 생성 실패: {err}")
+            else:
+                st.session_state["sg_df"] = df
+                for k in ("sg_csv_bytes","sg_xlsx_bytes","sg_xlsx_trunc"):
+                    st.session_state.pop(k, None)
+                st.success(f"✅ {len(df)}행 생성 완료")
+                st.rerun()
+
+    # ── (B) reference 데이터 + 변형 ─────────────────────────────────────────
+    with tab_clone:
+        st.markdown("##### 참고 raw 데이터 업로드")
+        up_ref = st.file_uploader(
+            "참고 데이터 (CSV / XLSX) — 앞 10행이 LLM 에 패턴 컨텍스트로 전달됩니다",
+            type=["csv", "xlsx", "xls"], key="sg_up_ref",
+        )
+        if up_ref is not None:
+            fid = f"sg_ref__{up_ref.name}__{up_ref.size}"
+            if st.session_state.get("sg_ref_id") != fid:
+                try:
+                    df = (pd.read_csv(up_ref) if up_ref.name.lower().endswith(".csv")
+                          else pd.read_excel(up_ref))
+                    st.session_state["sg_ref_df"]   = df
+                    st.session_state["sg_ref_id"]   = fid
+                    st.session_state["sg_ref_name"] = up_ref.name
+                except Exception as e:
+                    st.error(f"읽기 실패: {e}")
+        ref_df = st.session_state.get("sg_ref_df")
+        if ref_df is not None:
+            st.success(
+                f"✅ {st.session_state.get('sg_ref_name','?')} — "
+                f"{len(ref_df):,}행 × {len(ref_df.columns)}열"
+            )
+            with st.expander("앞 10행 미리보기 (LLM 컨텍스트로 전달)"):
+                st.dataframe(ref_df.head(10), width="stretch", hide_index=True)
+
+            prompt2 = st.text_area(
+                "변형 자연어 요청",
+                value=st.session_state.get("sg_clone_prompt", ""),
+                placeholder=("예: 한국 화장품 브랜드로 바꿔서 생성해줘\n"
+                             "예: 음료 산업으로 회사·브랜드만 바꿔서 (날짜·금액 패턴 유지)\n"
+                             "예: 라면 회사들 (농심·오뚜기·삼양·팔도) 로 변형"),
+                height=100, key="sg_clone_prompt_input",
+            )
+            st.session_state["sg_clone_prompt"] = prompt2
+            n_rows_b = st.number_input("행 수 ", 5, 200, 50, 5, key="sg_clone_n")
+            if st.button(
+                f"🤖 reference 패턴으로 {int(n_rows_b)}행 변형 생성",
+                type="primary", width="stretch",
+                disabled=not (prompt2 or "").strip(),
+                key="sg_clone_run",
+            ):
+                with st.spinner("Claude 호출 중…"):
+                    df, err = _simple.llm_clone_sample_data(
+                        reference_df=ref_df, user_prompt=prompt2.strip(),
+                        api_key=anthropic_key, n_rows=int(n_rows_b),
+                    )
+                if err:
+                    st.error(f"❌ 생성 실패: {err}")
+                else:
+                    st.session_state["sg_df"] = df
+                    for k in ("sg_csv_bytes","sg_xlsx_bytes","sg_xlsx_trunc"):
+                        st.session_state.pop(k, None)
+                    st.success(f"✅ {len(df)}행 생성 완료 (reference 패턴 따름)")
+                    st.rerun()
+        else:
+            st.caption("👆 raw 파일을 먼저 업로드하면 변형 요청 입력 칸이 열립니다.")
+
+    # ── 미리보기 + 다운로드 (공용) ─────────────────────────────────────────
+    sg_df = st.session_state.get("sg_df")
+    if sg_df is not None and not sg_df.empty:
+        st.divider()
+        st.markdown("#### 미리보기 (상위 20행)")
+        st.dataframe(sg_df.head(20), width="stretch", hide_index=True)
+        if len(sg_df) > 20:
+            st.caption(f"… 총 {len(sg_df)}행. 다운로드하면 전체 행 포함.")
+
+        # LLM 자연어 편집
+        _render_llm_df_editor(sg_df, key_prefix="sg", state_key="sg_df")
+        sg_df = st.session_state.get("sg_df")
+
+        st.markdown("#### 다운로드")
+        base_name = f"sample_{len(sg_df)}rows"
+        _render_simple_download_buttons(
+            sg_df, base_name, key_prefix="sg",
+            csv_state_key="sg_csv_bytes",
+            xlsx_state_key="sg_xlsx_bytes",
+            trunc_state_key="sg_xlsx_trunc",
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -3255,12 +3863,15 @@ def render_master_step_download():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def render_mode_select():
-    """홈 — 두 모드 중 선택."""
+    """홈 — 네 모드 중 선택."""
     st.title("🗂 데이터 매핑 — Alt-Data Intelligence")
     st.caption("어떤 작업을 진행할지 선택하세요.")
 
     st.markdown("---")
-    c1, c2 = st.columns(2)
+    # 2x2 그리드
+    r1c1, r1c2 = st.columns(2)
+    r2c1, r2c2 = st.columns(2)
+    c1, c2, c3, c4 = r1c1, r1c2, r2c1, r2c2
     with c1:
         with st.container(border=True):
             st.markdown("### 📊 원천 데이터 → 표준 레이아웃")
@@ -3273,7 +3884,7 @@ def render_mode_select():
                 "• 브랜드/제품/카테고리 영문화\n\n"
                 "• XLSX/CSV 출력"
             )
-            if st.button("▶ 시작하기", type="primary", use_container_width=True, key="mode_a"):
+            if st.button("▶ 시작하기", type="primary", width="stretch", key="mode_a"):
                 st.session_state["app_mode"] = "raw_to_standard"
                 st.session_state["step"] = 1
                 st.rerun()
@@ -3288,9 +3899,42 @@ def render_mode_select():
                 "• LIST_PR 단일 시트 (10 컬럼)\n\n"
                 "• 5단계 wizard"
             )
-            if st.button("▶ 시작하기", type="primary", use_container_width=True, key="mode_b"):
+            if st.button("▶ 시작하기", type="primary", width="stretch", key="mode_b"):
                 st.session_state["app_mode"] = "company_master"
                 st.session_state["master_step"] = 1
+                st.rerun()
+    with c3:
+        with st.container(border=True):
+            st.markdown("### 🔄 단순 레이아웃 변경")
+            st.write(
+                "원천 raw 와 표준 레이아웃만 주면 **컬럼 이름·순서만 단순 변환**. "
+                "DART·영문화 없이, 미매핑 컬럼은 수동 입력값을 모든 행에 broadcast. "
+                "**🤖 LLM 으로 50줄 샘플 데이터 자동 생성**도 가능 (자연어 요청)."
+            )
+            st.caption(
+                "• 2단계 wizard\n\n"
+                "• 미매핑 컬럼 broadcast (lag, data_source 등)\n\n"
+                "• LLM 샘플 데이터 추출"
+            )
+            if st.button("▶ 시작하기", type="primary", width="stretch", key="mode_c"):
+                st.session_state["app_mode"] = "simple_layout"
+                st.session_state["simple_step"] = 1
+                st.rerun()
+    with c4:
+        with st.container(border=True):
+            st.markdown("### 🎲 LLM 샘플 데이터 생성")
+            st.write(
+                "**자연어 요청**으로 표준 컬럼에 맞는 가상 데이터 N행 자동 생성. "
+                "또는 **기존 raw 데이터를 업로드** 후 자연어 변형 요청 "
+                "('한국 화장품 브랜드로 바꿔줘') 으로 같은 패턴의 변형 데이터 생성."
+            )
+            st.caption(
+                "• 단일 페이지 (탭 2개)\n\n"
+                "• 자연어 요청 + 표준 컬럼\n\n"
+                "• reference 패턴 복제·변형"
+            )
+            if st.button("▶ 시작하기", type="primary", width="stretch", key="mode_d"):
+                st.session_state["app_mode"] = "sample_generator"
                 st.rerun()
 
 
@@ -3306,11 +3950,13 @@ with st.sidebar:
     cur_mode = st.session_state.get("app_mode")
     if cur_mode:
         st.markdown("### 모드")
-        st.write(
-            "📊 원천 → 표준" if cur_mode == "raw_to_standard"
-            else "🏢 Information & List"
-        )
-        if st.button("🏠 모드 선택으로", key="sb_home", use_container_width=True):
+        st.write({
+            "raw_to_standard":  "📊 원천 → 표준",
+            "company_master":   "🏢 Information & List",
+            "simple_layout":    "🔄 단순 레이아웃 변경",
+            "sample_generator": "🎲 LLM 샘플 데이터 생성",
+        }.get(cur_mode, cur_mode))
+        if st.button("🏠 모드 선택으로", key="sb_home", width="stretch"):
             st.session_state["app_mode"] = None
             st.rerun()
 
@@ -3363,6 +4009,27 @@ elif app_mode == "company_master":
     elif mstep == 4: render_master_step_gics()
     elif mstep == 5: render_master_step_download()
     else:            st.session_state["master_step"] = 1; st.rerun()
+
+elif app_mode == "simple_layout":
+    if "simple_step" not in st.session_state:
+        st.session_state["simple_step"] = 1
+
+    st.title("🔄 단순 레이아웃 변경")
+    st.caption(
+        "원천 raw + 표준 레이아웃 → 컬럼 매핑·수동 입력만으로 변환. "
+        "LLM 샘플 데이터 생성은 🎲 별도 모드에서."
+    )
+
+    _ui.render_stepper(SIMPLE_STEPS)
+    st.session_state["step"] = st.session_state["simple_step"]
+
+    sstep = st.session_state["simple_step"]
+    if   sstep == 1: render_simple_step_upload()
+    elif sstep == 2: render_simple_step_map_download()
+    else:            st.session_state["simple_step"] = 1; st.rerun()
+
+elif app_mode == "sample_generator":
+    render_sample_generator()
 
 else:
     st.session_state["app_mode"] = None

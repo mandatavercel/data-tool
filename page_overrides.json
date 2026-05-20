@@ -1,0 +1,8 @@
+{
+  "_schema": "v1 — pages_registry overrides (관리자 페이지에서 UI로 편집)",
+  "_notes": [
+    "코드(pages_registry.py)를 수정하지 않고 카테고리 등을 바꿀 수 있게 분리된 파일.",
+    "Cloud 환경에서는 ephemeral fs라 reboot 시 사라질 수 있음 — Export 후 GitHub commit 권장."
+  ],
+  "category_overrides": {}
+}

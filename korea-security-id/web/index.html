@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mandata · Korea Security ID</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#0b1220; --panel:#111a2e; --panel-2:#172238; --border:#1f2d4a;
+    --text:#e6ecf6; --muted:#94a3b8; --strong:#f8fafc;
+    --brand:#f59e0b; --brand-dark:#d97706;
+    --green:#34d399; --yellow:#fbbf24; --red:#f87171; --blue:#7dd3fc;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5}
+  a{color:var(--brand);text-decoration:none}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 24px}
+  header{padding:24px 0;border-bottom:1px solid var(--border);
+    display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px}
+  .brand{font-size:18px;font-weight:700;letter-spacing:-0.01em}
+  .brand span{color:var(--brand)}
+  .sub{color:var(--muted);font-size:13px}
+
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin:18px 0 20px}
+  .tab{background:none;border:none;color:var(--muted);font:inherit;font-size:14px;
+    font-weight:600;padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent}
+  .tab.active{color:var(--brand);border-bottom-color:var(--brand)}
+  .tab:hover{color:var(--strong)}
+
+  /* Lookup tab */
+  input[type=text],select{width:100%;background:var(--panel-2);color:var(--strong);
+    border:1px solid var(--border);border-radius:8px;padding:14px 16px;
+    font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;outline:none}
+  input:focus,select:focus{border-color:var(--brand)}
+
+  .result-card{margin-top:16px;background:var(--panel);border:1px solid var(--border);
+    border-radius:10px;padding:24px}
+  .result-card.empty{color:var(--muted);font-style:italic;text-align:center;padding:36px}
+  .result-card.miss{border-color:var(--red)}
+  .result-card.hit{border-color:var(--brand)}
+  .r-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+  .r-name{font-size:22px;font-weight:700;color:var(--strong)}
+  .r-en{color:var(--muted);font-size:14px;margin-bottom:18px}
+  .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;
+    font-weight:700;letter-spacing:0.02em}
+  .badge.green{background:rgba(52,211,153,0.18);color:var(--green)}
+  .badge.yellow{background:rgba(251,191,36,0.18);color:var(--yellow)}
+  .badge.red{background:rgba(248,113,113,0.18);color:var(--red)}
+  .badge.blue{background:rgba(125,211,252,0.18);color:var(--blue)}
+  .badge.brand{background:rgba(245,158,11,0.18);color:var(--brand)}
+
+  .r-grid{display:grid;grid-template-columns:max-content 1fr;gap:8px 24px;
+    font-size:13px}
+  .r-k{color:var(--muted);font-weight:500}
+  .r-v{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--text)}
+  .r-v a{color:var(--blue);word-break:break-all}
+
+  .related,.aliases{margin-top:18px;padding-top:18px;border-top:1px solid var(--border)}
+  .related h4,.aliases h4{margin:0 0 10px;font-size:12px;color:var(--muted);
+    text-transform:uppercase;letter-spacing:0.08em}
+  .related .rel-row{display:flex;gap:14px;align-items:center;font-size:14px;
+    padding:6px 0;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .related .rel-row a{cursor:pointer}
+  .aliases-table{font-size:13px;width:100%;border-collapse:collapse}
+  .aliases-table td{padding:5px 14px 5px 0;border:none;
+    font-family:ui-monospace,Menlo,Consolas,monospace;vertical-align:top}
+  .aliases-table .a-kind{color:var(--brand);font-weight:600;white-space:nowrap}
+  .aliases-table .a-val{color:var(--strong)}
+  .aliases-table .a-note{color:var(--muted);font-family:-apple-system,system-ui,sans-serif;font-size:12px}
+  .data-banner{background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.22);
+    border-radius:8px;padding:10px 14px;color:var(--muted);font-size:12.5px;
+    margin-bottom:12px;line-height:1.5}
+  .data-banner strong{color:var(--brand)}
+  .match-explain{margin-top:14px;padding:10px 14px;border-radius:6px;
+    background:var(--panel-2);font-size:13px;color:var(--text);
+    border-left:3px solid var(--brand)}
+  .match-explain .arrow{color:var(--brand);font-weight:700;margin:0 8px}
+
+  .chips{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+  .chip-label{color:var(--muted);font-size:13px;align-self:center;margin-right:4px}
+  .chip{background:var(--panel-2);color:var(--text);border:1px solid var(--border);
+    border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;
+    font-family:ui-monospace,Menlo,Consolas,monospace}
+  .chip:hover{border-color:var(--brand);color:var(--brand)}
+
+  /* Members + Search tabs */
+  .control-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .control-row label{color:var(--muted);font-size:13px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:var(--panel-2);color:var(--brand);text-align:left;
+    padding:10px 14px;font-weight:600;border-bottom:1px solid var(--border);
+    font-size:11px;text-transform:uppercase;letter-spacing:0.06em;cursor:pointer}
+  td{padding:9px 14px;border-bottom:1px solid var(--border);
+    font-family:ui-monospace,Menlo,Consolas,monospace}
+  tr:hover td{background:rgba(245,158,11,0.04)}
+  td.action{cursor:pointer;color:var(--brand)}
+  .summary{color:var(--muted);font-size:13px;margin-bottom:12px}
+  .scroll{max-height:560px;overflow:auto;border:1px solid var(--border);border-radius:10px}
+
+  /* Validate tab */
+  .validate-result{margin-top:16px;padding:18px;border-radius:8px;
+    background:var(--panel);border:1px solid var(--border)}
+  .validate-result.ok{border-color:var(--green)}
+  .validate-result.fail{border-color:var(--red)}
+
+  footer{padding:30px 0;color:var(--muted);font-size:12px;
+    border-top:1px solid var(--border);text-align:center;margin-top:48px}
+  footer span{color:var(--brand);font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="brand">Man<span>data</span> · Korea Security ID</div>
+      <div class="sub" id="data-info">Loading…</div>
+    </div>
+    <div class="sub">Korean securities · ISIN · DART · Bloomberg / RIC · indices · preferred shares</div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="lookup">Lookup</button>
+    <button class="tab" data-tab="search">Search</button>
+    <button class="tab" data-tab="members">Index members</button>
+    <button class="tab" data-tab="validate">ISIN validate</button>
+  </div>
+
+  <!-- ============ LOOKUP TAB ============ -->
+  <section data-pane="lookup">
+    <div class="data-banner">
+      <strong>What can you search?</strong> Korean name (<code>삼성전자</code>) ·
+      English (<code>Samsung Electronics</code>) · vendor alias (<code>samsungelec</code>) ·
+      <strong>KRX derivative-market underlying name</strong> (<code>SamsungElec</code>) ·
+      KRX 6-digit code (<code>005930</code>, partial <code>5930</code> too) ·
+      preferred share code (<code>005935</code>) · ISIN (<code>KR7005930003</code>) ·
+      Bloomberg (<code>005930 KS Equity</code>) · Refinitiv RIC (<code>005930.KS</code>) ·
+      DART corp code (<code>00126380</code>). All inputs resolve to the same canonical security record.
+    </div>
+    <input id="q" type="text" autocomplete="off" autofocus
+      placeholder="Enter anything: 삼성전자, samsungelec, 005930, 005935 (pref), KR7005930003, 005930 KS Equity, 005930.KS, 00126380 (DART)…">
+    <div id="chips" class="chips">
+      <span class="chip-label">Try:</span>
+      <button class="chip" data-q="삼성전자">삼성전자</button>
+      <button class="chip" data-q="samsungelec">samsungelec</button>
+      <button class="chip" data-q="005930">005930</button>
+      <button class="chip" data-q="005935">005935 (preferred)</button>
+      <button class="chip" data-q="KR7005930003">KR7005930003</button>
+      <button class="chip" data-q="005930 KS Equity">005930 KS Equity</button>
+      <button class="chip" data-q="005930.KS">005930.KS</button>
+      <button class="chip" data-q="00126380">00126380 (DART)</button>
+      <button class="chip" data-q="5930">5930 (partial)</button>
+      <button class="chip" data-q="GOLD">GOLD</button>
+      <button class="chip" data-q="KOSPI200">KOSPI200</button>
+    </div>
+    <div id="result" class="result-card empty">Start typing or click a chip — supports 9+ identifier types.</div>
+  </section>
+
+  <!-- ============ SEARCH TAB ============ -->
+  <section data-pane="search" hidden>
+    <div class="control-row">
+      <input id="searchQ" type="text" placeholder="Korean or English substring — 한미, samsung, ecopro, …" style="flex:1">
+      <label>Limit
+        <select id="searchLimit" style="width:auto;padding:8px 10px">
+          <option>10</option><option>25</option><option>50</option><option>100</option>
+        </select>
+      </label>
+    </div>
+    <div id="searchSummary" class="summary"></div>
+    <div class="scroll"><table id="searchTbl"><thead><tr>
+      <th>Local</th><th>ISIN</th><th>Name (KR)</th><th>English</th><th>Market</th><th>Sector</th><th></th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <!-- ============ MEMBERS TAB ============ -->
+  <section data-pane="members" hidden>
+    <div class="control-row">
+      <label>Index
+        <select id="idxSel" style="width:auto;padding:8px 10px">
+          <option>KOSPI200</option><option>KOSDAQ150</option><option>KRX300</option>
+        </select>
+      </label>
+      <label>Sector filter
+        <select id="sectorSel" style="width:auto;padding:8px 10px">
+          <option value="">(all)</option>
+        </select>
+      </label>
+    </div>
+    <div id="memberSummary" class="summary"></div>
+    <div class="scroll"><table id="memberTbl"><thead><tr>
+      <th>Local</th><th>ISIN</th><th>Name (KR)</th><th>English</th><th>Market</th><th>Sector</th><th>Industry</th><th></th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <!-- ============ VALIDATE TAB ============ -->
+  <section data-pane="validate" hidden>
+    <input id="valQ" type="text" placeholder="Paste any ISIN — KR7005930003, KR7005930009, KR7042700005 …">
+    <div id="valResult" class="validate-result" style="display:none"></div>
+    <div style="margin-top:12px;color:var(--muted);font-size:13px">
+      Computed per ISO 6166. If the check digit is wrong, the correct ISIN is suggested.
+    </div>
+  </section>
+</div>
+
+<footer>
+  © <span>Mandata</span> · Korea Security ID · v0.2 · bundled demo subset (~217 records) · full ~2,500-stock KRX universe available via live sync · matches locally, no data leaves your browser
+</footer>
+
+<script>
+/* ===== Embedded payload (built by the same data files that power the CLI) ===== */
+const PAYLOAD = {"rows":[{"local_code":"005930","isin":"KR7005930003","company_name_en":"Samsung Electronics Co. Ltd.","company_name_kr":"삼성전자","krx_short_en":"SamsungElec","market":"KOSPI","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"반도체","listing_date":"1975-06-11","dart_corp_code":"00126380","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"000660","isin":"KR7000660001","company_name_en":"SK hynix Inc.","company_name_kr":"SK하이닉스","krx_short_en":"SKhynix","market":"KOSPI","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"반도체","listing_date":"1996-12-26","dart_corp_code":"00164779","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"373220","isin":"KR7373220003","company_name_en":"LG Energy Solution Ltd.","company_name_kr":"LG에너지솔루션","krx_short_en":"LGES","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"이차전지","listing_date":"2022-01-27","dart_corp_code":"01471319","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"207940","isin":"KR7207940008","company_name_en":"Samsung Biologics Co. Ltd.","company_name_kr":"삼성바이오로직스","krx_short_en":"SamsungBio","market":"KOSPI","sector_code_gics":"3520","sector_name_en":"Health Care","industry_name_kr":"CMO","listing_date":"2016-11-10","dart_corp_code":"01085407","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"005380","isin":"KR7005380001","company_name_en":"Hyundai Motor Company","company_name_kr":"현대차","krx_short_en":"HyundaiMtr","market":"KOSPI","sector_code_gics":"2510","sector_name_en":"Consumer Discretionary","industry_name_kr":"자동차","listing_date":"1974-06-28","dart_corp_code":"00164742","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"000270","isin":"KR7000270009","company_name_en":"Kia Corporation","company_name_kr":"기아","krx_short_en":"Kia","market":"KOSPI","sector_code_gics":"2510","sector_name_en":"Consumer Discretionary","industry_name_kr":"자동차","listing_date":"1973-07-07","dart_corp_code":"00164388","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"005490","isin":"KR7005490008","company_name_en":"POSCO Holdings Inc.","company_name_kr":"POSCO홀딩스","krx_short_en":"POSCOHldgs","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"철강 지주","listing_date":"1988-06-10","dart_corp_code":"00155319","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"051910","isin":"KR7051910008","company_name_en":"LG Chem Ltd.","company_name_kr":"LG화학","krx_short_en":"LGChem","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"석유화학","listing_date":"2001-04-25","dart_corp_code":"00356068","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"006400","isin":"KR7006400006","company_name_en":"Samsung SDI Co. Ltd.","company_name_kr":"삼성SDI","krx_short_en":"SamsungSDI","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"이차전지","listing_date":"1979-02-23","dart_corp_code":"00126362","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"035420","isin":"KR7035420009","company_name_en":"NAVER Corporation","company_name_kr":"NAVER","krx_short_en":"NAVER","market":"KOSPI","sector_code_gics":"5020","sector_name_en":"Communication Services","industry_name_kr":"인터넷","listing_date":"2008-11-28","dart_corp_code":"00266961","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"035720","isin":"KR7035720002","company_name_en":"Kakao Corp.","company_name_kr":"카카오","krx_short_en":"Kakao","market":"KOSPI","sector_code_gics":"5020","sector_name_en":"Communication Services","industry_name_kr":"인터넷","listing_date":"1999-11-12","dart_corp_code":"00918154","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"068270","isin":"KR7068270008","company_name_en":"Celltrion Inc.","company_name_kr":"셀트리온","krx_short_en":"Celltrion","market":"KOSPI","sector_code_gics":"3520","sector_name_en":"Health Care","industry_name_kr":"바이오","listing_date":"2018-02-09","dart_corp_code":"00421045","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"105560","isin":"KR7105560007","company_name_en":"KB Financial Group Inc.","company_name_kr":"KB금융","krx_short_en":"KBFinGrp","market":"KOSPI","sector_code_gics":"4010","sector_name_en":"Financials","industry_name_kr":"은행지주","listing_date":"2008-10-10","dart_corp_code":"00688996","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"055550","isin":"KR7055550008","company_name_en":"Shinhan Financial Group Co. Ltd.","company_name_kr":"신한지주","krx_short_en":"ShinhanGrp","market":"KOSPI","sector_code_gics":"4010","sector_name_en":"Financials","industry_name_kr":"은행지주","listing_date":"2001-09-10","dart_corp_code":"00146031","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"086790","isin":"KR7086790003","company_name_en":"Hana Financial Group Inc.","company_name_kr":"하나금융지주","krx_short_en":"HanaFinGrp","market":"KOSPI","sector_code_gics":"4010","sector_name_en":"Financials","industry_name_kr":"은행지주","listing_date":"2005-12-12","dart_corp_code":"00547583","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"316140","isin":"KR7316140003","company_name_en":"Woori Financial Group Inc.","company_name_kr":"우리금융지주","krx_short_en":"WooriFinGrp","market":"KOSPI","sector_code_gics":"4010","sector_name_en":"Financials","industry_name_kr":"은행지주","listing_date":"2019-02-13","dart_corp_code":"01526131","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"138930","isin":"KR7138930003","company_name_en":"BNK Financial Group Inc.","company_name_kr":"BNK금융지주","krx_short_en":"BNKFinGrp","market":"KOSPI","sector_code_gics":"4010","sector_name_en":"Financials","industry_name_kr":"은행지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"175330","isin":"KR7175330000","company_name_en":"JB Financial Group Co. Ltd.","company_name_kr":"JB금융지주","krx_short_en":"JBFinGrp","market":"KOSPI","sector_code_gics":"4010","sector_name_en":"Financials","industry_name_kr":"은행지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"138040","isin":"KR7138040001","company_name_en":"Meritz Financial Group Inc.","company_name_kr":"메리츠금융지주","krx_short_en":"MeritzFin","market":"KOSPI","sector_code_gics":"4010","sector_name_en":"Financials","industry_name_kr":"보험지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"024110","isin":"KR7024110009","company_name_en":"Industrial Bank of Korea","company_name_kr":"기업은행","krx_short_en":"IBK","market":"KOSPI","sector_code_gics":"4010","sector_name_en":"Financials","industry_name_kr":"은행","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"000810","isin":"KR7000810002","company_name_en":"Samsung Fire & Marine Insurance Co. Ltd.","company_name_kr":"삼성화재","krx_short_en":"SamsungFire","market":"KOSPI","sector_code_gics":"4030","sector_name_en":"Financials","industry_name_kr":"손해보험","listing_date":"","dart_corp_code":"00126256","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"032830","isin":"KR7032830002","company_name_en":"Samsung Life Insurance Co. Ltd.","company_name_kr":"삼성생명","krx_short_en":"SamsungLife","market":"KOSPI","sector_code_gics":"4030","sector_name_en":"Financials","industry_name_kr":"생명보험","listing_date":"","dart_corp_code":"00126256","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"088350","isin":"KR7088350004","company_name_en":"Hanwha Life Insurance Co. Ltd.","company_name_kr":"한화생명","krx_short_en":"HanwhaLife","market":"KOSPI","sector_code_gics":"4030","sector_name_en":"Financials","industry_name_kr":"생명보험","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"029780","isin":"KR7029780004","company_name_en":"Samsung Card Co. Ltd.","company_name_kr":"삼성카드","krx_short_en":"SamsungCard","market":"KOSPI","sector_code_gics":"4020","sector_name_en":"Financials","industry_name_kr":"카드","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"016360","isin":"KR7016360000","company_name_en":"Samsung Securities Co. Ltd.","company_name_kr":"삼성증권","krx_short_en":"SamsungSec","market":"KOSPI","sector_code_gics":"4020","sector_name_en":"Financials","industry_name_kr":"증권","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"006800","isin":"KR7006800007","company_name_en":"Mirae Asset Securities Co. Ltd.","company_name_kr":"미래에셋증권","krx_short_en":"MiraeAssetSec","market":"KOSPI","sector_code_gics":"4020","sector_name_en":"Financials","industry_name_kr":"증권","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"005940","isin":"KR7005940002","company_name_en":"NH Investment & Securities Co. Ltd.","company_name_kr":"NH투자증권","krx_short_en":"NHISec","market":"KOSPI","sector_code_gics":"4020","sector_name_en":"Financials","industry_name_kr":"증권","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"071050","isin":"KR7071050009","company_name_en":"Korea Investment Holdings Co. Ltd.","company_name_kr":"한국금융지주","krx_short_en":"KIH","market":"KOSPI","sector_code_gics":"4020","sector_name_en":"Financials","industry_name_kr":"증권지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"003530","isin":"KR7003530003","company_name_en":"Hanwha Investment & Securities Co. Ltd.","company_name_kr":"한화투자증권","krx_short_en":"HanwhaSec","market":"KOSPI","sector_code_gics":"4020","sector_name_en":"Financials","industry_name_kr":"증권","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"018260","isin":"KR7018260000","company_name_en":"Samsung SDS Co. Ltd.","company_name_kr":"삼성에스디에스","krx_short_en":"SamsungSDS","market":"KOSPI","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"IT 서비스","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"030200","isin":"KR7030200000","company_name_en":"KT Corporation","company_name_kr":"KT","krx_short_en":"KT","market":"KOSPI","sector_code_gics":"5010","sector_name_en":"Communication Services","industry_name_kr":"통신","listing_date":"2002-12-31","dart_corp_code":"00159023","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"017670","isin":"KR7017670001","company_name_en":"SK Telecom Co. Ltd.","company_name_kr":"SK텔레콤","krx_short_en":"SKTelecom","market":"KOSPI","sector_code_gics":"5010","sector_name_en":"Communication Services","industry_name_kr":"통신","listing_date":"1989-11-20","dart_corp_code":"00299631","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"032640","isin":"KR7032640005","company_name_en":"LG Uplus Corp.","company_name_kr":"LG유플러스","krx_short_en":"LGUplus","market":"KOSPI","sector_code_gics":"5010","sector_name_en":"Communication Services","industry_name_kr":"통신","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"251270","isin":"KR7251270005","company_name_en":"Netmarble Corp.","company_name_kr":"넷마블","krx_short_en":"Netmarble","market":"KOSPI","sector_code_gics":"5020","sector_name_en":"Communication Services","industry_name_kr":"게임","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"036570","isin":"KR7036570000","company_name_en":"NCsoft Corp.","company_name_kr":"엔씨소프트","krx_short_en":"NCsoft","market":"KOSPI","sector_code_gics":"5020","sector_name_en":"Communication Services","industry_name_kr":"게임","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"259960","isin":"KR7259960003","company_name_en":"Krafton Inc.","company_name_kr":"크래프톤","krx_short_en":"Krafton","market":"KOSPI","sector_code_gics":"5020","sector_name_en":"Communication Services","industry_name_kr":"게임","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"042700","isin":"KR7042700005","company_name_en":"Hanmi Semiconductor Co. Ltd.","company_name_kr":"한미반도체","krx_short_en":"HanmiSemi","market":"KOSPI","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"반도체 장비","listing_date":"2005-07-13","dart_corp_code":"00121939","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"034220","isin":"KR7034220004","company_name_en":"LG Display Co. Ltd.","company_name_kr":"LG디스플레이","krx_short_en":"LGDisplay","market":"KOSPI","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"디스플레이","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"011070","isin":"KR7011070000","company_name_en":"LG Innotek Co. Ltd.","company_name_kr":"LG이노텍","krx_short_en":"LGInnotek","market":"KOSPI","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"전자 부품","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"009150","isin":"KR7009150004","company_name_en":"Samsung Electro-Mechanics Co. Ltd.","company_name_kr":"삼성전기","krx_short_en":"SamsungElecMech","market":"KOSPI","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"전자 부품","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"009540","isin":"KR7009540006","company_name_en":"HD Korea Shipbuilding & Offshore Engineering Co. Ltd.","company_name_kr":"HD한국조선해양","krx_short_en":"HDKSOE","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"조선","listing_date":"","dart_corp_code":"01133217","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"329180","isin":"KR7329180004","company_name_en":"HD Hyundai Heavy Industries Co. Ltd.","company_name_kr":"HD현대중공업","krx_short_en":"HDHHI","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"조선","listing_date":"","dart_corp_code":"00164731","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"010140","isin":"KR7010140002","company_name_en":"Samsung Heavy Industries Co. Ltd.","company_name_kr":"삼성중공업","krx_short_en":"SamsungHI","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"조선","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"042660","isin":"KR7042660001","company_name_en":"Hanwha Ocean Co. Ltd.","company_name_kr":"한화오션","krx_short_en":"HanwhaOcean","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"조선","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"267260","isin":"KR7267260008","company_name_en":"HD Hyundai Electric Co. Ltd.","company_name_kr":"HD현대일렉트릭","krx_short_en":"HDHElec","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"중전기","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"010620","isin":"KR7010620003","company_name_en":"HD Hyundai Mipo Co. Ltd.","company_name_kr":"HD현대미포","krx_short_en":"HDHMipo","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"조선","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"034020","isin":"KR7034020008","company_name_en":"Doosan Enerbility Co. Ltd.","company_name_kr":"두산에너빌리티","krx_short_en":"DoosanEner","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"중공업","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"241560","isin":"KR7241560002","company_name_en":"Doosan Bobcat Inc.","company_name_kr":"두산밥캣","krx_short_en":"DoosanBobcat","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"중장비","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"000150","isin":"KR7000150003","company_name_en":"Doosan Corporation","company_name_kr":"두산","krx_short_en":"Doosan","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"012450","isin":"KR7012450003","company_name_en":"Hanwha Aerospace Co. Ltd.","company_name_kr":"한화에어로스페이스","krx_short_en":"HanwhaAero","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"방산","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"047810","isin":"KR7047810007","company_name_en":"Korea Aerospace Industries Ltd.","company_name_kr":"한국항공우주","krx_short_en":"KAI","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"방산","listing_date":"","dart_corp_code":"00158135","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"272210","isin":"KR7272210006","company_name_en":"Hanwha Systems Co. Ltd.","company_name_kr":"한화시스템","krx_short_en":"HanwhaSys","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"방산","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"064350","isin":"KR7064350002","company_name_en":"Hyundai Rotem Company","company_name_kr":"현대로템","krx_short_en":"HyundaiRotem","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"철도차량","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"003490","isin":"KR7003490000","company_name_en":"Korean Air Lines Co. Ltd.","company_name_kr":"대한항공","krx_short_en":"KAL","market":"KOSPI","sector_code_gics":"2030","sector_name_en":"Industrials","industry_name_kr":"항공","listing_date":"","dart_corp_code":"00113410","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"020560","isin":"KR7020560009","company_name_en":"Asiana Airlines Inc.","company_name_kr":"아시아나항공","krx_short_en":"Asiana","market":"KOSPI","sector_code_gics":"2030","sector_name_en":"Industrials","industry_name_kr":"항공","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"012330","isin":"KR7012330007","company_name_en":"Hyundai Mobis Co. Ltd.","company_name_kr":"현대모비스","krx_short_en":"HyundaiMobis","market":"KOSPI","sector_code_gics":"2510","sector_name_en":"Consumer Discretionary","industry_name_kr":"자동차부품","listing_date":"","dart_corp_code":"00126186","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"086280","isin":"KR7086280005","company_name_en":"Hyundai Glovis Co. Ltd.","company_name_kr":"현대글로비스","krx_short_en":"HyundaiGlovis","market":"KOSPI","sector_code_gics":"2030","sector_name_en":"Industrials","industry_name_kr":"물류","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"204320","isin":"KR7204320006","company_name_en":"HL Mando Co. Ltd.","company_name_kr":"HL만도","krx_short_en":"HLMando","market":"KOSPI","sector_code_gics":"2510","sector_name_en":"Consumer Discretionary","industry_name_kr":"자동차부품","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"011210","isin":"KR7011210002","company_name_en":"Hyundai Wia Corporation","company_name_kr":"현대위아","krx_short_en":"HyundaiWia","market":"KOSPI","sector_code_gics":"2510","sector_name_en":"Consumer Discretionary","industry_name_kr":"자동차부품","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"004020","isin":"KR7004020004","company_name_en":"Hyundai Steel Company","company_name_kr":"현대제철","krx_short_en":"HyundaiSteel","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"철강","listing_date":"","dart_corp_code":"00154884","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"003670","isin":"KR7003670007","company_name_en":"POSCO Future M Co. Ltd.","company_name_kr":"포스코퓨처엠","krx_short_en":"POSCOFutureM","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"이차전지 소재","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"047050","isin":"KR7047050000","company_name_en":"POSCO International Corporation","company_name_kr":"포스코인터내셔널","krx_short_en":"POSCOIntl","market":"KOSPI","sector_code_gics":"2020","sector_name_en":"Industrials","industry_name_kr":"종합상사","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"010130","isin":"KR7010130003","company_name_en":"Korea Zinc Co. Ltd.","company_name_kr":"고려아연","krx_short_en":"KoreaZinc","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"비철금속","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"010060","isin":"KR7010060002","company_name_en":"OCI Holdings Co. Ltd.","company_name_kr":"OCI홀딩스","krx_short_en":"OCIHldgs","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"011170","isin":"KR7011170008","company_name_en":"Lotte Chemical Corporation","company_name_kr":"롯데케미칼","krx_short_en":"LotteChem","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"석유화학","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"011780","isin":"KR7011780004","company_name_en":"Kumho Petrochemical Co. Ltd.","company_name_kr":"금호석유","krx_short_en":"KumhoPetro","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"석유화학","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"298050","isin":"KR7298050006","company_name_en":"Hyosung Advanced Materials Corporation","company_name_kr":"효성첨단소재","krx_short_en":"HyosungAdv","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"특수소재","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"298040","isin":"KR7298040007","company_name_en":"Hyosung Heavy Industries Corporation","company_name_kr":"효성중공업","krx_short_en":"HyosungHI","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"중전기","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"004800","isin":"KR7004800009","company_name_en":"Hyosung Corporation","company_name_kr":"효성","krx_short_en":"Hyosung","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"009830","isin":"KR7009830001","company_name_en":"Hanwha Solutions Corporation","company_name_kr":"한화솔루션","krx_short_en":"HanwhaSol","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"석유화학","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"000880","isin":"KR7000880005","company_name_en":"Hanwha Corporation","company_name_kr":"한화","krx_short_en":"Hanwha","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"015760","isin":"KR7015760002","company_name_en":"Korea Electric Power Corporation","company_name_kr":"한국전력","krx_short_en":"KEPCO","market":"KOSPI","sector_code_gics":"5510","sector_name_en":"Utilities","industry_name_kr":"전력","listing_date":"1989-08-10","dart_corp_code":"00103620","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"036460","isin":"KR7036460004","company_name_en":"Korea Gas Corporation","company_name_kr":"한국가스공사","krx_short_en":"KOGAS","market":"KOSPI","sector_code_gics":"5510","sector_name_en":"Utilities","industry_name_kr":"가스","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"096770","isin":"KR7096770003","company_name_en":"SK Innovation Co. Ltd.","company_name_kr":"SK이노베이션","krx_short_en":"SKInnov","market":"KOSPI","sector_code_gics":"1010","sector_name_en":"Energy","industry_name_kr":"정유","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"010950","isin":"KR7010950004","company_name_en":"S-Oil Corporation","company_name_kr":"에쓰오일","krx_short_en":"SOil","market":"KOSPI","sector_code_gics":"1010","sector_name_en":"Energy","industry_name_kr":"정유","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"078930","isin":"KR7078930005","company_name_en":"GS Holdings Corp.","company_name_kr":"GS","krx_short_en":"GS","market":"KOSPI","sector_code_gics":"5510","sector_name_en":"Utilities","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"006120","isin":"KR7006120000","company_name_en":"SK Discovery Co. Ltd.","company_name_kr":"SK디스커버리","krx_short_en":"SKDisc","market":"KOSPI","sector_code_gics":"5510","sector_name_en":"Utilities","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"034730","isin":"KR7034730002","company_name_en":"SK Inc.","company_name_kr":"SK","krx_short_en":"SK","market":"KOSPI","sector_code_gics":"5510","sector_name_en":"Utilities","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"000720","isin":"KR7000720003","company_name_en":"Hyundai Engineering & Construction Co. Ltd.","company_name_kr":"현대건설","krx_short_en":"HyundaiEnC","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"건설","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"006360","isin":"KR7006360002","company_name_en":"GS Engineering & Construction Corp.","company_name_kr":"GS건설","krx_short_en":"GSEnC","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"건설","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"047040","isin":"KR7047040001","company_name_en":"Daewoo Engineering & Construction Co. Ltd.","company_name_kr":"대우건설","krx_short_en":"DaewooEnC","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"건설","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"375500","isin":"KR7375500006","company_name_en":"DL E&C Co. Ltd.","company_name_kr":"DL이앤씨","krx_short_en":"DLEnC","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"건설","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"000210","isin":"KR7000210005","company_name_en":"DL Holdings Co. Ltd.","company_name_kr":"DL","krx_short_en":"DL","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"028050","isin":"KR7028050003","company_name_en":"Samsung E&A Co. Ltd.","company_name_kr":"삼성E&A","krx_short_en":"SamsungEnA","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"EPC","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"139480","isin":"KR7139480008","company_name_en":"Emart Inc.","company_name_kr":"이마트","krx_short_en":"Emart","market":"KOSPI","sector_code_gics":"3010","sector_name_en":"Consumer Staples","industry_name_kr":"대형마트","listing_date":"","dart_corp_code":"00136028","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"023530","isin":"KR7023530009","company_name_en":"Lotte Shopping Co. Ltd.","company_name_kr":"롯데쇼핑","krx_short_en":"LotteShop","market":"KOSPI","sector_code_gics":"2550","sector_name_en":"Consumer Discretionary","industry_name_kr":"백화점","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"004990","isin":"KR7004990008","company_name_en":"Lotte Corporation","company_name_kr":"롯데지주","krx_short_en":"LotteHldgs","market":"KOSPI","sector_code_gics":"3010","sector_name_en":"Consumer Staples","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"282330","isin":"KR7282330000","company_name_en":"BGF Retail Co. Ltd.","company_name_kr":"BGF리테일","krx_short_en":"BGFRetail","market":"KOSPI","sector_code_gics":"3010","sector_name_en":"Consumer Staples","industry_name_kr":"편의점","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"069960","isin":"KR7069960003","company_name_en":"Hyundai Department Store Co. Ltd.","company_name_kr":"현대백화점","krx_short_en":"HyundaiDept","market":"KOSPI","sector_code_gics":"2550","sector_name_en":"Consumer Discretionary","industry_name_kr":"백화점","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"008770","isin":"KR7008770000","company_name_en":"Hotel Shilla Co. Ltd.","company_name_kr":"호텔신라","krx_short_en":"HotelShilla","market":"KOSPI","sector_code_gics":"2550","sector_name_en":"Consumer Discretionary","industry_name_kr":"면세점/호텔","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"035250","isin":"KR7035250000","company_name_en":"Kangwon Land Inc.","company_name_kr":"강원랜드","krx_short_en":"KangwonLand","market":"KOSPI","sector_code_gics":"2530","sector_name_en":"Consumer Discretionary","industry_name_kr":"카지노","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"097950","isin":"KR7097950000","company_name_en":"CJ CheilJedang Corp.","company_name_kr":"CJ제일제당","krx_short_en":"CJCJ","market":"KOSPI","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"식품","listing_date":"","dart_corp_code":"00112020","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"001040","isin":"KR7001040005","company_name_en":"CJ Corporation","company_name_kr":"CJ","krx_short_en":"CJ","market":"KOSPI","sector_code_gics":"2520","sector_name_en":"Consumer Discretionary","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"271560","isin":"KR7271560005","company_name_en":"Orion Corporation","company_name_kr":"오리온","krx_short_en":"Orion","market":"KOSPI","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"제과","listing_date":"","dart_corp_code":"00112374","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"280360","isin":"KR7280360009","company_name_en":"Lotte Wellfood Co. Ltd.","company_name_kr":"롯데웰푸드","krx_short_en":"LotteWell","market":"KOSPI","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"제과","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"004370","isin":"KR7004370003","company_name_en":"Nongshim Co. Ltd.","company_name_kr":"농심","krx_short_en":"Nongshim","market":"KOSPI","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"식품","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"000080","isin":"KR7000080002","company_name_en":"Hite Jinro Co. Ltd.","company_name_kr":"하이트진로","krx_short_en":"HiteJinro","market":"KOSPI","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"주류","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"005180","isin":"KR7005180005","company_name_en":"Binggrae Co. Ltd.","company_name_kr":"빙그레","krx_short_en":"Binggrae","market":"KOSPI","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"제과","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"033780","isin":"KR7033780008","company_name_en":"KT&G Corporation","company_name_kr":"KT&G","krx_short_en":"KTandG","market":"KOSPI","sector_code_gics":"3030","sector_name_en":"Consumer Staples","industry_name_kr":"담배","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"000100","isin":"KR7000100008","company_name_en":"Yuhan Corporation","company_name_kr":"유한양행","krx_short_en":"Yuhan","market":"KOSPI","sector_code_gics":"3520","sector_name_en":"Health Care","industry_name_kr":"제약","listing_date":"","dart_corp_code":"00104694","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"069620","isin":"KR7069620003","company_name_en":"Daewoong Pharmaceutical Co. Ltd.","company_name_kr":"대웅제약","krx_short_en":"Daewoong","market":"KOSPI","sector_code_gics":"3520","sector_name_en":"Health Care","industry_name_kr":"제약","listing_date":"","dart_corp_code":"00109718","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"128940","isin":"KR7128940004","company_name_en":"Hanmi Pharm Co. Ltd.","company_name_kr":"한미약품","krx_short_en":"HanmiPharm","market":"KOSPI","sector_code_gics":"3520","sector_name_en":"Health Care","industry_name_kr":"제약","listing_date":"","dart_corp_code":"00120182","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"008930","isin":"KR7008930000","company_name_en":"Hanmi Science Co. Ltd.","company_name_kr":"한미사이언스","krx_short_en":"HanmiSci","market":"KOSPI","sector_code_gics":"3520","sector_name_en":"Health Care","industry_name_kr":"제약지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"009420","isin":"KR7009420001","company_name_en":"Hanall Biopharma Co. Ltd.","company_name_kr":"한올바이오파마","krx_short_en":"Hanall","market":"KOSPI","sector_code_gics":"3520","sector_name_en":"Health Care","industry_name_kr":"바이오","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"326030","isin":"KR7326030004","company_name_en":"SK Bioscience Co. Ltd.","company_name_kr":"SK바이오사이언스","krx_short_en":"SKBio","market":"KOSPI","sector_code_gics":"3520","sector_name_en":"Health Care","industry_name_kr":"백신","listing_date":"2021-03-18","dart_corp_code":"00955078","kospi200":"Y","kosdaq150":"Y","krx300":"Y"},{"local_code":"066570","isin":"KR7066570003","company_name_en":"LG Electronics Inc.","company_name_kr":"LG전자","krx_short_en":"LGElec","market":"KOSPI","sector_code_gics":"2520","sector_name_en":"Consumer Discretionary","industry_name_kr":"가전","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"003550","isin":"KR7003550001","company_name_en":"LG Corp.","company_name_kr":"LG","krx_short_en":"LG","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"028260","isin":"KR7028260008","company_name_en":"Samsung C&T Corporation","company_name_kr":"삼성물산","krx_short_en":"SamsungCnT","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"028670","isin":"KR7028670008","company_name_en":"Pan Ocean Co. Ltd.","company_name_kr":"팬오션","krx_short_en":"PanOcean","market":"KOSPI","sector_code_gics":"2030","sector_name_en":"Industrials","industry_name_kr":"해운","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"011200","isin":"KR7011200003","company_name_en":"HMM Co. Ltd.","company_name_kr":"HMM","krx_short_en":"HMM","market":"KOSPI","sector_code_gics":"2030","sector_name_en":"Industrials","industry_name_kr":"해운","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"090430","isin":"KR7090430000","company_name_en":"AmorePacific Corporation","company_name_kr":"아모레퍼시픽","krx_short_en":"AmorePacific","market":"KOSPI","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"뷰티","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"002790","isin":"KR7002790004","company_name_en":"AmoreG Co. Ltd.","company_name_kr":"아모레G","krx_short_en":"AmoreG","market":"KOSPI","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"051900","isin":"KR7051900009","company_name_en":"LG H&H Co. Ltd.","company_name_kr":"LG생활건강","krx_short_en":"LGHnH","market":"KOSPI","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"뷰티/생활용품","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"081660","isin":"KR7081660003","company_name_en":"Fila Holdings Corp.","company_name_kr":"휠라홀딩스","krx_short_en":"FilaHldgs","market":"KOSPI","sector_code_gics":"2520","sector_name_en":"Consumer Discretionary","industry_name_kr":"스포츠 의류","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"006260","isin":"KR7006260004","company_name_en":"LS Corp.","company_name_kr":"LS","krx_short_en":"LS","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"010120","isin":"KR7010120004","company_name_en":"LS Electric Co. Ltd.","company_name_kr":"LS ELECTRIC","krx_short_en":"LSElec","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"중전기","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"229640","isin":"KR7229640008","company_name_en":"LS Materials Corporation","company_name_kr":"LS머트리얼즈","krx_short_en":"LSMaterials","market":"KOSDAQ","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"소재","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"064960","isin":"KR7064960008","company_name_en":"SNT Motiv Co. Ltd.","company_name_kr":"SNT모티브","krx_short_en":"SNTMotiv","market":"KOSPI","sector_code_gics":"2510","sector_name_en":"Consumer Discretionary","industry_name_kr":"자동차부품","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"018880","isin":"KR7018880005","company_name_en":"Hanon Systems Corp.","company_name_kr":"한온시스템","krx_short_en":"Hanon","market":"KOSPI","sector_code_gics":"2510","sector_name_en":"Consumer Discretionary","industry_name_kr":"자동차부품","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"020150","isin":"KR7020150009","company_name_en":"Lotte Energy Materials Corporation","company_name_kr":"롯데에너지머티리얼즈","krx_short_en":"LotteEnerMat","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"이차전지 소재","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"088980","isin":"KR7088980008","company_name_en":"Macquarie Korea Infrastructure Fund","company_name_kr":"맥쿼리인프라","krx_short_en":"MacquarieInfra","market":"KOSPI","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"017900","isin":"KR7017900002","company_name_en":"KISCO Holdings Co. Ltd.","company_name_kr":"키스코홀딩스","krx_short_en":"KiscoHldgs","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"지주","listing_date":"","dart_corp_code":"00121990","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"247540","isin":"KR7247540008","company_name_en":"Ecopro BM Co. Ltd.","company_name_kr":"에코프로비엠","krx_short_en":"EcoproBM","market":"KOSDAQ","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"이차전지 소재","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"086520","isin":"KR7086520004","company_name_en":"Ecopro Co. Ltd.","company_name_kr":"에코프로","krx_short_en":"Ecopro","market":"KOSDAQ","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"이차전지 소재","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"022100","isin":"KR7022100002","company_name_en":"POSCO DX Co. Ltd.","company_name_kr":"포스코DX","krx_short_en":"POSCODX","market":"KOSDAQ","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"IT 서비스","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"196170","isin":"KR7196170005","company_name_en":"Alteogen Inc.","company_name_kr":"알테오젠","krx_short_en":"Alteogen","market":"KOSDAQ","sector_code_gics":"3520","sector_name_en":"Health Care","industry_name_kr":"바이오","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"145020","isin":"KR7145020004","company_name_en":"Hugel Inc.","company_name_kr":"휴젤","krx_short_en":"Hugel","market":"KOSDAQ","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"뷰티","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"178320","isin":"KR7178320008","company_name_en":"Seojin System Co. Ltd.","company_name_kr":"서진시스템","krx_short_en":"Seojin","market":"KOSDAQ","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"시스템 통합","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"028300","isin":"KR7028300002","company_name_en":"HLB Inc.","company_name_kr":"HLB","krx_short_en":"HLB","market":"KOSDAQ","sector_code_gics":"3520","sector_name_en":"Health Care","industry_name_kr":"신약","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"263750","isin":"KR7263750002","company_name_en":"Pearl Abyss Corp.","company_name_kr":"펄어비스","krx_short_en":"PearlAbyss","market":"KOSDAQ","sector_code_gics":"5020","sector_name_en":"Communication Services","industry_name_kr":"게임","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"293490","isin":"KR7293490009","company_name_en":"Kakao Games Corp.","company_name_kr":"카카오게임즈","krx_short_en":"KakaoGames","market":"KOSDAQ","sector_code_gics":"5020","sector_name_en":"Communication Services","industry_name_kr":"게임","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"095660","isin":"KR7095660007","company_name_en":"NEOWIZ Corp.","company_name_kr":"네오위즈","krx_short_en":"Neowiz","market":"KOSDAQ","sector_code_gics":"5020","sector_name_en":"Communication Services","industry_name_kr":"게임","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"357780","isin":"KR7357780006","company_name_en":"Soulbrain Co. Ltd.","company_name_kr":"솔브레인","krx_short_en":"Soulbrain","market":"KOSDAQ","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"반도체 소재","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"058470","isin":"KR7058470006","company_name_en":"Leeno Industrial Inc.","company_name_kr":"리노공업","krx_short_en":"Leeno","market":"KOSDAQ","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"반도체 테스트","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"240810","isin":"KR7240810002","company_name_en":"Wonik IPS Co. Ltd.","company_name_kr":"원익아이피에스","krx_short_en":"WonikIPS","market":"KOSDAQ","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"반도체 장비","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"348210","isin":"KR7348210006","company_name_en":"Nextin Inc.","company_name_kr":"넥스틴","krx_short_en":"Nextin","market":"KOSDAQ","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"반도체 검사","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"086900","isin":"KR7086900008","company_name_en":"Medytox Inc.","company_name_kr":"메디톡스","krx_short_en":"Medytox","market":"KOSDAQ","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"뷰티 의료","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"214150","isin":"KR7214150005","company_name_en":"Classys Inc.","company_name_kr":"클래시스","krx_short_en":"Classys","market":"KOSDAQ","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"미용 의료","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"122870","isin":"KR7122870009","company_name_en":"Yes24 Co. Ltd.","company_name_kr":"예스24","krx_short_en":"Yes24","market":"KOSDAQ","sector_code_gics":"2510","sector_name_en":"Consumer Discretionary","industry_name_kr":"전자상거래","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"137310","isin":"KR7137310009","company_name_en":"SD Biosensor Inc.","company_name_kr":"에스디바이오센서","krx_short_en":"SDBio","market":"KOSPI","sector_code_gics":"3520","sector_name_en":"Health Care","industry_name_kr":"진단","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"095340","isin":"KR7095340006","company_name_en":"ISC Co. Ltd.","company_name_kr":"ISC","krx_short_en":"ISC","market":"KOSDAQ","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"반도체 패키징","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"084370","isin":"KR7084370006","company_name_en":"Eugene Technology Co. Ltd.","company_name_kr":"유진테크","krx_short_en":"EugeneTech","market":"KOSDAQ","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"반도체 장비","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"277810","isin":"KR7277810008","company_name_en":"RFHIC Corporation","company_name_kr":"알에프에이치아이씨","krx_short_en":"RFHIC","market":"KOSDAQ","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"RF 부품","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"091990","isin":"KR7091990002","company_name_en":"Celltrion Pharm Inc.","company_name_kr":"셀트리온제약","krx_short_en":"CelltrionPh","market":"KOSDAQ","sector_code_gics":"3520","sector_name_en":"Health Care","industry_name_kr":"제약","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"049770","isin":"KR7049770001","company_name_en":"Dongwon F&B Co. Ltd.","company_name_kr":"동원F&B","krx_short_en":"DongwonFnB","market":"KOSPI","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"식품","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"069260","isin":"KR7069260008","company_name_en":"TKG Huchems Co. Ltd.","company_name_kr":"TKG휴켐스","krx_short_en":"TKGHuchems","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"특수화학","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"005250","isin":"KR7005250006","company_name_en":"GC Corp Holdings","company_name_kr":"녹십자홀딩스","krx_short_en":"GCHCorp","market":"KOSPI","sector_code_gics":"3520","sector_name_en":"Health Care","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"003090","isin":"KR7003090008","company_name_en":"Daewoong Corporation","company_name_kr":"대웅","krx_short_en":"Daewoong","market":"KOSPI","sector_code_gics":"3520","sector_name_en":"Health Care","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"192080","isin":"KR7192080000","company_name_en":"DoubleU Games Co. Ltd.","company_name_kr":"더블유게임즈","krx_short_en":"DoubleUGames","market":"KOSDAQ","sector_code_gics":"5020","sector_name_en":"Communication Services","industry_name_kr":"게임","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"475150","isin":"KR7475150009","company_name_en":"Doosan Skoda Power","company_name_kr":"두산스코다파워","krx_short_en":"DWS","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"중공업","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"454910","isin":"KR7454910001","company_name_en":"Doosan Robotics Inc.","company_name_kr":"두산로보틱스","krx_short_en":"DoosanRobotics","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"로보틱스","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"003230","isin":"KR7003230000","company_name_en":"Samyang Foods Co. Ltd.","company_name_kr":"삼양식품","krx_short_en":"SamyangFood","market":"KOSPI","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"식품","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"004490","isin":"KR7004490009","company_name_en":"Sebang Global Battery Co. Ltd.","company_name_kr":"세방전지","krx_short_en":"SGBC","market":"KOSPI","sector_code_gics":"2510","sector_name_en":"Consumer Discretionary","industry_name_kr":"2차전지","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"001430","isin":"KR7001430008","company_name_en":"SeAH Besteel Holdings","company_name_kr":"세아베스틸지주","krx_short_en":"SBHC","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"철강","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"003030","isin":"KR7003030004","company_name_en":"SeAH Steel Holdings","company_name_kr":"세아제강지주","krx_short_en":"SeAHSteelHoldings","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"철강 지주","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"009970","isin":"KR7009970005","company_name_en":"Youngone Holdings Co. Ltd.","company_name_kr":"영원무역홀딩스","krx_short_en":"YoungoneHoldings","market":"KOSPI","sector_code_gics":"2520","sector_name_en":"Consumer Discretionary","industry_name_kr":"의류 지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"000670","isin":"KR7000670000","company_name_en":"Youngpoong Corporation","company_name_kr":"영풍","krx_short_en":"Youngpoong","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"비철금속","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"001800","isin":"KR7001800002","company_name_en":"Orion Holdings Corp.","company_name_kr":"오리온홀딩스","krx_short_en":"ORIONHoldings","market":"KOSPI","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"008730","isin":"KR7008730004","company_name_en":"Yulchon Chemical Co. Ltd.","company_name_kr":"율촌화학","krx_short_en":"YoulchonChem","market":"KOSDAQ","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"특수화학","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"457190","isin":"KR7457190007","company_name_en":"Isu Specialty Chemical Co. Ltd.","company_name_kr":"이수스페셜티케미컬","krx_short_en":"ISUSPECIALTYCHEMICAL","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"특수화학","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"103140","isin":"KR7103140000","company_name_en":"Poongsan Corporation","company_name_kr":"풍산","krx_short_en":"POONGSAN","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"비철금속","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"000240","isin":"KR7000240002","company_name_en":"Hankook & Company Co. Ltd.","company_name_kr":"한국앤컴퍼니","krx_short_en":"HANKOOK&COMPANY","market":"KOSPI","sector_code_gics":"2510","sector_name_en":"Consumer Discretionary","industry_name_kr":"지주","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"300720","isin":"KR7300720000","company_name_en":"Hanil Cement Co. Ltd.","company_name_kr":"한일시멘트","krx_short_en":"HANILCMT","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"시멘트","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"403870","isin":"KR7403870009","company_name_en":"HPSP Co. Ltd.","company_name_kr":"에이치피에스피","krx_short_en":"HPSP","market":"KOSDAQ","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"반도체 장비","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"067160","isin":"KR7067160002","company_name_en":"SOOP Co. Ltd.","company_name_kr":"숲","krx_short_en":"SOOP","market":"KOSDAQ","sector_code_gics":"5020","sector_name_en":"Communication Services","industry_name_kr":"미디어","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"393890","isin":"KR7393890009","company_name_en":"WCP Co. Ltd.","company_name_kr":"더블유씨피","krx_short_en":"WCP","market":"KOSDAQ","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"2차전지 분리막","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"086450","isin":"KR7086450004","company_name_en":"Dong-A ST Co. Ltd.","company_name_kr":"동국제약","krx_short_en":"DongKookPharm","market":"KOSPI","sector_code_gics":"3520","sector_name_en":"Health Care","industry_name_kr":"제약","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"131970","isin":"KR7131970006","company_name_en":"Doosan Tesna Co. Ltd.","company_name_kr":"두산테스나","krx_short_en":"DOOSANTESNA","market":"KOSDAQ","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"반도체 테스트","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"036830","isin":"KR7036830008","company_name_en":"Soulbrain Holdings Co. Ltd.","company_name_kr":"솔브레인홀딩스","krx_short_en":"SoulbrainHoldings","market":"KOSDAQ","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"반도체 소재 지주","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"222800","isin":"KR7222800005","company_name_en":"Simmtech Co. Ltd.","company_name_kr":"심텍","krx_short_en":"SIMMTECH","market":"KOSDAQ","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"반도체 PCB","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"084850","isin":"KR7084850007","company_name_en":"ITM Semiconductor Co. Ltd.","company_name_kr":"아이티엠반도체","krx_short_en":"ITMSemiconductor","market":"KOSDAQ","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"반도체 패키징","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"383310","isin":"KR7383310000","company_name_en":"Ecopro HN Co. Ltd.","company_name_kr":"에코프로에이치엔","krx_short_en":"ECOPROHN","market":"KOSDAQ","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"특수화학","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"002840","isin":"KR7002840007","company_name_en":"Miwon Commercial Co. Ltd.","company_name_kr":"미원상사","krx_short_en":"MiwonComd","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"특수화학","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"183300","isin":"KR7183300003","company_name_en":"KoMiCo Ltd.","company_name_kr":"코미코","krx_short_en":"KoMiCo","market":"KOSDAQ","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"009520","isin":"KR7009520008","company_name_en":"POSCO M-Tech Co. Ltd.","company_name_kr":"포스코엠텍","krx_short_en":"POSCOM-TECH","market":"KOSDAQ","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"철강 가공","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"278470","isin":"KR7278470000","company_name_en":"APR Corp.","company_name_kr":"에이피알","krx_short_en":"APR","market":"KOSPI","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"뷰티","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"348370","isin":"KR7348370008","company_name_en":"Hanwha Vision Co. Ltd.","company_name_kr":"한화비전","krx_short_en":"Hanwha Vision","market":"KOSPI","sector_code_gics":"4520","sector_name_en":"Information Technology","industry_name_kr":"보안","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"007340","isin":"KR7007340003","company_name_en":"DN Automotive Corporation","company_name_kr":"DN오토모티브","krx_short_en":"DN AUTOMOTIVE","market":"KOSPI","sector_code_gics":"2510","sector_name_en":"Consumer Discretionary","industry_name_kr":"자동차부품","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"443060","isin":"KR7443060009","company_name_en":"HD Hyundai Marine Solution Co. Ltd.","company_name_kr":"HD현대마린솔루션","krx_short_en":"HDHMS","market":"KOSPI","sector_code_gics":"2010","sector_name_en":"Industrials","industry_name_kr":"조선 서비스","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"006040","isin":"KR7006040000","company_name_en":"Dongwon Industries Co. Ltd.","company_name_kr":"동원산업","krx_short_en":"Dongwonind","market":"KOSPI","sector_code_gics":"3020","sector_name_en":"Consumer Staples","industry_name_kr":"수산","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"268280","isin":"KR7268280005","company_name_en":"Miwon Specialty Chemical Co. Ltd.","company_name_kr":"미원에스씨","krx_short_en":"MIWON SC","market":"KOSPI","sector_code_gics":"1510","sector_name_en":"Materials","industry_name_kr":"특수화학","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"Y","krx300":"Y"},{"local_code":"071320","isin":"KR7071320006","company_name_en":"Korea District Heating Corporation","company_name_kr":"한국지역난방공사","krx_short_en":"KDHC","market":"KOSPI","sector_code_gics":"5510","sector_name_en":"Utilities","industry_name_kr":"난방","listing_date":"","dart_corp_code":"","kospi200":"Y","kosdaq150":"","krx300":"Y"},{"local_code":"005935","isin":"KR7005931001","company_name_en":"","company_name_kr":"삼성전자우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"005930"},{"local_code":"005385","isin":"KR7005381009","company_name_en":"","company_name_kr":"현대차우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"005380"},{"local_code":"005387","isin":"KR7005383005","company_name_en":"","company_name_kr":"현대차2우B","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_2UB","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"005380"},{"local_code":"005389","isin":"KR7005385000","company_name_en":"","company_name_kr":"현대차3우B","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_3UB","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"005380"},{"local_code":"000275","isin":"KR7000271007","company_name_en":"","company_name_kr":"기아우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"000270"},{"local_code":"051915","isin":"KR7051911006","company_name_en":"","company_name_kr":"LG화학우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"051910"},{"local_code":"006405","isin":"KR7006401004","company_name_en":"","company_name_kr":"삼성SDI우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"006400"},{"local_code":"003495","isin":"KR7003491008","company_name_en":"","company_name_kr":"대한항공우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"003490"},{"local_code":"066575","isin":"KR7066571001","company_name_en":"","company_name_kr":"LG전자우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"066570"},{"local_code":"003555","isin":"KR7003551009","company_name_en":"","company_name_kr":"LG우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"003550"},{"local_code":"000815","isin":"KR7000811000","company_name_en":"","company_name_kr":"삼성화재우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"000810"},{"local_code":"028260","isin":"KR7028261006","company_name_en":"","company_name_kr":"삼성물산우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"028260"},{"local_code":"090435","isin":"KR7090431008","company_name_en":"","company_name_kr":"아모레퍼시픽우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"090430"},{"local_code":"002795","isin":"KR7002791002","company_name_en":"","company_name_kr":"아모레G우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"002790"},{"local_code":"009155","isin":"KR7009151002","company_name_en":"","company_name_kr":"삼성전기우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"009150"},{"local_code":"078935","isin":"KR7078931003","company_name_en":"","company_name_kr":"GS우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"078930"},{"local_code":"010065","isin":"KR7010061000","company_name_en":"","company_name_kr":"OCI홀딩스우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"010060"},{"local_code":"009835","isin":"KR7009831009","company_name_en":"","company_name_kr":"한화솔루션우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"009830"},{"local_code":"000885","isin":"KR7000881003","company_name_en":"","company_name_kr":"한화우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"000880"},{"local_code":"004805","isin":"KR7004801007","company_name_en":"","company_name_kr":"효성우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"004800"},{"local_code":"051905","isin":"KR7051901007","company_name_en":"","company_name_kr":"LG생활건강우","krx_short_en":"","market":"PREFERRED","share_class":"PREFERRED_1U","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":"","_common_local":"051900"},{"local_code":"","isin":"KRD020020001","company_name_en":"KOSPI 200","company_name_kr":"코스피200","krx_short_en":"KOSPI 200","market":"Index","share_class":"INDEX","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"","isin":"KRD020020002","company_name_en":"Mini KOSPI 200","company_name_kr":"미니코스피200","krx_short_en":"MINI KOSPI 200","market":"Index","share_class":"INDEX","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"","isin":"KRD020020010","company_name_en":"KOSDAQ 150","company_name_kr":"코스닥150","krx_short_en":"KOSDAQ150","market":"Index","share_class":"INDEX","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"","isin":"KRD020020011","company_name_en":"KOSDAQ Global","company_name_kr":"코스닥글로벌지수","krx_short_en":"KOSDAQ Global Index","market":"Index","share_class":"INDEX","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"","isin":"KRD020030001","company_name_en":"Gold","company_name_kr":"금","krx_short_en":"GOLD","market":"Commodity","share_class":"COMMODITY","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"","isin":"KRD020030002","company_name_en":"Mini Gold","company_name_kr":"미니금","krx_short_en":"MINI GOLD","market":"Commodity","share_class":"COMMODITY","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"","isin":"KRD020040001","company_name_en":"3M KOFR","company_name_kr":"3개월무위험지표금리","krx_short_en":"3M KOFR","market":"Rate","share_class":"RATE","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"","isin":"KRD020040002","company_name_en":"3Y KTB","company_name_kr":"3년국채","krx_short_en":"3Y KTB","market":"Rate","share_class":"RATE","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"","isin":"KRD020040003","company_name_en":"5Y KTB","company_name_kr":"5년국채","krx_short_en":"5Y KTB","market":"Rate","share_class":"RATE","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"","isin":"KRD020040004","company_name_en":"10Y KTB","company_name_kr":"10년국채","krx_short_en":"10Y KTB","market":"Rate","share_class":"RATE","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"","isin":"KRD020050001","company_name_en":"USD","company_name_kr":"미국달러","krx_short_en":"USD","market":"Currency","share_class":"CURRENCY","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"","isin":"KRD020050002","company_name_en":"JPY","company_name_kr":"일본엔","krx_short_en":"JPY","market":"Currency","share_class":"CURRENCY","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"","isin":"KRD020050003","company_name_en":"EUR","company_name_kr":"유로","krx_short_en":"EUR","market":"Currency","share_class":"CURRENCY","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""},{"local_code":"","isin":"KRD020050004","company_name_en":"CNY","company_name_kr":"중국위안","krx_short_en":"CNY","market":"Currency","share_class":"CURRENCY","sector_code_gics":"","sector_name_en":"","industry_name_kr":"","listing_date":"","dart_corp_code":"","kospi200":"","kosdaq150":"","krx300":""}],"pref_pairs":[{"common_local_code":"005930","common_isin":"KR7005930003","common_name_kr":"삼성전자","pref_local_code":"005935","pref_isin":"KR7005931001","pref_name_kr":"삼성전자우","pref_class":"1우"},{"common_local_code":"005380","common_isin":"KR7005380001","common_name_kr":"현대차","pref_local_code":"005385","pref_isin":"KR7005381009","pref_name_kr":"현대차우","pref_class":"1우"},{"common_local_code":"005380","common_isin":"KR7005380001","common_name_kr":"현대차","pref_local_code":"005387","pref_isin":"KR7005383005","pref_name_kr":"현대차2우B","pref_class":"2우B"},{"common_local_code":"005380","common_isin":"KR7005380001","common_name_kr":"현대차","pref_local_code":"005389","pref_isin":"KR7005385000","pref_name_kr":"현대차3우B","pref_class":"3우B"},{"common_local_code":"000270","common_isin":"KR7000270009","common_name_kr":"기아","pref_local_code":"000275","pref_isin":"KR7000271007","pref_name_kr":"기아우","pref_class":"1우"},{"common_local_code":"051910","common_isin":"KR7051910008","common_name_kr":"LG화학","pref_local_code":"051915","pref_isin":"KR7051911006","pref_name_kr":"LG화학우","pref_class":"1우"},{"common_local_code":"006400","common_isin":"KR7006400006","common_name_kr":"삼성SDI","pref_local_code":"006405","pref_isin":"KR7006401004","pref_name_kr":"삼성SDI우","pref_class":"1우"},{"common_local_code":"003490","common_isin":"KR7003490000","common_name_kr":"대한항공","pref_local_code":"003495","pref_isin":"KR7003491008","pref_name_kr":"대한항공우","pref_class":"1우"},{"common_local_code":"066570","common_isin":"KR7066570003","common_name_kr":"LG전자","pref_local_code":"066575","pref_isin":"KR7066571001","pref_name_kr":"LG전자우","pref_class":"1우"},{"common_local_code":"003550","common_isin":"KR7003550001","common_name_kr":"LG","pref_local_code":"003555","pref_isin":"KR7003551009","pref_name_kr":"LG우","pref_class":"1우"},{"common_local_code":"000810","common_isin":"KR7000810002","common_name_kr":"삼성화재","pref_local_code":"000815","pref_isin":"KR7000811000","pref_name_kr":"삼성화재우","pref_class":"1우"},{"common_local_code":"028260","common_isin":"KR7028260008","common_name_kr":"삼성물산","pref_local_code":"028260","pref_isin":"KR7028261006","pref_name_kr":"삼성물산우","pref_class":"1우"},{"common_local_code":"090430","common_isin":"KR7090430000","common_name_kr":"아모레퍼시픽","pref_local_code":"090435","pref_isin":"KR7090431008","pref_name_kr":"아모레퍼시픽우","pref_class":"1우"},{"common_local_code":"002790","common_isin":"KR7002790004","common_name_kr":"아모레G","pref_local_code":"002795","pref_isin":"KR7002791002","pref_name_kr":"아모레G우","pref_class":"1우"},{"common_local_code":"009150","common_isin":"KR7009150004","common_name_kr":"삼성전기","pref_local_code":"009155","pref_isin":"KR7009151002","pref_name_kr":"삼성전기우","pref_class":"1우"},{"common_local_code":"078930","common_isin":"KR7078930005","common_name_kr":"GS","pref_local_code":"078935","pref_isin":"KR7078931003","pref_name_kr":"GS우","pref_class":"1우"},{"common_local_code":"010060","common_isin":"KR7010060002","common_name_kr":"OCI홀딩스","pref_local_code":"010065","pref_isin":"KR7010061000","pref_name_kr":"OCI홀딩스우","pref_class":"1우"},{"common_local_code":"009830","common_isin":"KR7009830001","common_name_kr":"한화솔루션","pref_local_code":"009835","pref_isin":"KR7009831009","pref_name_kr":"한화솔루션우","pref_class":"1우"},{"common_local_code":"000880","common_isin":"KR7000880005","common_name_kr":"한화","pref_local_code":"000885","pref_isin":"KR7000881003","pref_name_kr":"한화우","pref_class":"1우"},{"common_local_code":"004800","common_isin":"KR7004800009","common_name_kr":"효성","pref_local_code":"004805","pref_isin":"KR7004801007","pref_name_kr":"효성우","pref_class":"1우"},{"common_local_code":"051900","common_isin":"KR7051900009","common_name_kr":"LG생활건강","pref_local_code":"051905","pref_isin":"KR7051901007","pref_name_kr":"LG생활건강우","pref_class":"1우"}]};
+const ROWS = PAYLOAD.rows;
+const PREF_PAIRS = PAYLOAD.pref_pairs;
+
+document.getElementById('data-info').innerHTML =
+  ROWS.length + ' securities in bundled demo set <span style="opacity:.7">(offline · hand-curated subset · KRX universe is ~2,500 — run live sync for full coverage)</span>';
+
+/* ===== Normalization (mirrors mandata_kr/identifier.py) ===== */
+const ABBREV = {
+  elec:'electronics',elecmech:'electromechanics',mech:'mechanics',mtr:'motor',
+  hldgs:'holdings',hldg:'holdings',fingrp:'financialgroup',fin:'financial',
+  grp:'group',tel:'telecom',telecom:'telecom',innov:'innovation',bio:'biologics',
+  biosci:'bioscience',sec:'securities',aero:'aerospace',sys:'systems',
+  intl:'international',corp:'corporation',inc:'incorporated',co:'company',
+  ltd:'limited',ent:'enterprise',ind:'industries',constr:'construction',
+};
+const SUFFIX = new Set(['co','corp','corporation','inc','incorporated','ltd','limited','company','plc','kg','ag','sa','nv','se']);
+const CAMEL = /(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/g;
+
+function tokenize(raw){
+  let s = String(raw||'').trim();
+  s = s.replace(/[,&/\-_.()]+/g,' ').replace(CAMEL,' ').replace(/\s+/g,' ').trim().toLowerCase();
+  let t = s.split(' ').filter(Boolean);
+  while(t.length && SUFFIX.has(t[t.length-1])) t.pop();
+  return t;
+}
+function alnum(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9가-힣]+/g,''); }
+function variants(raw){
+  const t = tokenize(raw); if(!t.length) return [];
+  const e = t.map(x => ABBREV[x] || x);
+  return [...new Set([alnum(e.join('')), alnum(t.join(''))])].filter(Boolean);
+}
+function tokSet(raw){
+  const t = tokenize(raw); if(!t.length) return new Set();
+  return new Set([...t, ...t.map(x => ABBREV[x] || x)].filter(Boolean));
+}
+
+/* ===== ISIN check digit ===== */
+function isinCheck(body){
+  const digits = [];
+  for(const ch of body){
+    if(/\d/.test(ch)){ digits.push(+ch); }
+    else { const v = 10 + (ch.toUpperCase().charCodeAt(0) - 65); digits.push(Math.floor(v/10), v%10); }
+  }
+  let total = 0;
+  for(let i = digits.length-1, k = 0; i >= 0; i--, k++){
+    let d = digits[i];
+    if(k % 2 === 0){ d *= 2; if(d > 9) d -= 9; }
+    total += d;
+  }
+  return String((10 - total % 10) % 10);
+}
+function validateISIN(s){
+  if(!s || s.length !== 12) return false;
+  return isinCheck(s.slice(0,-1)) === s.slice(-1);
+}
+function fixISIN(s){
+  if(!s || s.length !== 12) return null;
+  return s.slice(0,-1) + isinCheck(s.slice(0,-1));
+}
+
+/* ===== Indices ===== */
+const byLocal = new Map(), byIsin = new Map(), byDart = new Map(),
+      byKr = new Map(), byName = new Map(), allKeys = [], tokenSets = [];
+for(const r of ROWS){
+  if(r.local_code) byLocal.set(r.local_code, r);
+  if(r.isin)       byIsin.set(r.isin, r);
+  if(r.dart_corp_code) byDart.set(r.dart_corp_code, r);
+  if(r.company_name_kr){
+    const k = alnum(r.company_name_kr); if(k) if(!byKr.has(k)) byKr.set(k, r);
+  }
+  for(const src of [r.company_name_en, r.company_name_kr, r.krx_short_en]){
+    if(!src) continue;
+    for(const v of variants(src)){
+      if(!byName.has(v)){ byName.set(v, r); allKeys.push(v); }
+    }
+  }
+  const toks = new Set();
+  for(const src of [r.company_name_en, r.company_name_kr, r.krx_short_en]){
+    if(src) for(const t of tokSet(src)) toks.add(t);
+  }
+  tokenSets.push([r, toks]);
+}
+
+/* Levenshtein ratio for fuzzy */
+function levRatio(a,b){
+  if(!a.length && !b.length) return 1;
+  if(!a.length || !b.length) return 0;
+  const m = a.length, n = b.length;
+  let prev = new Array(n+1), curr = new Array(n+1);
+  for(let j = 0; j <= n; j++) prev[j] = j;
+  for(let i = 1; i <= m; i++){
+    curr[0] = i;
+    for(let j = 1; j <= n; j++){
+      const c = a.charCodeAt(i-1) === b.charCodeAt(j-1) ? 0 : 1;
+      curr[j] = Math.min(curr[j-1]+1, prev[j]+1, prev[j-1]+c);
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return 1 - prev[n]/Math.max(m,n);
+}
+function isSubset(a, b){ for(const x of a) if(!b.has(x)) return false; return true; }
+
+/* ===== Identifier engine ===== */
+function lookup(raw){
+  if(!raw) return null;
+  const q = String(raw).trim();
+  let m;
+
+  // Bloomberg
+  if((m = q.match(/^\s*(\d{6})\s+(KS|KQ|KX)\s+(Equity|Index)?\s*$/i))){
+    const c = m[1].padStart(6,'0');
+    if(byLocal.has(c)) return make(byLocal.get(c), q, 'bloomberg_ticker', 1.0);
+  }
+  // RIC
+  if((m = q.match(/^\s*(\d{6})\.(KS|KQ|KX|KN)\s*$/i))){
+    const c = m[1].padStart(6,'0');
+    if(byLocal.has(c)) return make(byLocal.get(c), q, 'refinitiv_ric', 1.0);
+  }
+  // ISIN
+  if(q.length === 12 && q.toUpperCase().startsWith('KR')){
+    const up = q.toUpperCase();
+    if(byIsin.has(up)) return make(byIsin.get(up), q, 'isin', 1.0);
+    const fixed = fixISIN(up);
+    if(fixed && byIsin.has(fixed)) return make(byIsin.get(fixed), q, 'isin_fixed_checkdigit', 0.85);
+  }
+  // DART code (8 digit)
+  if(/^\d{8}$/.test(q) && byDart.has(q)){
+    return make(byDart.get(q), q, 'dart_corp_code', 1.0);
+  }
+  // Local code (1-6 digit)
+  const stripped = q.replace(/\s+/g,'');
+  if(/^\d{1,6}$/.test(stripped)){
+    const c = stripped.padStart(6,'0');
+    if(byLocal.has(c)) return make(byLocal.get(c), q, 'local_code', 1.0);
+    const partials = [...byLocal.keys()].filter(k => k.endsWith(stripped));
+    if(partials.length === 1) return make(byLocal.get(partials[0]), q, 'partial_local_code', 0.9);
+  }
+  // Korean exact
+  const krk = alnum(q);
+  if(krk && byKr.has(krk)) return make(byKr.get(krk), q, 'korean_name_exact', 0.97);
+  // Normalized exact
+  for(const v of variants(q)) if(byName.has(v)) return make(byName.get(v), q, 'normalized_exact', 0.95);
+  // Token alignment
+  const its = tokSet(q);
+  if(its.size){
+    let best = null;
+    for(const [r, toks] of tokenSets){
+      if(!toks.size) continue;
+      if(isSubset(its, toks)){
+        let n = 0; for(const x of its) if(toks.has(x)) n++;
+        const sc = n / Math.max(toks.size,1);
+        if(!best || sc > best[0]) best = [sc, r];
+      }
+    }
+    if(best){
+      const [sc, r] = best;
+      if(its.size >= 2) return make(r, q, 'token_align', +(0.85+0.10*sc).toFixed(3));
+      return make(r, q, 'token_align_single', +(0.78+0.10*sc).toFixed(3));
+    }
+  }
+  // Fuzzy
+  let bf = null;
+  for(const v of variants(q)){
+    for(const k of allKeys){
+      const r = levRatio(v, k);
+      if(r >= 0.80 && (!bf || r > bf[0])) bf = [r, byName.get(k)];
+    }
+  }
+  if(bf) return make(bf[1], q, 'fuzzy', +bf[0].toFixed(3));
+  return null;
+}
+
+const MATCH_LABELS = {
+  bloomberg_ticker:      'Matched as Bloomberg ticker',
+  refinitiv_ric:         'Matched as Refinitiv RIC',
+  isin:                  'Matched as ISIN',
+  isin_fixed_checkdigit: 'Matched as ISIN (auto-corrected check digit)',
+  dart_corp_code:        'Matched as DART corporate code',
+  local_code:            'Matched as KRX 6-digit short code',
+  partial_local_code:    'Matched as partial KRX code (unique)',
+  korean_name_exact:     'Matched on Korean company name',
+  normalized_exact:      'Matched on normalized name / vendor alias / derivative underlying',
+  token_align:           'Matched on token alignment (multi-word company name)',
+  token_align_single:    'Matched on token alignment (single word — lower confidence)',
+  fuzzy:                 'Matched approximately (fuzzy, accepts typos)',
+};
+
+function make(r, raw, method, conf){
+  const rec = Object.assign({}, r);
+  rec.matched_input = raw; rec.match_method = method;
+  rec.match_method_human = MATCH_LABELS[method] || method;
+  rec.confidence = conf;
+  // Derived bloomberg/ric
+  const lc = r.local_code;
+  if(lc && /^\d{6}$/.test(lc)){
+    if(r.market === 'KOSPI' || r.market === 'PREFERRED'){
+      rec.bloomberg_ticker = lc + ' KS Equity'; rec.ric = lc + '.KS';
+    } else if(r.market === 'KOSDAQ'){
+      rec.bloomberg_ticker = lc + ' KQ Equity'; rec.ric = lc + '.KQ';
+    } else if(r.market === 'KONEX'){
+      rec.bloomberg_ticker = lc + ' KX Equity'; rec.ric = lc + '.KN';
+    }
+  }
+  if(r.dart_corp_code){
+    rec.dart_url = 'https://dart.fss.or.kr/dsab007/main.do?autoSearch=true&corpCode=' + r.dart_corp_code;
+  }
+  // Related (common ↔ pref)
+  rec.related = [];
+  for(const p of PREF_PAIRS){
+    if(p.common_local_code === lc){
+      rec.related.push({relation:'preferred_of', local_code:p.pref_local_code,
+        isin:p.pref_isin, name_kr:p.pref_name_kr, pref_class:p.pref_class});
+    }
+    if(p.pref_local_code === lc){
+      rec.related.push({relation:'common_of', local_code:p.common_local_code,
+        isin:p.common_isin, name_kr:p.common_name_kr, pref_class:'COMMON'});
+    }
+  }
+  // Aliases — every way this security can be searched
+  rec.aliases = [];
+  function addAlias(kind, value, note){
+    if(value) rec.aliases.push({kind, value, note: note || ''});
+  }
+  addAlias('Korean name',         r.company_name_kr);
+  addAlias('English name',        r.company_name_en);
+  addAlias('KRX local code',      r.local_code, '6-digit KRX short code');
+  addAlias('ISIN',                r.isin, 'ISO 6166');
+  addAlias('Bloomberg ticker',    rec.bloomberg_ticker);
+  addAlias('Refinitiv RIC',       rec.ric);
+  addAlias('DART corp code',      r.dart_corp_code,
+    'Korean regulatory disclosure system (DART) corporate code');
+  if(r.krx_short_en){
+    addAlias('Derivative underlying name', r.krx_short_en,
+      'How this equity is referenced as an underlying in the KRX derivative market');
+    const lower = r.krx_short_en.toLowerCase();
+    if(lower !== r.krx_short_en){
+      addAlias('Vendor alias (lowercased)', lower,
+        'Common lowercased form used by vendor / market-data feeds');
+    }
+  }
+  return rec;
+}
+
+/* ===== UI ===== */
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function confBadge(c){
+  if(c >= 0.95) return '<span class="badge green">' + c.toFixed(2) + '</span>';
+  if(c >= 0.85) return '<span class="badge green">' + c.toFixed(2) + '</span>';
+  if(c >= 0.70) return '<span class="badge yellow">' + c.toFixed(2) + '</span>';
+  return '<span class="badge red">' + c.toFixed(2) + '</span>';
+}
+function indexBadges(r){
+  let b = '';
+  if(r.kospi200 === 'Y') b += ' <span class="badge brand">KOSPI 200</span>';
+  if(r.kosdaq150 === 'Y') b += ' <span class="badge brand">KOSDAQ 150</span>';
+  if(r.krx300 === 'Y') b += ' <span class="badge blue">KRX 300</span>';
+  if(r.share_class && r.share_class !== 'COMMON') b += ' <span class="badge yellow">' + esc(r.share_class) + '</span>';
+  return b;
+}
+
+function renderResult(q){
+  const el = document.getElementById('result');
+  const v = (q||'').trim();
+  if(!v){
+    el.className = 'result-card empty';
+    el.textContent = 'Start typing or click a chip — supports 9+ identifier types.';
+    return;
+  }
+  const r = lookup(v);
+  if(!r){
+    el.className = 'result-card miss';
+    el.innerHTML = '<div class="r-name" style="color:var(--red)">No match</div>' +
+      '<div class="r-en">"'+esc(v)+'" did not resolve.</div>';
+    return;
+  }
+  const rows = [
+    ['ISIN', esc(r.isin)],
+    ['Local code', esc(r.local_code)],
+    ['Bloomberg', esc(r.bloomberg_ticker || '')],
+    ['RIC', esc(r.ric || '')],
+    ['Market', esc(r.market || '')],
+    ['Share class', esc(r.share_class || 'COMMON')],
+    ['Sector (GICS)', r.sector_code_gics ? esc(r.sector_code_gics)+' &nbsp; '+esc(r.sector_name_en) : ''],
+    ['Industry (KR)', esc(r.industry_name_kr || '')],
+    ['Listing date', esc(r.listing_date || '')],
+    ['DART corp code', esc(r.dart_corp_code || '')],
+    ['DART filings', r.dart_url ? '<a href="'+esc(r.dart_url)+'" target="_blank" rel="noopener">Open DART →</a>' : ''],
+  ].filter(([k,v]) => v);
+
+  let html = '<div class="r-head"><div class="r-name">' + esc(r.company_name_kr || r.company_name_en) + '</div>' +
+    confBadge(r.confidence) + indexBadges(r) + '</div>' +
+    '<div class="r-en">' + esc(r.company_name_en || '') + '</div>' +
+    '<div class="r-grid">';
+  for(const [k,v] of rows){
+    html += '<div class="r-k">' + k + '</div><div class="r-v">' + v + '</div>';
+  }
+  html += '</div>';
+
+  // Match explanation (human-readable)
+  html += '<div class="match-explain">You searched <code>'+esc(r.matched_input)+'</code>' +
+    '<span class="arrow">→</span>' + esc(r.match_method_human) + '</div>';
+
+  // Aliases — all the ways this security can be searched
+  if(r.aliases && r.aliases.length){
+    html += '<div class="aliases"><h4>Also searchable as — every identifier that resolves to this same security</h4>';
+    html += '<table class="aliases-table"><tbody>';
+    for(const a of r.aliases){
+      html += '<tr><td class="a-kind">' + esc(a.kind) + '</td>' +
+              '<td class="a-val">' + esc(a.value) + '</td>' +
+              '<td class="a-note">' + esc(a.note || '') + '</td></tr>';
+    }
+    html += '</tbody></table></div>';
+  }
+
+  if(r.related && r.related.length){
+    html += '<div class="related"><h4>Related instruments</h4>';
+    for(const rel of r.related){
+      const arrow = rel.relation === 'preferred_of' ? '→ preferred' : '→ common';
+      html += '<div class="rel-row"><a data-q="'+esc(rel.local_code)+'">'+esc(rel.local_code)+'</a> · ' +
+        esc(rel.isin) + ' · ' + esc(rel.name_kr) + ' &nbsp; <span class="badge yellow">'+esc(rel.pref_class)+'</span> &nbsp; <span style="color:var(--muted)">'+arrow+'</span></div>';
+    }
+    html += '</div>';
+  }
+
+  el.className = 'result-card hit';
+  el.innerHTML = html;
+  // related click-to-search
+  el.querySelectorAll('.related a[data-q]').forEach(a => {
+    a.addEventListener('click', () => {
+      const q = a.getAttribute('data-q');
+      document.getElementById('q').value = q;
+      renderResult(q);
+    });
+  });
+}
+
+document.getElementById('q').addEventListener('input', e => renderResult(e.target.value));
+document.querySelectorAll('#chips .chip').forEach(c => {
+  c.addEventListener('click', () => {
+    const q = c.getAttribute('data-q');
+    document.getElementById('q').value = q;
+    document.getElementById('q').focus();
+    renderResult(q);
+  });
+});
+
+/* ===== Tabs ===== */
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+    const target = t.getAttribute('data-tab');
+    document.querySelectorAll('section[data-pane]').forEach(s => {
+      s.hidden = (s.getAttribute('data-pane') !== target);
+    });
+    if(target === 'members') renderMembers();
+    if(target === 'search')  renderSearch();
+  });
+});
+
+/* ===== Search tab ===== */
+function renderSearch(){
+  const q = document.getElementById('searchQ').value.trim();
+  const limit = +document.getElementById('searchLimit').value;
+  const tbody = document.querySelector('#searchTbl tbody');
+  if(!q){
+    tbody.innerHTML = '';
+    document.getElementById('searchSummary').textContent = 'Type a Korean or English substring above.';
+    return;
+  }
+  const qn = alnum(q);
+  const hits = [];
+  const seen = new Set();
+  for(const r of ROWS){
+    if(!r.local_code) continue;
+    const keys = [alnum(r.company_name_kr), alnum(r.company_name_en),
+                  alnum(r.krx_short_en), (r.local_code||'').toLowerCase()];
+    if(keys.some(k => k && k.includes(qn))){
+      if(seen.has(r.local_code)) continue;
+      seen.add(r.local_code); hits.push(r);
+      if(hits.length >= limit) break;
+    }
+  }
+  document.getElementById('searchSummary').textContent =
+    hits.length + ' match(es) for ' + JSON.stringify(q);
+  tbody.innerHTML = hits.map(r =>
+    '<tr><td>' + esc(r.local_code) + '</td>' +
+    '<td>' + esc(r.isin) + '</td>' +
+    '<td>' + esc(r.company_name_kr) + indexBadges(r) + '</td>' +
+    '<td>' + esc(r.company_name_en) + '</td>' +
+    '<td>' + esc(r.market) + '</td>' +
+    '<td>' + esc(r.sector_name_en||'') + (r.industry_name_kr?' · '+esc(r.industry_name_kr):'') + '</td>' +
+    '<td class="action" data-q="' + esc(r.local_code) + '">open →</td></tr>'
+  ).join('');
+  tbody.querySelectorAll('.action').forEach(td => td.addEventListener('click', () => {
+    document.querySelector('.tab[data-tab=lookup]').click();
+    const q = td.getAttribute('data-q');
+    document.getElementById('q').value = q; renderResult(q);
+  }));
+}
+document.getElementById('searchQ').addEventListener('input', renderSearch);
+document.getElementById('searchLimit').addEventListener('change', renderSearch);
+
+/* ===== Members tab ===== */
+function renderMembers(){
+  const idx = document.getElementById('idxSel').value;
+  const col = {KOSPI200:'kospi200', KOSDAQ150:'kosdaq150', KRX300:'krx300'}[idx];
+  let rows = ROWS.filter(r => r[col] === 'Y');
+  // Populate sector filter
+  const secSel = document.getElementById('sectorSel');
+  const sectors = [...new Set(rows.map(r => r.sector_name_en).filter(Boolean))].sort();
+  if(secSel.options.length <= 1 || secSel.dataset.idx !== idx){
+    secSel.innerHTML = '<option value="">(all)</option>' +
+      sectors.map(s => '<option>'+esc(s)+'</option>').join('');
+    secSel.dataset.idx = idx;
+  }
+  const fSec = secSel.value;
+  if(fSec) rows = rows.filter(r => r.sector_name_en === fSec);
+  document.getElementById('memberSummary').textContent =
+    idx + ' · ' + rows.length + ' member(s)' + (fSec ? ' · ' + fSec : '');
+  const tbody = document.querySelector('#memberTbl tbody');
+  tbody.innerHTML = rows.map(r =>
+    '<tr><td>' + esc(r.local_code) + '</td>' +
+    '<td>' + esc(r.isin) + '</td>' +
+    '<td>' + esc(r.company_name_kr) + '</td>' +
+    '<td>' + esc(r.company_name_en) + '</td>' +
+    '<td>' + esc(r.market) + '</td>' +
+    '<td>' + esc(r.sector_name_en||'') + '</td>' +
+    '<td>' + esc(r.industry_name_kr||'') + '</td>' +
+    '<td class="action" data-q="' + esc(r.local_code) + '">open →</td></tr>'
+  ).join('');
+  tbody.querySelectorAll('.action').forEach(td => td.addEventListener('click', () => {
+    document.querySelector('.tab[data-tab=lookup]').click();
+    const q = td.getAttribute('data-q');
+    document.getElementById('q').value = q; renderResult(q);
+  }));
+}
+document.getElementById('idxSel').addEventListener('change', renderMembers);
+document.getElementById('sectorSel').addEventListener('change', renderMembers);
+
+/* ===== Validate tab ===== */
+function renderValidate(){
+  const isin = document.getElementById('valQ').value.trim().toUpperCase();
+  const el = document.getElementById('valResult');
+  if(!isin){ el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  if(isin.length !== 12){
+    el.className = 'validate-result fail';
+    el.innerHTML = '<strong>Invalid length</strong> &nbsp; ISIN must be exactly 12 characters; this is ' + isin.length + '.';
+    return;
+  }
+  const valid = validateISIN(isin);
+  if(valid){
+    const found = byIsin.has(isin);
+    el.className = 'validate-result ok';
+    el.innerHTML = '✓ <strong>'+esc(isin)+'</strong> is a valid ISIN (check digit passes).' +
+      (found ? ' &nbsp; <span class="badge brand">In our master: '+esc(byIsin.get(isin).company_name_kr)+'</span>' : '');
+  } else {
+    const corrected = fixISIN(isin);
+    el.className = 'validate-result fail';
+    el.innerHTML = '✗ <strong>'+esc(isin)+'</strong> fails the ISIN check digit.<br>' +
+      (corrected ? '&nbsp; Suggested correction: <strong>'+esc(corrected)+'</strong>' +
+        (byIsin.has(corrected) ? ' &nbsp; <span class="badge brand">'+esc(byIsin.get(corrected).company_name_kr)+'</span>' : '')
+        : '');
+  }
+}
+document.getElementById('valQ').addEventListener('input', renderValidate);
+</script>
+</body>
+</html>

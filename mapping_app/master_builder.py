@@ -394,12 +394,14 @@ def resolve_shareholder_from_dart_master(
             "_master_match": "국민연금공단",
         }
 
-    # 1순위 — DART 마스터 정확 일치
+    # 1순위 — DART 마스터 정확 일치 (동명이면 상장사 우선)
     match_row = None
     match_kind = ""   # 'exact' / 'prefix_suffix' / ''
     matched = dart_master[dart_master["corp_name"].astype(str).str.strip() == name]
     if not matched.empty:
-        match_row = matched.iloc[0]
+        listed_exact = matched[matched["stock_code"].astype(str).str.strip() != ""]
+        match_row  = (listed_exact.iloc[0] if not listed_exact.empty
+                       else matched.iloc[0])
         match_kind = "exact"
     elif len(name) >= 3:
         # 부분 매칭 (엄격) — name 이 corp_name 의 prefix/suffix 일 때만.
@@ -463,7 +465,8 @@ def resolve_shareholder_from_dart_master(
         except Exception:
             isin = ""
     else:
-        listing, isin = "Not listed", ""
+        # stock_code 비었어도 'Not listed' 단정 X — 빈 값으로 두고 LLM 보강 트리거
+        listing, isin = "", ""
 
     return {
         "largest_shareholder_company_name_en": eng_name,
@@ -471,6 +474,7 @@ def resolve_shareholder_from_dart_master(
         "largest_shareholder_security_code":   isin,
         "_source":      f"DART {match_kind}",
         "_master_match": match_row.get("corp_name", ""),
+        "_master_stock_code": stock,
     }
 
 

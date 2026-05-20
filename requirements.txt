@@ -10,6 +10,10 @@ openpyxl==3.1.5
 # 회사명 유사도 매칭 가속 (10~100배). 없으면 difflib로 자동 폴백.
 rapidfuzz==3.10.1
 
+# bizno_app — 사업자번호 → 업체명 조회 (bizno.net 스크래핑)
+beautifulsoup4==4.12.3
+lxml==5.3.0
+
 # analysis_app.py 전용
 yfinance==0.2.50
 # Chrome TLS fingerprint 위장 — Streamlit Cloud에서 Yahoo Finance 차단 우회

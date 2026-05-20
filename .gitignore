@@ -54,6 +54,13 @@ output/
 .mypy_cache/
 .ruff_cache/
 
+# ── 통합 런처 로그 ───────────────────────────────────────────────────────
+.launcher_logs/
+
+# ── bizno_app 머천트 매핑 캐시 (각자 다시 빌드되니까 git에는 안 들어가도 OK) ─
+bizno_app/data/merchant_cache.json
+bizno_app/checkpoint_results.txt
+
 # ── 로그 ─────────────────────────────────────────────────────────────────
 *.log
 logs/

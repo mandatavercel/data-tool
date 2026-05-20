@@ -1,0 +1,1764 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>데이터 파트너 수익배분율 산정 도구 · MANDATA</title>
+<style>
+:root {
+  --navy: #1E2A4A;
+  --navy-2: #2A3A5F;
+  --blue: #3B6AC4;
+  --gold: #C9A961;
+  --gold-dark: #A88A45;
+  --light: #F5F7FA;
+  --gray-bg: #E8ECF1;
+  --gray-border: #D1D5DB;
+  --text: #1A1F2E;
+  --muted: #6B7280;
+  --white: #FFFFFF;
+  --success: #2F855A;
+  --danger: #B83A3A;
+  --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 25px rgba(15, 23, 42, 0.08), 0 4px 10px rgba(15, 23, 42, 0.04);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  font-family: "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", -apple-system,
+               BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--light);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--blue); text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+input, select, textarea { font-family: inherit; font-size: 14px; }
+
+/* ===== Layout ===== */
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 24px 60px;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--gray-border);
+  margin-bottom: 24px;
+}
+
+.app-header h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: -0.3px;
+}
+
+.app-header .eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--blue);
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+.app-header .version {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 480px;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .grid { grid-template-columns: 1fr; }
+}
+
+/* ===== Card ===== */
+.card {
+  background: var(--white);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.card-head {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--gray-bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-head h2 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-head .step-num {
+  width: 22px;
+  height: 22px;
+  background: var(--navy);
+  color: var(--gold);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.card-body { padding: 18px; }
+
+.help-text {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+/* ===== Form ===== */
+.field { margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--navy);
+  margin-bottom: 6px;
+}
+
+.field input[type="text"],
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--gray-border);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(59, 106, 196, 0.12);
+}
+
+.field textarea { resize: vertical; min-height: 60px; }
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ===== Score input ===== */
+.criteria-list { display: flex; flex-direction: column; gap: 10px; }
+
+.criterion {
+  background: var(--light);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.criterion-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.criterion-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.criterion-weight {
+  font-size: 11px;
+  color: var(--blue);
+  background: rgba(59, 106, 196, 0.10);
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.criterion-help {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.score-options {
+  display: flex;
+  gap: 4px;
+}
+
+.score-options input { display: none; }
+
+.score-options label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 3px;
+  min-height: 56px;
+  background: var(--white);
+  border: 1px solid var(--gray-border);
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.score-options label .score-num {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.score-options label .score-text {
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.25;
+  opacity: 0.82;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.score-options input:checked + label {
+  background: var(--navy);
+  color: var(--gold);
+  border-color: var(--navy);
+}
+
+.score-options input:checked + label .score-text {
+  opacity: 1;
+  color: #E5D9B6;
+}
+
+.score-options label:hover {
+  border-color: var(--blue);
+}
+
+.score-options input:checked + label:hover {
+  border-color: var(--navy);
+}
+
+/* ===== Result panel ===== */
+.result-card {
+  position: sticky;
+  top: 16px;
+}
+
+.result-headline {
+  background: var(--navy);
+  color: var(--white);
+  padding: 18px 20px;
+}
+
+.result-headline .label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.result-headline .partner-name {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.result-headline .partner-type {
+  font-size: 12px;
+  color: #CADCFC;
+}
+
+.tier-results { padding: 4px 20px 18px; background: var(--navy); }
+
+.tier-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tier-row:last-child { border-bottom: none; }
+
+.tier-info .tier-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gold);
+  margin-bottom: 2px;
+}
+
+.tier-info .tier-range {
+  font-size: 11px;
+  color: #CADCFC;
+}
+
+.tier-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--white);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.tier-value.highlight { color: var(--gold); }
+
+.result-detail { padding: 16px 20px; background: var(--white); }
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px dotted var(--gray-bg);
+  font-size: 12px;
+}
+
+.metric-row:last-child { border-bottom: none; }
+.metric-row .key { color: var(--muted); }
+.metric-row .val { color: var(--navy); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.narrative {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--light);
+  border-left: 3px solid var(--gold);
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.narrative strong { color: var(--navy); font-weight: 700; }
+
+/* ===== Action bar ===== */
+.actions {
+  display: flex;
+  gap: 8px;
+  padding: 14px 20px;
+  background: var(--light);
+  border-top: 1px solid var(--gray-bg);
+  flex-wrap: wrap;
+}
+
+.btn {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.btn:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+.btn:active { transform: translateY(0); }
+
+.btn-primary {
+  background: var(--navy);
+  color: var(--gold);
+  border-color: var(--navy);
+}
+.btn-primary:hover { background: var(--navy-2); }
+
+.btn-secondary {
+  background: var(--white);
+  color: var(--navy);
+  border-color: var(--gray-border);
+}
+.btn-secondary:hover { border-color: var(--navy); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border-color: transparent;
+}
+.btn-ghost:hover { background: var(--gray-bg); color: var(--text); }
+
+/* ===== History panel ===== */
+.history-list { max-height: 240px; overflow-y: auto; }
+
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--gray-bg);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.history-item:hover { background: var(--light); }
+.history-item:last-child { border-bottom: none; }
+
+.history-info .h-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+}
+.history-info .h-meta {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.history-info .h-type { color: var(--blue); }
+.history-info .h-time { color: var(--muted); }
+
+.history-tiers {
+  font-size: 11px;
+  color: var(--navy);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.history-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.icon-btn {
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-btn:hover { background: var(--gray-bg); color: var(--navy); }
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--navy);
+  color: var(--white);
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s;
+  z-index: 100;
+  box-shadow: var(--shadow-lg);
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ===== Modal (proposal text) ===== */
+.modal-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 20px;
+}
+.modal-bg.show { display: flex; }
+
+.modal {
+  background: var(--white);
+  border-radius: 10px;
+  max-width: 720px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--gray-bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-head h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy);
+}
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+.modal-body textarea {
+  width: 100%;
+  min-height: 360px;
+  border: 1px solid var(--gray-border);
+  border-radius: 6px;
+  padding: 14px;
+  font-family: "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", sans-serif;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+  resize: vertical;
+}
+.modal-foot {
+  padding: 14px 20px;
+  border-top: 1px solid var(--gray-bg);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ===== Tabs ===== */
+.tabs-nav {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--gray-bg);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs-nav::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+  padding: 11px 18px;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  position: relative;
+  border-radius: 6px 6px 0 0;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-btn:hover { color: var(--navy); background: rgba(30, 42, 74, 0.04); }
+
+.tab-btn.active {
+  color: var(--navy);
+  background: var(--white);
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gold);
+}
+
+.tab-panel { display: block; }
+.tab-panel.hidden { display: none; }
+
+/* ===== Reference/Policy/Rubric tables ===== */
+.policy-section {
+  background: var(--white);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 24px 28px;
+  margin-bottom: 16px;
+}
+
+.policy-section h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.policy-section .eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--blue);
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+.policy-section p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.policy-section p:last-child { margin-bottom: 0; }
+
+.policy-section .formula-box {
+  background: var(--navy);
+  color: var(--white);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 14px 0;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.7;
+  text-align: center;
+}
+.policy-section .formula-box .formula-label {
+  display: block;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.principles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.principle-card {
+  background: var(--light);
+  border-left: 3px solid var(--gold);
+  border-radius: 4px;
+  padding: 12px 14px;
+}
+.principle-card .pc-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 2px;
+}
+.principle-card .pc-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  margin: 2px 0 4px;
+}
+.principle-card .pc-desc {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Reference tables */
+table.ref-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12.5px;
+  margin-top: 8px;
+}
+table.ref-table thead th {
+  background: var(--navy);
+  color: var(--white);
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  border-right: 1px solid rgba(255,255,255,0.08);
+}
+table.ref-table thead th:first-child { border-radius: 6px 0 0 0; }
+table.ref-table thead th:last-child  { border-radius: 0 6px 0 0; border-right: none; }
+table.ref-table tbody td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--gray-bg);
+  color: var(--text);
+  vertical-align: middle;
+}
+table.ref-table tbody tr:hover td { background: var(--light); }
+table.ref-table tbody tr:last-child td { border-bottom: none; }
+table.ref-table .num { text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+table.ref-table .num-emph { color: var(--navy); font-weight: 700; }
+table.ref-table .num-gold { color: var(--gold-dark); font-weight: 700; }
+table.ref-table .muted { color: var(--muted); font-size: 11.5px; }
+
+.cap-banner {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%);
+  color: var(--white);
+  border-radius: 10px;
+  padding: 18px 22px;
+  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.cap-banner .cap-block .label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 2px;
+}
+.cap-banner .cap-block .value {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 2px 0 4px;
+}
+.cap-banner .cap-block .desc {
+  font-size: 11.5px;
+  color: #CADCFC;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .cap-banner { grid-template-columns: 1fr; }
+}
+
+/* ===== Print ===== */
+@media print {
+  body { background: white; }
+  .app { padding: 0; max-width: none; }
+  .grid { grid-template-columns: 1fr; }
+  .actions, .history-card, .icon-btn, .app-header .version, .modal-bg { display: none !important; }
+  .card { box-shadow: none; border: 1px solid #ddd; page-break-inside: avoid; }
+  .result-card { position: static; }
+}
+
+/* ===== Misc ===== */
+.divider-text {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  padding: 8px 0;
+}
+
+.footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--gray-bg);
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+.footer .formula {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  color: var(--navy);
+  background: var(--light);
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin: 0 2px;
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Header -->
+  <div class="app-header">
+    <div>
+      <div class="eyebrow">MANDATA · REVENUE SHARING POLICY</div>
+      <h1>데이터 파트너 수익배분율 산정 도구</h1>
+    </div>
+    <div class="version">v1.0</div>
+  </div>
+
+  <!-- Tabs Navigation -->
+  <div class="tabs-nav" role="tablist">
+    <button class="tab-btn active" data-tab="calc"   role="tab">🧮 산정 계산기</button>
+    <button class="tab-btn"        data-tab="policy" role="tab">📘 정책 개요</button>
+    <button class="tab-btn"        data-tab="ref"    role="tab">📋 기준표</button>
+    <button class="tab-btn"        data-tab="rubric" role="tab">📐 점수 기준</button>
+  </div>
+
+  <!-- ============ TAB: 산정 계산기 ============ -->
+  <div class="tab-panel" data-tab="calc">
+
+  <div class="grid">
+
+    <!-- LEFT: Input -->
+    <div>
+
+      <!-- Step 1: Partner Info -->
+      <div class="card">
+        <div class="card-head">
+          <h2><span class="step-num">1</span> 파트너 정보</h2>
+        </div>
+        <div class="card-body">
+          <div class="field">
+            <label for="partner-name">파트너사명</label>
+            <input type="text" id="partner-name" placeholder="예: ○○카드, ○○리테일, ○○통신 등" autocomplete="off">
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="source-type">데이터 원천사 유형 *</label>
+              <select id="source-type">
+                <option value="">— 선택 —</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="base-rate-display">기본 배분율 (자동)</label>
+              <input type="text" id="base-rate-display" readonly value="—"
+                     style="background: var(--light); font-weight: 600; color: var(--navy);">
+            </div>
+          </div>
+          <div class="field">
+            <label for="data-asset">주요 데이터 자산</label>
+            <textarea id="data-asset" placeholder="예: 전국 매장 거래 데이터 (SKU/브랜드 단위), 일별 단위 시계열"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Score -->
+      <div class="card">
+        <div class="card-head">
+          <h2><span class="step-num">2</span> 평가 항목별 점수 (1~5점)</h2>
+        </div>
+        <div class="card-body">
+          <p class="help-text">각 항목에 1점(매우 낮음) ~ 5점(매우 높음)을 선택하세요. 모든 항목은 점수가 높을수록 파트너 배분율이 상향되도록 정의됩니다.</p>
+          <div id="criteria-list" class="criteria-list"></div>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div class="card history-card">
+        <div class="card-head">
+          <h2>📁 산정 이력</h2>
+          <button class="icon-btn" id="clear-history" title="이력 전체 삭제">🗑️</button>
+        </div>
+        <div id="history-list" class="history-list"></div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: Result Panel -->
+    <div>
+      <div class="card result-card">
+        <div class="result-headline">
+          <div class="label">SIMULATION RESULT</div>
+          <div class="partner-name" id="result-name">— 파트너 정보 입력 —</div>
+          <div class="partner-type" id="result-type">원천사 유형을 선택하면 산정이 시작됩니다</div>
+        </div>
+
+        <div class="tier-results">
+          <div class="tier-row">
+            <div class="tier-info">
+              <div class="tier-name">TIER 1</div>
+              <div class="tier-range">연 순매출 $300K 이하</div>
+            </div>
+            <div class="tier-value" id="tier1">—</div>
+          </div>
+          <div class="tier-row">
+            <div class="tier-info">
+              <div class="tier-name">TIER 2</div>
+              <div class="tier-range">$300K ~ $1M</div>
+            </div>
+            <div class="tier-value" id="tier2">—</div>
+          </div>
+          <div class="tier-row">
+            <div class="tier-info">
+              <div class="tier-name">TIER 3</div>
+              <div class="tier-range">$1M 초과</div>
+            </div>
+            <div class="tier-value highlight" id="tier3">—</div>
+          </div>
+        </div>
+
+        <div class="result-detail">
+          <div class="metric-row">
+            <span class="key">가중평균 점수</span>
+            <span class="val" id="m-wavg">—</span>
+          </div>
+          <div class="metric-row">
+            <span class="key">기본 배분율 (원천사 유형)</span>
+            <span class="val" id="m-base">—</span>
+          </div>
+          <div class="metric-row">
+            <span class="key">점수 조정폭 (vs 기준 3.0)</span>
+            <span class="val" id="m-adj">—</span>
+          </div>
+          <div class="metric-row">
+            <span class="key">맨데이터 배분율 (Tier 1)</span>
+            <span class="val" id="m-mandata">—</span>
+          </div>
+
+          <div class="narrative" id="narrative">
+            점수를 입력하면 산정 결과와 적용 설명이 여기에 자동 표시됩니다.
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" id="btn-save" disabled>💾 저장</button>
+          <button class="btn btn-secondary" id="btn-proposal" disabled>📋 산정 결과서</button>
+          <button class="btn btn-secondary" id="btn-print" disabled>🖨️ 인쇄</button>
+          <button class="btn btn-ghost" id="btn-reset">↺ 초기화</button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  </div><!-- /tab-panel calc -->
+
+  <!-- ============ TAB: 정책 개요 ============ -->
+  <div class="tab-panel hidden" data-tab="policy">
+
+    <div class="policy-section">
+      <div class="eyebrow">POLICY OVERVIEW</div>
+      <h2>📘 정책의 목적</h2>
+      <p>본 정책은 글로벌 기관투자자 대상 데이터 상품을 제공하는 과정에서, 데이터 원천사(파트너)와의 수익배분율을 일관되고 설득력 있게 산정하기 위한 기준이다. 모든 신규·갱신 파트너십 계약에 본 정책이 표준 산정 기준으로 적용되며, 파트너에게 제시되는 배분율의 근거 문서로 활용된다.</p>
+      <p>본 정책은 두 가지 목표를 동시에 달성한다. 첫째, 데이터 원천사의 본질적 가치를 객관적 지표로 평가하여 정당한 보상을 보장한다. 둘째, 맨데이터의 상품화·세일즈·운영 기여도가 매출에 비례하여 적정하게 회수되도록 한다. 따라서 단순히 "데이터를 제공한다"는 사실이 아닌, 시장 대표성·데이터 가치·상업화 부담을 정량 평가한 결과로 배분율을 산정한다.</p>
+    </div>
+
+    <div class="policy-section">
+      <h2>🏛 5대 산정 원칙</h2>
+      <div class="principles-grid">
+        <div class="principle-card">
+          <div class="pc-num">PRINCIPLE 01</div>
+          <div class="pc-title">정량 평가 우선</div>
+          <div class="pc-desc">사전 정의된 7개 평가 항목의 가중 점수에 의해 산정. 모든 파트너에게 동일한 산정 공식 적용.</div>
+        </div>
+        <div class="principle-card">
+          <div class="pc-num">PRINCIPLE 02</div>
+          <div class="pc-title">가치-비용 균형</div>
+          <div class="pc-desc">데이터 원천 가치(70%)와 상업화 비용 부담(30%)을 동등한 비중으로 반영.</div>
+        </div>
+        <div class="principle-card">
+          <div class="pc-num">PRINCIPLE 03</div>
+          <div class="pc-title">Tier-up 연동</div>
+          <div class="pc-desc">연간 순매출 규모에 따라 자동 상향되는 단계형 구조. 파트너에게 매출 성장 인센티브 제공.</div>
+        </div>
+        <div class="principle-card">
+          <div class="pc-num">PRINCIPLE 04</div>
+          <div class="pc-title">상하한 캡</div>
+          <div class="pc-desc">파트너 배분율은 25% 미만 또는 60% 초과로 산정되지 않음. 양측의 최소·최대 이익 보호.</div>
+        </div>
+        <div class="principle-card">
+          <div class="pc-num">PRINCIPLE 05</div>
+          <div class="pc-title">정책의 투명성</div>
+          <div class="pc-desc">산정 공식, 평가 항목, 가중치, Tier 구조 모두 공개. 산정 근거 자료 일체 제공.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="policy-section">
+      <h2>📐 산정 공식</h2>
+      <div class="formula-box">
+        <span class="formula-label">STEP 1 · 가중평균 점수</span>
+        Σ ( 평가 항목 점수 × 가중치 )  →  1.00 ~ 5.00
+      </div>
+      <div class="formula-box">
+        <span class="formula-label">STEP 2 · 조정폭</span>
+        ( 가중평균 − 3.0 ) × 6%p  →  최대 ±12%p
+      </div>
+      <div class="formula-box">
+        <span class="formula-label">STEP 3 · 최종 파트너 배분율</span>
+        MAX( 25% , MIN( 60% , 기본배분율 + 조정폭 + Tier 가산 ) )
+      </div>
+      <p>기본 배분율은 데이터 원천사 유형별로 사전 설정된 출발점이며, 평가 점수에 따라 ±12%p 범위 내에서 조정된다. Tier 가산은 연간 순매출 구간에 따라 자동 적용(+0/+3/+5%p)되며, 최종 결과에 캡(25%~60%)이 적용된다.</p>
+    </div>
+
+    <div class="policy-section">
+      <h2>🔒 캡(Cap) 정책</h2>
+      <div class="cap-banner">
+        <div class="cap-block">
+          <div class="label">LOWER CAP</div>
+          <div class="value">25%</div>
+          <div class="desc">데이터 원천사 없이는 사업이 성립하지 않는다는 점을 반영. 어떤 평가 결과에서도 원천사의 최소 가치를 보장하기 위한 안전선.</div>
+        </div>
+        <div class="cap-block">
+          <div class="label">UPPER CAP</div>
+          <div class="value">60%</div>
+          <div class="desc">맨데이터가 부담하는 상품화·세일즈·계약·운영 비용의 회수와 신규 투자 여력 확보를 위한 최소 마진선.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tab-panel policy -->
+
+  <!-- ============ TAB: 기준표 ============ -->
+  <div class="tab-panel hidden" data-tab="ref">
+
+    <div class="policy-section">
+      <div class="eyebrow">REFERENCE TABLE · ①</div>
+      <h2>데이터 원천사 유형별 기본 배분율</h2>
+      <p>모든 산정의 출발점. 데이터 유형이 글로벌 기관투자자 시장에서 일반적으로 갖는 본질적 가치·상품화 난이도·거래 사례를 종합 반영한 사전 설정 값이다.</p>
+      <table class="ref-table" id="ref-source-types"></table>
+    </div>
+
+    <div class="policy-section">
+      <div class="eyebrow">REFERENCE TABLE · ②</div>
+      <h2>평가 항목별 가중치 (총합 100%)</h2>
+      <p>데이터 자체의 가치(시장 커버리지·점유율·독점성·활용성·깊이) 70% + 상업화 가능성(상품화·판매 용이성) 30%. 데이터 활용성이 단일 항목 최고 가중치(20%) — 글로벌 기관투자자가 데이터를 매입하는 본질적 이유이기 때문.</p>
+      <table class="ref-table" id="ref-criteria"></table>
+    </div>
+
+    <div class="policy-section">
+      <div class="eyebrow">REFERENCE TABLE · ③</div>
+      <h2>매출 구간별 Tier-up 가산</h2>
+      <p>"순매출"은 환불·할인·플랫폼 수수료 차감 후 맨데이터에 인식되는 매출액. 매출 성장 시 배분율이 자동 상향되는 단계형 구조로, 파트너에게 명확한 성장 인센티브를 제공.</p>
+      <table class="ref-table" id="ref-tiers"></table>
+    </div>
+
+  </div><!-- /tab-panel ref -->
+
+  <!-- ============ TAB: 점수 기준 ============ -->
+  <div class="tab-panel hidden" data-tab="rubric">
+
+    <div class="policy-section">
+      <div class="eyebrow">SCORING RUBRIC</div>
+      <h2>📐 평가 항목별 1~5점 기준 정의</h2>
+      <p>각 평가 항목에서 1점(매우 낮음) ~ 5점(매우 높음)을 매기는 기준. 평가자는 객관적 근거(시장조사, 매출 점유율 등)를 확보한 후 점수를 부여한다. 모든 항목은 점수가 높을수록 파트너 배분율이 상향되도록 정의된다.</p>
+      <table class="ref-table" id="ref-rubric"></table>
+    </div>
+
+  </div><!-- /tab-panel rubric -->
+
+  <div class="footer">
+    공식
+    <span class="formula">파트너 배분율 = MAX(25%, MIN(60%, 기본배분율 + (가중평균−3.0)×6%p + Tier 가산))</span>
+    &nbsp;·&nbsp; MANDATA Internal Policy v1.0
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Proposal modal -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>산정 결과서 — 계약서·제안서·내부 공유에 그대로 사용 가능</h3>
+      <button class="icon-btn" id="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <textarea id="proposal-text"></textarea>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" id="modal-copy">📄 클립보드 복사</button>
+      <button class="btn btn-ghost" id="modal-dismiss">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Policy data (정책 변경 시 이 객체만 수정)
+// ============================================================
+const POLICY = {
+  version: "1.0",
+  formula: {
+    adjustmentPerPoint: 0.06,   // (점수−3.0) × 6%p
+    referenceScore: 3.0,
+    cap: { min: 0.25, max: 0.60 },
+  },
+  sourceTypes: [
+    { key: "card",     name: "카드사",          base: 0.50, note: "결제시장 전반 커버리지, 소비지출 대표성 매우 높음" },
+    { key: "telco",    name: "통신사",          base: 0.50, note: "대규모 가입자 기반 위치·행동 데이터, 트래픽/유동인구 강점" },
+    { key: "pos",      name: "POS사",           base: 0.45, note: "SKU 단위 매장 판매 데이터, 커버리지 검증 필요" },
+    { key: "finapp",   name: "금융 플랫폼",     base: 0.45, note: "계좌·송금·소비관리 데이터, 규제·비식별화 난이도" },
+    { key: "retail",   name: "유통사",          base: 0.40, note: "특정 채널 내 실거래 데이터 (편의점·마트·이커머스 등)" },
+    { key: "loyalty",  name: "멤버십 사업자",   base: 0.40, note: "회원 기반 재구매·충성도 데이터" },
+    { key: "digital",  name: "앱·디지털 플랫폼", base: 0.40, note: "MAU·행동 데이터, 투자 신호화 작업 필요" },
+    { key: "public",   name: "공공·준공공",     base: 0.35, note: "신뢰성 높으나 상업화 설계 부담 큼" },
+  ],
+  criteria: [
+    { key: "coverage", name: "시장 커버리지",     weight: 0.15,
+      help: "데이터가 전체 시장의 몇 %를 대표하는가",
+      rubric: [null, "10% 미만 대표", "10~30%", "30~50%", "50~70%", "70% 이상 / 압도적"] },
+    { key: "share",    name: "시장 점유율",       weight: 0.10,
+      help: "원천사가 업계 내 차지하는 점유율",
+      rubric: [null, "5% 미만", "5~15%", "15~30%", "30~50%", "50% 이상 / 1위"] },
+    { key: "exclusive", name: "데이터 독점성",    weight: 0.15,
+      help: "외부에서 대체 가능한지 여부",
+      rubric: [null, "공개·외부 다수", "유사 데이터 다수", "대체 가능, 품질차", "대체 어려움", "원천사 단독 제공"] },
+    { key: "utility",  name: "데이터 활용성",     weight: 0.20,
+      help: "투자기관이 매출·수요·트래픽을 직접 추정 가능한지",
+      rubric: [null, "신호 추정 어려움", "간접 일부", "카테고리 단위", "브랜드/세그먼트", "종목·SKU 직접 추정"] },
+    { key: "depth",    name: "데이터 깊이/품질",  weight: 0.10,
+      help: "SKU·브랜드·시계열 등 분석 깊이",
+      rubric: [null, "집계만 가능", "월별 카테고리", "주별 SKU/브랜드", "일별 SKU/매장", "분 단위·실시간"] },
+    { key: "product",  name: "상품화 용이성",     weight: 0.15,
+      help: "정제·매핑·비식별화 등 가공 부담의 역수 (쉬울수록 5점)",
+      rubric: [null, "대규모 가공 필요", "상당한 가공", "일반 수준", "소규모 정제", "즉시 재판매 가능"] },
+    { key: "sales",    name: "글로벌 판매 용이성", weight: 0.15,
+      help: "해외 영업·계약·운영 부담의 역수 (쉬울수록 5점)",
+      rubric: [null, "매우 큰 부담", "큰 부담", "일반 수준", "판매 경험 있음", "직판 가능 상태"] },
+  ],
+  tiers: [
+    { name: "Tier 1", range: "$300K 이하",    add: 0.00 },
+    { name: "Tier 2", range: "$300K ~ $1M",   add: 0.03 },
+    { name: "Tier 3", range: "$1M 초과",       add: 0.05 },
+  ],
+};
+
+const STORAGE_KEY = "mandata_revshare_history_v1";
+
+// ============================================================
+// State
+// ============================================================
+const state = {
+  partnerName: "",
+  sourceTypeKey: "",
+  dataAsset: "",
+  scores: Object.fromEntries(POLICY.criteria.map(c => [c.key, null])),
+};
+
+// ============================================================
+// Calculation
+// ============================================================
+function calculate() {
+  const st = POLICY.sourceTypes.find(s => s.key === state.sourceTypeKey);
+  if (!st) return null;
+
+  // Allow partial scoring — only calculate if all scores filled
+  const allFilled = POLICY.criteria.every(c => state.scores[c.key] != null);
+  if (!allFilled) return { partial: true, sourceType: st };
+
+  const weightedAvg = POLICY.criteria.reduce((sum, c) =>
+    sum + state.scores[c.key] * c.weight, 0);
+  const adjustment = (weightedAvg - POLICY.formula.referenceScore) * POLICY.formula.adjustmentPerPoint;
+  const { min, max } = POLICY.formula.cap;
+
+  const tiers = POLICY.tiers.map(t => ({
+    ...t,
+    rate: Math.max(min, Math.min(max, st.base + adjustment + t.add)),
+    cappedAtMax: (st.base + adjustment + t.add) > max,
+    cappedAtMin: (st.base + adjustment + t.add) < min,
+  }));
+
+  return {
+    partial: false,
+    sourceType: st,
+    weightedAvg,
+    adjustment,
+    tiers,
+    mandataTier1: 1 - tiers[0].rate,
+  };
+}
+
+// ============================================================
+// Narrative generation
+// ============================================================
+function makeNarrative(result) {
+  if (!result || result.partial) {
+    return "점수를 모두 입력하면 산정 결과와 적용 설명이 여기에 자동 표시됩니다.";
+  }
+
+  const { sourceType, weightedAvg, adjustment, tiers } = result;
+  const highScores = POLICY.criteria
+    .filter(c => state.scores[c.key] >= 4)
+    .map(c => c.name);
+  const lowScores = POLICY.criteria
+    .filter(c => state.scores[c.key] <= 2)
+    .map(c => c.name);
+
+  let parts = [];
+
+  // 강점
+  if (highScores.length >= 2) {
+    parts.push(
+      `<strong>${highScores.slice(0, 3).join(", ")}</strong>에서 우수한 평가를 받았습니다 (4점 이상).`
+    );
+  } else if (highScores.length === 1) {
+    parts.push(`<strong>${highScores[0]}</strong>에서 강한 평가를 받았습니다.`);
+  }
+
+  // 약점/맨데이터 역할
+  if (lowScores.length >= 1) {
+    parts.push(
+      `반면 <strong>${lowScores.join(", ")}</strong>이 낮게 평가되어, 맨데이터의 상품화·세일즈·운영 기여도가 큰 영역입니다.`
+    );
+  }
+
+  // 조정 결과
+  const adjDir = adjustment >= 0 ? "상향" : "하향";
+  const adjAbs = (Math.abs(adjustment) * 100).toFixed(1);
+  parts.push(
+    `가중평균 ${weightedAvg.toFixed(2)}점에 따라 기준점(3.0) 대비 ${adjAbs}%p ${adjDir} 조정되었습니다.`
+  );
+
+  // Tier 메시지
+  const t1pct = (tiers[0].rate * 100).toFixed(1);
+  const t3pct = (tiers[2].rate * 100).toFixed(1);
+  if (tiers[2].rate > tiers[0].rate + 0.001) {
+    parts.push(
+      `초기 단계에서 <strong>${t1pct}%</strong>로 시작해, 매출 성장 시 자동으로 <strong>${t3pct}%</strong>까지 단계적으로 상승하는 구조입니다.`
+    );
+  } else {
+    parts.push(
+      `Tier 1 ~ 3 모두 <strong>${t1pct}%</strong> 수준으로 캡이 적용되었습니다.`
+    );
+  }
+
+  // 캡 안내
+  if (tiers.some(t => t.cappedAtMax)) {
+    parts.push(`일부 Tier에서 정책 상한 60% 캡이 적용되었습니다.`);
+  }
+  if (tiers.some(t => t.cappedAtMin)) {
+    parts.push(`일부 Tier에서 정책 하한 25% 캡이 적용되었습니다.`);
+  }
+
+  return parts.join(" ");
+}
+
+// ============================================================
+// Proposal text generation
+// ============================================================
+function makeProposal(result) {
+  if (!result || result.partial) return "";
+  const { sourceType, weightedAvg, tiers } = result;
+  const partnerName = state.partnerName || "[파트너사명]";
+
+  return [
+    `# 수익배분 정책 산정 결과`,
+    `## ${partnerName} (${sourceType.name})`,
+    ``,
+    `맨데이터는 데이터 원천사의 유형, 시장 커버리지, 점유율, 데이터 독점성, 상품화 난이도,`,
+    `글로벌 판매 및 운영 부담을 종합적으로 고려하여 파트너사 수익배분율을 산정합니다.`,
+    ``,
+    `## 산정 결과`,
+    ``,
+    `- **데이터 원천사 유형**: ${sourceType.name}`,
+    `- **기본 배분율**: ${(sourceType.base*100).toFixed(1)}%`,
+    `- **가중평균 평가 점수**: ${weightedAvg.toFixed(2)} / 5.00`,
+    ``,
+    `### 매출 구간별 적용 배분율`,
+    ``,
+    `| Tier | 연간 순매출 구간 | ${partnerName} 배분율 | 맨데이터 배분율 |`,
+    `|------|------------------|----------------------|----------------|`,
+    `| Tier 1 | $300K 이하       | **${(tiers[0].rate*100).toFixed(1)}%** | ${((1-tiers[0].rate)*100).toFixed(1)}% |`,
+    `| Tier 2 | $300K ~ $1M     | **${(tiers[1].rate*100).toFixed(1)}%** | ${((1-tiers[1].rate)*100).toFixed(1)}% |`,
+    `| Tier 3 | $1M 초과         | **${(tiers[2].rate*100).toFixed(1)}%** | ${((1-tiers[2].rate)*100).toFixed(1)}% |`,
+    ``,
+    `## 파트너십 구조 안내`,
+    ``,
+    `${partnerName}은(는) ${sourceType.name} 데이터 파트너로서, 본 데이터의 글로벌 기관투자자 대상`,
+    `상품화·정제·종목 매핑·백테스트 대응·세일즈·계약·청구·고객관리는 맨데이터가 부담합니다.`,
+    ``,
+    `이에 따라 초기 단계인 연 순매출 $300K 이하에서는 **${(tiers[0].rate*100).toFixed(1)}%**로 시작하며,`,
+    `글로벌 고객 확보가 안정화되는 단계 이후로는 매출 성장에 따라 자동으로`,
+    `**${(tiers[1].rate*100).toFixed(1)}% → ${(tiers[2].rate*100).toFixed(1)}%**까지 단계적으로 상승하는 구조를 제안드립니다.`,
+    ``,
+    `## 산정 근거 (평가 점수)`,
+    ``,
+    ...POLICY.criteria.map(c => {
+      const score = state.scores[c.key];
+      const rubric = c.rubric[score] || "—";
+      return `- **${c.name}** (가중치 ${(c.weight*100).toFixed(0)}%): ${score}점 — ${rubric}`;
+    }),
+    ``,
+    `---`,
+    `*산정 공식: 파트너 배분율 = MAX(25%, MIN(60%, 기본배분율 + (가중평균−3.0)×6%p + Tier 가산))*`,
+    `*기준일: ${new Date().toISOString().slice(0, 10)}  ·  MANDATA Revenue Sharing Policy v${POLICY.version}*`,
+  ].join("\n");
+}
+
+// ============================================================
+// History (localStorage)
+// ============================================================
+function loadHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+  } catch { return []; }
+}
+
+function saveHistory(items) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+}
+
+function addToHistory() {
+  const result = calculate();
+  if (!result || result.partial) return false;
+
+  const items = loadHistory();
+  const entry = {
+    id: Date.now(),
+    timestamp: new Date().toISOString(),
+    partnerName: state.partnerName || "(이름없음)",
+    sourceTypeKey: state.sourceTypeKey,
+    sourceTypeName: result.sourceType.name,
+    dataAsset: state.dataAsset,
+    scores: { ...state.scores },
+    weightedAvg: result.weightedAvg,
+    tiers: result.tiers.map(t => t.rate),
+  };
+  items.unshift(entry);
+  if (items.length > 50) items.length = 50; // cap
+  saveHistory(items);
+  renderHistory();
+  return true;
+}
+
+function deleteHistory(id) {
+  const items = loadHistory().filter(i => i.id !== id);
+  saveHistory(items);
+  renderHistory();
+}
+
+function clearAllHistory() {
+  if (!confirm("저장된 산정 이력을 모두 삭제하시겠어요? 되돌릴 수 없습니다.")) return;
+  saveHistory([]);
+  renderHistory();
+}
+
+function loadFromHistory(id) {
+  const item = loadHistory().find(i => i.id === id);
+  if (!item) return;
+  state.partnerName = item.partnerName === "(이름없음)" ? "" : item.partnerName;
+  state.sourceTypeKey = item.sourceTypeKey;
+  state.dataAsset = item.dataAsset || "";
+  state.scores = { ...item.scores };
+  syncInputsToState();
+  render();
+}
+
+// ============================================================
+// Rendering
+// ============================================================
+function renderSourceTypeDropdown() {
+  const sel = document.getElementById("source-type");
+  sel.innerHTML = '<option value="">— 선택 —</option>' +
+    POLICY.sourceTypes.map(s =>
+      `<option value="${s.key}">${s.name} (기본 ${(s.base*100).toFixed(0)}%)</option>`
+    ).join("");
+}
+
+function renderCriteria() {
+  const container = document.getElementById("criteria-list");
+  container.innerHTML = POLICY.criteria.map((c) => `
+    <div class="criterion" data-key="${c.key}">
+      <div class="criterion-head">
+        <div class="criterion-name">${c.name}</div>
+        <div class="criterion-weight">가중치 ${(c.weight*100).toFixed(0)}%</div>
+      </div>
+      <div class="criterion-help">${c.help}</div>
+      <div class="score-options">
+        ${[1,2,3,4,5].map(n => `
+          <input type="radio" name="score-${c.key}" id="score-${c.key}-${n}" value="${n}">
+          <label for="score-${c.key}-${n}">
+            <span class="score-num">${n}</span>
+            <span class="score-text">${escapeHtml(c.rubric[n])}</span>
+          </label>
+        `).join("")}
+      </div>
+    </div>
+  `).join("");
+
+  // Bind events
+  POLICY.criteria.forEach(c => {
+    [1,2,3,4,5].forEach(n => {
+      const el = document.getElementById(`score-${c.key}-${n}`);
+      el.addEventListener("change", () => {
+        state.scores[c.key] = n;
+        render();
+      });
+    });
+  });
+}
+
+function renderHistory() {
+  const container = document.getElementById("history-list");
+  const items = loadHistory();
+  if (items.length === 0) {
+    container.innerHTML = '<div class="history-empty">저장된 산정 결과가 없습니다.<br>오른쪽 패널의 💾 저장 버튼으로 추가하세요.</div>';
+    return;
+  }
+  container.innerHTML = items.map(item => {
+    const dt = new Date(item.timestamp);
+    const dateStr = `${(dt.getMonth()+1).toString().padStart(2,'0')}/${dt.getDate().toString().padStart(2,'0')} ${dt.getHours().toString().padStart(2,'0')}:${dt.getMinutes().toString().padStart(2,'0')}`;
+    const t1 = (item.tiers[0]*100).toFixed(1);
+    const t3 = (item.tiers[2]*100).toFixed(1);
+    return `
+      <div class="history-item">
+        <div class="history-info" data-id="${item.id}" style="flex:1; min-width:0;">
+          <div class="h-name">${escapeHtml(item.partnerName)}</div>
+          <div class="h-meta">
+            <span class="h-type">${escapeHtml(item.sourceTypeName)}</span>
+            &nbsp;·&nbsp;
+            <span>평균 ${item.weightedAvg.toFixed(2)}</span>
+            &nbsp;·&nbsp;
+            <span class="h-time">${dateStr}</span>
+          </div>
+        </div>
+        <div class="history-tiers">${t1}% ~ ${t3}%</div>
+        <div class="history-actions">
+          <button class="icon-btn" data-action="load" data-id="${item.id}" title="이 산정 불러오기">↻</button>
+          <button class="icon-btn" data-action="delete" data-id="${item.id}" title="삭제">×</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // Bind
+  container.querySelectorAll('[data-action="load"]').forEach(b => {
+    b.addEventListener("click", e => {
+      e.stopPropagation();
+      loadFromHistory(parseInt(b.dataset.id));
+      toast("산정 결과를 불러왔습니다.");
+    });
+  });
+  container.querySelectorAll('[data-action="delete"]').forEach(b => {
+    b.addEventListener("click", e => {
+      e.stopPropagation();
+      if (confirm("이 산정 결과를 삭제하시겠어요?")) {
+        deleteHistory(parseInt(b.dataset.id));
+        toast("삭제되었습니다.");
+      }
+    });
+  });
+  container.querySelectorAll(".history-info").forEach(el => {
+    el.addEventListener("click", () => {
+      loadFromHistory(parseInt(el.dataset.id));
+      toast("산정 결과를 불러왔습니다.");
+    });
+  });
+}
+
+function render() {
+  const result = calculate();
+
+  // Base rate display
+  const st = POLICY.sourceTypes.find(s => s.key === state.sourceTypeKey);
+  document.getElementById("base-rate-display").value =
+    st ? `${(st.base*100).toFixed(1)}%` : "—";
+
+  // Headline
+  document.getElementById("result-name").textContent =
+    state.partnerName || (st ? "(이름 미입력)" : "— 파트너 정보 입력 —");
+  document.getElementById("result-type").textContent =
+    st ? `${st.name} · 기본 배분율 ${(st.base*100).toFixed(1)}%` : "원천사 유형을 선택하면 산정이 시작됩니다";
+
+  // Tiers
+  if (result && !result.partial) {
+    document.getElementById("tier1").textContent = `${(result.tiers[0].rate*100).toFixed(1)}%`;
+    document.getElementById("tier2").textContent = `${(result.tiers[1].rate*100).toFixed(1)}%`;
+    document.getElementById("tier3").textContent = `${(result.tiers[2].rate*100).toFixed(1)}%`;
+    document.getElementById("m-wavg").textContent = result.weightedAvg.toFixed(2);
+    document.getElementById("m-base").textContent = `${(result.sourceType.base*100).toFixed(1)}%`;
+    const adjPct = (result.adjustment * 100);
+    document.getElementById("m-adj").textContent =
+      `${adjPct >= 0 ? '+' : ''}${adjPct.toFixed(1)}%p`;
+    document.getElementById("m-mandata").textContent =
+      `${(result.mandataTier1*100).toFixed(1)}%`;
+
+    document.getElementById("btn-save").disabled = false;
+    document.getElementById("btn-proposal").disabled = false;
+    document.getElementById("btn-print").disabled = false;
+  } else {
+    ["tier1","tier2","tier3","m-wavg","m-base","m-adj","m-mandata"].forEach(id =>
+      document.getElementById(id).textContent = "—");
+    document.getElementById("btn-save").disabled = true;
+    document.getElementById("btn-proposal").disabled = true;
+    document.getElementById("btn-print").disabled = true;
+  }
+
+  document.getElementById("narrative").innerHTML = makeNarrative(result);
+}
+
+// ============================================================
+// Input binding
+// ============================================================
+function syncInputsToState() {
+  document.getElementById("partner-name").value = state.partnerName;
+  document.getElementById("source-type").value = state.sourceTypeKey;
+  document.getElementById("data-asset").value = state.dataAsset;
+  POLICY.criteria.forEach(c => {
+    [1,2,3,4,5].forEach(n => {
+      const el = document.getElementById(`score-${c.key}-${n}`);
+      el.checked = state.scores[c.key] === n;
+    });
+  });
+}
+
+function bindInputs() {
+  document.getElementById("partner-name").addEventListener("input", e => {
+    state.partnerName = e.target.value.trim();
+    render();
+  });
+  document.getElementById("source-type").addEventListener("change", e => {
+    state.sourceTypeKey = e.target.value;
+    render();
+  });
+  document.getElementById("data-asset").addEventListener("input", e => {
+    state.dataAsset = e.target.value;
+  });
+}
+
+function resetAll() {
+  state.partnerName = "";
+  state.sourceTypeKey = "";
+  state.dataAsset = "";
+  POLICY.criteria.forEach(c => { state.scores[c.key] = null; });
+  syncInputsToState();
+  render();
+}
+
+// ============================================================
+// Toast
+// ============================================================
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+
+// ============================================================
+// Reference tables (auto-rendered from POLICY)
+// ============================================================
+function renderReferenceTables() {
+  // Table ①: 데이터 원천사 유형
+  const tSrc = document.getElementById("ref-source-types");
+  tSrc.innerHTML = `
+    <thead><tr>
+      <th style="width:24%;">데이터 원천사 유형</th>
+      <th style="width:13%; text-align:center;">파트너 기본</th>
+      <th style="width:13%; text-align:center;">맨데이터 기본</th>
+      <th>정책 근거</th>
+    </tr></thead>
+    <tbody>
+      ${POLICY.sourceTypes.map(s => `
+        <tr>
+          <td><strong>${escapeHtml(s.name)}</strong></td>
+          <td class="num num-emph">${(s.base*100).toFixed(0)}%</td>
+          <td class="num">${((1-s.base)*100).toFixed(0)}%</td>
+          <td class="muted">${escapeHtml(s.note)}</td>
+        </tr>
+      `).join("")}
+    </tbody>
+  `;
+
+  // Table ②: 평가 항목 가중치
+  const tCrit = document.getElementById("ref-criteria");
+  const totalWeight = POLICY.criteria.reduce((s, c) => s + c.weight, 0);
+  tCrit.innerHTML = `
+    <thead><tr>
+      <th style="width:22%;">평가 항목</th>
+      <th style="width:13%; text-align:center;">가중치</th>
+      <th style="width:15%; text-align:center;">점수 방향</th>
+      <th>의미</th>
+    </tr></thead>
+    <tbody>
+      ${POLICY.criteria.map(c => `
+        <tr>
+          <td><strong>${escapeHtml(c.name)}</strong></td>
+          <td class="num num-emph">${(c.weight*100).toFixed(0)}%</td>
+          <td class="num muted">높을수록 ↑</td>
+          <td class="muted">${escapeHtml(c.help)}</td>
+        </tr>
+      `).join("")}
+      <tr style="background: var(--light);">
+        <td><strong>합계</strong></td>
+        <td class="num num-emph">${(totalWeight*100).toFixed(0)}%</td>
+        <td colspan="2"></td>
+      </tr>
+    </tbody>
+  `;
+
+  // Table ③: Tier 구조
+  const tTier = document.getElementById("ref-tiers");
+  tTier.innerHTML = `
+    <thead><tr>
+      <th style="width:13%;">Tier</th>
+      <th style="width:25%;">연간 순매출 구간</th>
+      <th style="width:18%; text-align:center;">기본 대비 가산</th>
+      <th>적용 논리</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Tier 1</strong></td>
+        <td>${escapeHtml(POLICY.tiers[0].range)}</td>
+        <td class="num num-gold">+${(POLICY.tiers[0].add*100).toFixed(0)}%p</td>
+        <td class="muted">초기 상품화, 글로벌 세일즈, 백테스트, 고객 대응 비용을 맨데이터가 부담하는 단계</td>
+      </tr>
+      <tr>
+        <td><strong>Tier 2</strong></td>
+        <td>${escapeHtml(POLICY.tiers[1].range)}</td>
+        <td class="num num-gold">+${(POLICY.tiers[1].add*100).toFixed(0)}%p</td>
+        <td class="muted">고객 확보 이후 데이터 원천 가치와 사업 안정성 반영</td>
+      </tr>
+      <tr>
+        <td><strong>Tier 3</strong></td>
+        <td>${escapeHtml(POLICY.tiers[2].range)}</td>
+        <td class="num num-gold">+${(POLICY.tiers[2].add*100).toFixed(0)}%p</td>
+        <td class="muted">대형 매출 단계, 전략적 공동 파트너십 구조 적용</td>
+      </tr>
+    </tbody>
+  `;
+
+  // Table: Rubric (1~5점 기준)
+  const tRub = document.getElementById("ref-rubric");
+  tRub.innerHTML = `
+    <thead><tr>
+      <th style="width:18%;">평가 항목</th>
+      <th style="text-align:center;">1점 (매우 낮음)</th>
+      <th style="text-align:center;">2점 (낮음)</th>
+      <th style="text-align:center;">3점 (보통)</th>
+      <th style="text-align:center;">4점 (높음)</th>
+      <th style="text-align:center;">5점 (매우 높음)</th>
+    </tr></thead>
+    <tbody>
+      ${POLICY.criteria.map(c => `
+        <tr>
+          <td>
+            <strong>${escapeHtml(c.name)}</strong>
+            <div class="muted" style="font-size:11px; font-weight:500; margin-top:2px;">
+              가중치 ${(c.weight*100).toFixed(0)}%
+            </div>
+          </td>
+          ${[1,2,3,4,5].map(n => `
+            <td class="muted" style="text-align:center; font-size:11.5px;">${escapeHtml(c.rubric[n])}</td>
+          `).join("")}
+        </tr>
+      `).join("")}
+    </tbody>
+  `;
+}
+
+// ============================================================
+// Tab navigation
+// ============================================================
+function bindTabs() {
+  const buttons = document.querySelectorAll(".tab-btn");
+  const panels  = document.querySelectorAll(".tab-panel");
+
+  function activate(tab) {
+    buttons.forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+    panels.forEach(p => p.classList.toggle("hidden", p.dataset.tab !== tab));
+    // Save last active tab
+    try { localStorage.setItem("mandata_revshare_active_tab", tab); } catch {}
+    // Scroll to top of content on tab change
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  buttons.forEach(b => {
+    b.addEventListener("click", () => activate(b.dataset.tab));
+  });
+
+  // Restore last active tab
+  try {
+    const saved = localStorage.getItem("mandata_revshare_active_tab");
+    if (saved && document.querySelector(`.tab-btn[data-tab="${saved}"]`)) {
+      activate(saved);
+    }
+  } catch {}
+}
+
+// ============================================================
+// Init
+// ============================================================
+document.addEventListener("DOMContentLoaded", () => {
+  renderSourceTypeDropdown();
+  renderCriteria();
+  renderReferenceTables();
+  bindTabs();
+  bindInputs();
+  renderHistory();
+  render();
+
+  // Action buttons
+  document.getElementById("btn-save").addEventListener("click", () => {
+    if (addToHistory()) toast("산정 결과를 이력에 저장했습니다.");
+  });
+  document.getElementById("btn-reset").addEventListener("click", () => {
+    if (confirm("입력값을 모두 초기화하시겠어요?")) {
+      resetAll();
+      toast("초기화되었습니다.");
+    }
+  });
+  document.getElementById("btn-print").addEventListener("click", () => window.print());
+  document.getElementById("clear-history").addEventListener("click", clearAllHistory);
+
+  // Modal
+  const modalBg = document.getElementById("modal-bg");
+  document.getElementById("btn-proposal").addEventListener("click", () => {
+    const result = calculate();
+    if (!result || result.partial) return;
+    document.getElementById("proposal-text").value = makeProposal(result);
+    modalBg.classList.add("show");
+  });
+  document.getElementById("modal-close").addEventListener("click", () => modalBg.classList.remove("show"));
+  document.getElementById("modal-dismiss").addEventListener("click", () => modalBg.classList.remove("show"));
+  modalBg.addEventListener("click", e => {
+    if (e.target === modalBg) modalBg.classList.remove("show");
+  });
+  document.getElementById("modal-copy").addEventListener("click", () => {
+    const ta = document.getElementById("proposal-text");
+    ta.select();
+    try {
+      navigator.clipboard.writeText(ta.value).then(
+        () => toast("클립보드에 복사되었습니다."),
+        () => {
+          document.execCommand("copy");
+          toast("클립보드에 복사되었습니다.");
+        }
+      );
+    } catch {
+      document.execCommand("copy");
+      toast("클립보드에 복사되었습니다.");
+    }
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+[server]
+maxUploadSize = 1024
+maxMessageSize = 1024
+port = 8503
+headless = false
+enableXsrfProtection = true
+enableCORS = false
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+primaryColor = "#1E40AF"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F8FAFC"
+textColor = "#0F172A"
+font = "sans serif"
