@@ -72,9 +72,9 @@ with st.sidebar:
         st.markdown(f"👤 **{_current_email}**")
         if auth.is_admin(_current_email):
             st.caption("🛡 관리자 권한")
-        # 로컬 dev login 로그아웃 옵션
-        if (not _running_on_cloud) and st.session_state.get("_dev_email"):
-            if st.button("🚪 로그아웃 (dev)", use_container_width=True):
+        # 로그아웃 (cloud + 로컬 둘 다 — _dev_email session 기반)
+        if st.session_state.get("_dev_email"):
+            if st.button("🚪 로그아웃", use_container_width=True):
                 st.session_state.pop("_dev_email", None)
                 st.rerun()
     else:
@@ -82,21 +82,61 @@ with st.sidebar:
 
 
 # ─────────────────────────────────────────────────────────────
-# 7) 비로그인 → 로그인 화면 후 종료
+# 7) 로그인 화면 — st.navigation으로 단일 페이지 띄움 (사이드바 깨끗)
 # ─────────────────────────────────────────────────────────────
-if not _current_email:
-    st.title("Mandata Data Intelligence")
-    if _running_on_cloud:
-        st.warning(
-            "이 페이지에 접근하려면 초대받은 이메일로 로그인되어 있어야 해요. "
-            "Streamlit Cloud viewer 권한을 확인하거나 관리자에게 문의해주세요."
+def render_login_screen():
+    """로그인되지 않은 사용자에게 보여줄 화면."""
+    _logo_img = app_utils.get_logo_html(64)
+    if _logo_img:
+        st.markdown(
+            f"<div style='display:flex; align-items:center; gap:18px; margin:16px 0 8px 0;'>{_logo_img}</div>",
+            unsafe_allow_html=True,
         )
+    st.title("Mandata Data Intelligence")
+
+    # 공유 패스워드 (선택 — secrets.toml에 LOGIN_PASSWORD가 있으면 활성화)
+    login_password = ""
+    try:
+        login_password = str(st.secrets.get("LOGIN_PASSWORD", "")).strip()
+    except Exception:
+        login_password = ""
+
+    if login_password:
+        st.info("초대받은 이메일로 로그인해주세요. 공유 패스워드 + 이메일이 필요합니다.")
     else:
         st.info(
-            "로컬 개발 환경입니다. 권한 테스트를 위해 아래에 이메일을 입력하세요. "
-            "환경변수 `MANDATA_DEV_EMAIL`로 자동 로그인 가능."
+            "초대받은 이메일로 로그인해주세요. "
+            "권한이 있는 이메일만 접근 가능합니다 (관리자 명단 + 도메인 와일드카드 + 앱별 초대 기준)."
         )
-        auth.render_login_widget("이메일")
+
+    with st.form("_login_form", clear_on_submit=False):
+        if login_password:
+            pwd = st.text_input("공유 패스워드", type="password")
+        else:
+            pwd = ""
+        email_in = st.text_input("이메일", placeholder="you@mandata.kr")
+        submitted = st.form_submit_button("로그인", type="primary")
+        if submitted:
+            if login_password and pwd != login_password:
+                st.error("패스워드가 틀려요.")
+            elif not email_in.strip():
+                st.error("이메일을 입력해주세요.")
+            else:
+                st.session_state["_dev_email"] = email_in.strip().lower()
+                st.rerun()
+
+    if _running_on_cloud:
+        st.caption(
+            "⚠️ Streamlit Community Cloud 무료 티어에는 빌트인 OAuth가 없어, "
+            "이메일 입력 후 ACL(`acl.json`)로 권한을 확인합니다. "
+            "정식 SSO가 필요하면 Streamlit Cloud Connect (유료) 또는 OIDC 구성을 고려하세요."
+        )
+
+
+if not _current_email:
+    _login_page = st.Page(render_login_screen, title="Login", icon="🔒", default=True)
+    _login_nav = st.navigation([_login_page], position="hidden")
+    _login_nav.run()
     st.stop()
 
 
