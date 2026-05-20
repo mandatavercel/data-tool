@@ -1,0 +1,15 @@
+underlying_type,reference_code,name_en,name_kr,krx_short_en,notes
+Index,KRD020020001,KOSPI 200,코스피200,KOSPI 200,Used by F-KOSPI 200 / O-KOSPI 200
+Index,KRD020020002,Mini KOSPI 200,미니코스피200,MINI KOSPI 200,Mini contract on KOSPI 200
+Index,KRD020020010,KOSDAQ 150,코스닥150,KOSDAQ150,Used by F-KOSDAQ 150
+Index,KRD020020011,KOSDAQ Global,코스닥글로벌지수,KOSDAQ Global Index,KOSDAQ Global segment index
+Commodity,KRD020030001,Gold,금,GOLD,Gold futures
+Commodity,KRD020030002,Mini Gold,미니금,MINI GOLD,Mini gold futures
+Rate,KRD020040001,3M KOFR,3개월무위험지표금리,3M KOFR,Korea Overnight Financing Repo Rate (3-month)
+Rate,KRD020040002,3Y KTB,3년국채,3Y KTB,3-year Korean Treasury Bond futures
+Rate,KRD020040003,5Y KTB,5년국채,5Y KTB,5-year Korean Treasury Bond futures
+Rate,KRD020040004,10Y KTB,10년국채,10Y KTB,10-year Korean Treasury Bond futures
+Currency,KRD020050001,USD,미국달러,USD,USD/KRW futures
+Currency,KRD020050002,JPY,일본엔,JPY,JPY/KRW futures
+Currency,KRD020050003,EUR,유로,EUR,EUR/KRW futures
+Currency,KRD020050004,CNY,중국위안,CNY,CNY/KRW futures

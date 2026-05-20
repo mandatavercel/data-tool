@@ -42,6 +42,14 @@ config.local.json
 *.parquet
 *.feather
 
+# ── 예외: 라이브러리·앱 내장 데이터셋 (커밋 필수, 없으면 앱 동작 안 함) ──
+# 새 앱이 자체 데이터를 들고 오면 여기 추가하세요.
+!korea-security-id/mandata_kr/data/*.csv
+!mapping_app/data/*.csv
+!mapping_app/data/*.xlsx
+!catalog_app/data/*.csv
+!analysis_app/data/*.csv
+
 # ── 분석 결과 출력 ───────────────────────────────────────────────────────
 exports/
 output/

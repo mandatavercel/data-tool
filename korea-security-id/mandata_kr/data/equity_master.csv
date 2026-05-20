@@ -1,0 +1,183 @@
+local_code,isin,company_name_en,company_name_kr,krx_short_en,market,sector_code_gics,sector_name_en,industry_name_kr,listing_date,dart_corp_code,kospi200,kosdaq150,krx300
+005930,KR7005930003,Samsung Electronics Co. Ltd.,삼성전자,SamsungElec,KOSPI,4520,Information Technology,반도체,1975-06-11,00126380,Y,,Y
+000660,KR7000660001,SK hynix Inc.,SK하이닉스,SKhynix,KOSPI,4520,Information Technology,반도체,1996-12-26,00164779,Y,,Y
+373220,KR7373220003,LG Energy Solution Ltd.,LG에너지솔루션,LGES,KOSPI,1510,Materials,이차전지,2022-01-27,01471319,Y,,Y
+207940,KR7207940008,Samsung Biologics Co. Ltd.,삼성바이오로직스,SamsungBio,KOSPI,3520,Health Care,CMO,2016-11-10,01085407,Y,,Y
+005380,KR7005380001,Hyundai Motor Company,현대차,HyundaiMtr,KOSPI,2510,Consumer Discretionary,자동차,1974-06-28,00164742,Y,,Y
+000270,KR7000270009,Kia Corporation,기아,Kia,KOSPI,2510,Consumer Discretionary,자동차,1973-07-07,00164388,Y,,Y
+005490,KR7005490008,POSCO Holdings Inc.,POSCO홀딩스,POSCOHldgs,KOSPI,1510,Materials,철강 지주,1988-06-10,00155319,Y,,Y
+051910,KR7051910008,LG Chem Ltd.,LG화학,LGChem,KOSPI,1510,Materials,석유화학,2001-04-25,00356068,Y,,Y
+006400,KR7006400006,Samsung SDI Co. Ltd.,삼성SDI,SamsungSDI,KOSPI,1510,Materials,이차전지,1979-02-23,00126362,Y,,Y
+035420,KR7035420009,NAVER Corporation,NAVER,NAVER,KOSPI,5020,Communication Services,인터넷,2008-11-28,00266961,Y,,Y
+035720,KR7035720002,Kakao Corp.,카카오,Kakao,KOSPI,5020,Communication Services,인터넷,1999-11-12,00918154,Y,,Y
+068270,KR7068270008,Celltrion Inc.,셀트리온,Celltrion,KOSPI,3520,Health Care,바이오,2018-02-09,00421045,Y,,Y
+105560,KR7105560007,KB Financial Group Inc.,KB금융,KBFinGrp,KOSPI,4010,Financials,은행지주,2008-10-10,00688996,Y,,Y
+055550,KR7055550008,Shinhan Financial Group Co. Ltd.,신한지주,ShinhanGrp,KOSPI,4010,Financials,은행지주,2001-09-10,00146031,Y,,Y
+086790,KR7086790003,Hana Financial Group Inc.,하나금융지주,HanaFinGrp,KOSPI,4010,Financials,은행지주,2005-12-12,00547583,Y,,Y
+316140,KR7316140003,Woori Financial Group Inc.,우리금융지주,WooriFinGrp,KOSPI,4010,Financials,은행지주,2019-02-13,01526131,Y,,Y
+138930,KR7138930003,BNK Financial Group Inc.,BNK금융지주,BNKFinGrp,KOSPI,4010,Financials,은행지주,,,Y,,Y
+175330,KR7175330000,JB Financial Group Co. Ltd.,JB금융지주,JBFinGrp,KOSPI,4010,Financials,은행지주,,,Y,,Y
+138040,KR7138040001,Meritz Financial Group Inc.,메리츠금융지주,MeritzFin,KOSPI,4010,Financials,보험지주,,,Y,,Y
+024110,KR7024110009,Industrial Bank of Korea,기업은행,IBK,KOSPI,4010,Financials,은행,,,Y,,Y
+000810,KR7000810002,Samsung Fire & Marine Insurance Co. Ltd.,삼성화재,SamsungFire,KOSPI,4030,Financials,손해보험,,00126256,Y,,Y
+032830,KR7032830002,Samsung Life Insurance Co. Ltd.,삼성생명,SamsungLife,KOSPI,4030,Financials,생명보험,,00126256,Y,,Y
+088350,KR7088350004,Hanwha Life Insurance Co. Ltd.,한화생명,HanwhaLife,KOSPI,4030,Financials,생명보험,,,Y,,Y
+029780,KR7029780004,Samsung Card Co. Ltd.,삼성카드,SamsungCard,KOSPI,4020,Financials,카드,,,Y,,Y
+016360,KR7016360000,Samsung Securities Co. Ltd.,삼성증권,SamsungSec,KOSPI,4020,Financials,증권,,,Y,,Y
+006800,KR7006800007,Mirae Asset Securities Co. Ltd.,미래에셋증권,MiraeAssetSec,KOSPI,4020,Financials,증권,,,Y,,Y
+005940,KR7005940002,NH Investment & Securities Co. Ltd.,NH투자증권,NHISec,KOSPI,4020,Financials,증권,,,Y,,Y
+071050,KR7071050009,Korea Investment Holdings Co. Ltd.,한국금융지주,KIH,KOSPI,4020,Financials,증권지주,,,Y,,Y
+003530,KR7003530003,Hanwha Investment & Securities Co. Ltd.,한화투자증권,HanwhaSec,KOSPI,4020,Financials,증권,,,Y,,Y
+018260,KR7018260000,Samsung SDS Co. Ltd.,삼성에스디에스,SamsungSDS,KOSPI,4520,Information Technology,IT 서비스,,,,,
+030200,KR7030200000,KT Corporation,KT,KT,KOSPI,5010,Communication Services,통신,2002-12-31,00159023,Y,,Y
+017670,KR7017670001,SK Telecom Co. Ltd.,SK텔레콤,SKTelecom,KOSPI,5010,Communication Services,통신,1989-11-20,00299631,Y,,Y
+032640,KR7032640005,LG Uplus Corp.,LG유플러스,LGUplus,KOSPI,5010,Communication Services,통신,,,Y,,Y
+251270,KR7251270005,Netmarble Corp.,넷마블,Netmarble,KOSPI,5020,Communication Services,게임,,,Y,,Y
+036570,KR7036570000,NCsoft Corp.,엔씨소프트,NCsoft,KOSPI,5020,Communication Services,게임,,,Y,,Y
+259960,KR7259960003,Krafton Inc.,크래프톤,Krafton,KOSPI,5020,Communication Services,게임,,,Y,,Y
+042700,KR7042700005,Hanmi Semiconductor Co. Ltd.,한미반도체,HanmiSemi,KOSPI,4520,Information Technology,반도체 장비,2005-07-13,00121939,Y,,Y
+034220,KR7034220004,LG Display Co. Ltd.,LG디스플레이,LGDisplay,KOSPI,4520,Information Technology,디스플레이,,,Y,,Y
+011070,KR7011070000,LG Innotek Co. Ltd.,LG이노텍,LGInnotek,KOSPI,4520,Information Technology,전자 부품,,,Y,,Y
+009150,KR7009150004,Samsung Electro-Mechanics Co. Ltd.,삼성전기,SamsungElecMech,KOSPI,4520,Information Technology,전자 부품,,,Y,,Y
+009540,KR7009540006,HD Korea Shipbuilding & Offshore Engineering Co. Ltd.,HD한국조선해양,HDKSOE,KOSPI,2010,Industrials,조선,,01133217,Y,,Y
+329180,KR7329180004,HD Hyundai Heavy Industries Co. Ltd.,HD현대중공업,HDHHI,KOSPI,2010,Industrials,조선,,00164731,Y,,Y
+010140,KR7010140002,Samsung Heavy Industries Co. Ltd.,삼성중공업,SamsungHI,KOSPI,2010,Industrials,조선,,,Y,,Y
+042660,KR7042660001,Hanwha Ocean Co. Ltd.,한화오션,HanwhaOcean,KOSPI,2010,Industrials,조선,,,Y,,Y
+267260,KR7267260008,HD Hyundai Electric Co. Ltd.,HD현대일렉트릭,HDHElec,KOSPI,2010,Industrials,중전기,,,Y,,Y
+010620,KR7010620003,HD Hyundai Mipo Co. Ltd.,HD현대미포,HDHMipo,KOSPI,2010,Industrials,조선,,,Y,,Y
+034020,KR7034020008,Doosan Enerbility Co. Ltd.,두산에너빌리티,DoosanEner,KOSPI,2010,Industrials,중공업,,,Y,,Y
+241560,KR7241560002,Doosan Bobcat Inc.,두산밥캣,DoosanBobcat,KOSPI,2010,Industrials,중장비,,,Y,,Y
+000150,KR7000150003,Doosan Corporation,두산,Doosan,KOSPI,2010,Industrials,지주,,,Y,,Y
+012450,KR7012450003,Hanwha Aerospace Co. Ltd.,한화에어로스페이스,HanwhaAero,KOSPI,2010,Industrials,방산,,,Y,,Y
+047810,KR7047810007,Korea Aerospace Industries Ltd.,한국항공우주,KAI,KOSPI,2010,Industrials,방산,,00158135,Y,,Y
+272210,KR7272210006,Hanwha Systems Co. Ltd.,한화시스템,HanwhaSys,KOSPI,2010,Industrials,방산,,,Y,,Y
+064350,KR7064350002,Hyundai Rotem Company,현대로템,HyundaiRotem,KOSPI,2010,Industrials,철도차량,,,Y,,Y
+003490,KR7003490000,Korean Air Lines Co. Ltd.,대한항공,KAL,KOSPI,2030,Industrials,항공,,00113410,Y,,Y
+020560,KR7020560009,Asiana Airlines Inc.,아시아나항공,Asiana,KOSPI,2030,Industrials,항공,,,,,
+012330,KR7012330007,Hyundai Mobis Co. Ltd.,현대모비스,HyundaiMobis,KOSPI,2510,Consumer Discretionary,자동차부품,,00126186,Y,,Y
+086280,KR7086280005,Hyundai Glovis Co. Ltd.,현대글로비스,HyundaiGlovis,KOSPI,2030,Industrials,물류,,,Y,,Y
+204320,KR7204320006,HL Mando Co. Ltd.,HL만도,HLMando,KOSPI,2510,Consumer Discretionary,자동차부품,,,Y,,Y
+011210,KR7011210002,Hyundai Wia Corporation,현대위아,HyundaiWia,KOSPI,2510,Consumer Discretionary,자동차부품,,,Y,,Y
+004020,KR7004020004,Hyundai Steel Company,현대제철,HyundaiSteel,KOSPI,1510,Materials,철강,,00154884,Y,,Y
+003670,KR7003670007,POSCO Future M Co. Ltd.,포스코퓨처엠,POSCOFutureM,KOSPI,1510,Materials,이차전지 소재,,,Y,,Y
+047050,KR7047050000,POSCO International Corporation,포스코인터내셔널,POSCOIntl,KOSPI,2020,Industrials,종합상사,,,Y,,Y
+010130,KR7010130003,Korea Zinc Co. Ltd.,고려아연,KoreaZinc,KOSPI,1510,Materials,비철금속,,,Y,,Y
+010060,KR7010060002,OCI Holdings Co. Ltd.,OCI홀딩스,OCIHldgs,KOSPI,1510,Materials,지주,,,Y,,Y
+011170,KR7011170008,Lotte Chemical Corporation,롯데케미칼,LotteChem,KOSPI,1510,Materials,석유화학,,,Y,,Y
+011780,KR7011780004,Kumho Petrochemical Co. Ltd.,금호석유,KumhoPetro,KOSPI,1510,Materials,석유화학,,,Y,,Y
+298050,KR7298050006,Hyosung Advanced Materials Corporation,효성첨단소재,HyosungAdv,KOSPI,1510,Materials,특수소재,,,Y,,Y
+298040,KR7298040007,Hyosung Heavy Industries Corporation,효성중공업,HyosungHI,KOSPI,2010,Industrials,중전기,,,Y,,Y
+004800,KR7004800009,Hyosung Corporation,효성,Hyosung,KOSPI,1510,Materials,지주,,,Y,,Y
+009830,KR7009830001,Hanwha Solutions Corporation,한화솔루션,HanwhaSol,KOSPI,1510,Materials,석유화학,,,Y,,Y
+000880,KR7000880005,Hanwha Corporation,한화,Hanwha,KOSPI,2010,Industrials,지주,,,Y,,Y
+015760,KR7015760002,Korea Electric Power Corporation,한국전력,KEPCO,KOSPI,5510,Utilities,전력,1989-08-10,00103620,Y,,Y
+036460,KR7036460004,Korea Gas Corporation,한국가스공사,KOGAS,KOSPI,5510,Utilities,가스,,,Y,,Y
+096770,KR7096770003,SK Innovation Co. Ltd.,SK이노베이션,SKInnov,KOSPI,1010,Energy,정유,,,Y,,Y
+010950,KR7010950004,S-Oil Corporation,에쓰오일,SOil,KOSPI,1010,Energy,정유,,,Y,,Y
+078930,KR7078930005,GS Holdings Corp.,GS,GS,KOSPI,5510,Utilities,지주,,,Y,,Y
+006120,KR7006120000,SK Discovery Co. Ltd.,SK디스커버리,SKDisc,KOSPI,5510,Utilities,지주,,,Y,,Y
+034730,KR7034730002,SK Inc.,SK,SK,KOSPI,5510,Utilities,지주,,,Y,,Y
+000720,KR7000720003,Hyundai Engineering & Construction Co. Ltd.,현대건설,HyundaiEnC,KOSPI,2010,Industrials,건설,,,Y,,Y
+006360,KR7006360002,GS Engineering & Construction Corp.,GS건설,GSEnC,KOSPI,2010,Industrials,건설,,,Y,,Y
+047040,KR7047040001,Daewoo Engineering & Construction Co. Ltd.,대우건설,DaewooEnC,KOSPI,2010,Industrials,건설,,,Y,,Y
+375500,KR7375500006,DL E&C Co. Ltd.,DL이앤씨,DLEnC,KOSPI,2010,Industrials,건설,,,Y,,Y
+000210,KR7000210005,DL Holdings Co. Ltd.,DL,DL,KOSPI,2010,Industrials,지주,,,Y,,Y
+028050,KR7028050003,Samsung E&A Co. Ltd.,삼성E&A,SamsungEnA,KOSPI,2010,Industrials,EPC,,,Y,,Y
+139480,KR7139480008,Emart Inc.,이마트,Emart,KOSPI,3010,Consumer Staples,대형마트,,00136028,Y,,Y
+023530,KR7023530009,Lotte Shopping Co. Ltd.,롯데쇼핑,LotteShop,KOSPI,2550,Consumer Discretionary,백화점,,,Y,,Y
+004990,KR7004990008,Lotte Corporation,롯데지주,LotteHldgs,KOSPI,3010,Consumer Staples,지주,,,Y,,Y
+282330,KR7282330000,BGF Retail Co. Ltd.,BGF리테일,BGFRetail,KOSPI,3010,Consumer Staples,편의점,,,Y,,Y
+069960,KR7069960003,Hyundai Department Store Co. Ltd.,현대백화점,HyundaiDept,KOSPI,2550,Consumer Discretionary,백화점,,,Y,,Y
+008770,KR7008770000,Hotel Shilla Co. Ltd.,호텔신라,HotelShilla,KOSPI,2550,Consumer Discretionary,면세점/호텔,,,Y,,Y
+035250,KR7035250000,Kangwon Land Inc.,강원랜드,KangwonLand,KOSPI,2530,Consumer Discretionary,카지노,,,Y,,Y
+097950,KR7097950000,CJ CheilJedang Corp.,CJ제일제당,CJCJ,KOSPI,3020,Consumer Staples,식품,,00112020,Y,,Y
+001040,KR7001040005,CJ Corporation,CJ,CJ,KOSPI,2520,Consumer Discretionary,지주,,,Y,,Y
+271560,KR7271560005,Orion Corporation,오리온,Orion,KOSPI,3020,Consumer Staples,제과,,00112374,Y,,Y
+280360,KR7280360009,Lotte Wellfood Co. Ltd.,롯데웰푸드,LotteWell,KOSPI,3020,Consumer Staples,제과,,,Y,,Y
+004370,KR7004370003,Nongshim Co. Ltd.,농심,Nongshim,KOSPI,3020,Consumer Staples,식품,,,Y,,Y
+000080,KR7000080002,Hite Jinro Co. Ltd.,하이트진로,HiteJinro,KOSPI,3020,Consumer Staples,주류,,,Y,,Y
+005180,KR7005180005,Binggrae Co. Ltd.,빙그레,Binggrae,KOSPI,3020,Consumer Staples,제과,,,Y,,Y
+033780,KR7033780008,KT&G Corporation,KT&G,KTandG,KOSPI,3030,Consumer Staples,담배,,,Y,,Y
+000100,KR7000100008,Yuhan Corporation,유한양행,Yuhan,KOSPI,3520,Health Care,제약,,00104694,Y,,Y
+069620,KR7069620003,Daewoong Pharmaceutical Co. Ltd.,대웅제약,Daewoong,KOSPI,3520,Health Care,제약,,00109718,Y,,Y
+128940,KR7128940004,Hanmi Pharm Co. Ltd.,한미약품,HanmiPharm,KOSPI,3520,Health Care,제약,,00120182,Y,,Y
+008930,KR7008930000,Hanmi Science Co. Ltd.,한미사이언스,HanmiSci,KOSPI,3520,Health Care,제약지주,,,Y,,Y
+009420,KR7009420001,Hanall Biopharma Co. Ltd.,한올바이오파마,Hanall,KOSPI,3520,Health Care,바이오,,,Y,,Y
+326030,KR7326030004,SK Bioscience Co. Ltd.,SK바이오사이언스,SKBio,KOSPI,3520,Health Care,백신,2021-03-18,00955078,Y,Y,Y
+066570,KR7066570003,LG Electronics Inc.,LG전자,LGElec,KOSPI,2520,Consumer Discretionary,가전,,,Y,,Y
+003550,KR7003550001,LG Corp.,LG,LG,KOSPI,2010,Industrials,지주,,,Y,,Y
+028260,KR7028260008,Samsung C&T Corporation,삼성물산,SamsungCnT,KOSPI,2010,Industrials,지주,,,Y,,Y
+028670,KR7028670008,Pan Ocean Co. Ltd.,팬오션,PanOcean,KOSPI,2030,Industrials,해운,,,Y,,Y
+011200,KR7011200003,HMM Co. Ltd.,HMM,HMM,KOSPI,2030,Industrials,해운,,,Y,,Y
+090430,KR7090430000,AmorePacific Corporation,아모레퍼시픽,AmorePacific,KOSPI,3020,Consumer Staples,뷰티,,,Y,,Y
+002790,KR7002790004,AmoreG Co. Ltd.,아모레G,AmoreG,KOSPI,3020,Consumer Staples,지주,,,Y,,Y
+051900,KR7051900009,LG H&H Co. Ltd.,LG생활건강,LGHnH,KOSPI,3020,Consumer Staples,뷰티/생활용품,,,Y,,Y
+081660,KR7081660003,Fila Holdings Corp.,휠라홀딩스,FilaHldgs,KOSPI,2520,Consumer Discretionary,스포츠 의류,,,Y,,Y
+006260,KR7006260004,LS Corp.,LS,LS,KOSPI,2010,Industrials,지주,,,Y,,Y
+010120,KR7010120004,LS Electric Co. Ltd.,LS ELECTRIC,LSElec,KOSPI,2010,Industrials,중전기,,,Y,,Y
+229640,KR7229640008,LS Materials Corporation,LS머트리얼즈,LSMaterials,KOSDAQ,1510,Materials,소재,,,,Y,Y
+064960,KR7064960008,SNT Motiv Co. Ltd.,SNT모티브,SNTMotiv,KOSPI,2510,Consumer Discretionary,자동차부품,,,Y,,Y
+018880,KR7018880005,Hanon Systems Corp.,한온시스템,Hanon,KOSPI,2510,Consumer Discretionary,자동차부품,,,Y,,Y
+020150,KR7020150009,Lotte Energy Materials Corporation,롯데에너지머티리얼즈,LotteEnerMat,KOSPI,1510,Materials,이차전지 소재,,,Y,,Y
+088980,KR7088980008,Macquarie Korea Infrastructure Fund,맥쿼리인프라,MacquarieInfra,KOSPI,,,,,,,,
+017900,KR7017900002,KISCO Holdings Co. Ltd.,키스코홀딩스,KiscoHldgs,KOSPI,1510,Materials,지주,,00121990,Y,,Y
+247540,KR7247540008,Ecopro BM Co. Ltd.,에코프로비엠,EcoproBM,KOSDAQ,1510,Materials,이차전지 소재,,,,Y,Y
+086520,KR7086520004,Ecopro Co. Ltd.,에코프로,Ecopro,KOSDAQ,1510,Materials,이차전지 소재,,,,Y,Y
+022100,KR7022100002,POSCO DX Co. Ltd.,포스코DX,POSCODX,KOSDAQ,4520,Information Technology,IT 서비스,,,,Y,Y
+196170,KR7196170005,Alteogen Inc.,알테오젠,Alteogen,KOSDAQ,3520,Health Care,바이오,,,,Y,Y
+145020,KR7145020004,Hugel Inc.,휴젤,Hugel,KOSDAQ,3020,Consumer Staples,뷰티,,,,Y,Y
+178320,KR7178320008,Seojin System Co. Ltd.,서진시스템,Seojin,KOSDAQ,4520,Information Technology,시스템 통합,,,,Y,Y
+028300,KR7028300002,HLB Inc.,HLB,HLB,KOSDAQ,3520,Health Care,신약,,,,Y,Y
+263750,KR7263750002,Pearl Abyss Corp.,펄어비스,PearlAbyss,KOSDAQ,5020,Communication Services,게임,,,,Y,Y
+293490,KR7293490009,Kakao Games Corp.,카카오게임즈,KakaoGames,KOSDAQ,5020,Communication Services,게임,,,,Y,Y
+095660,KR7095660007,NEOWIZ Corp.,네오위즈,Neowiz,KOSDAQ,5020,Communication Services,게임,,,,Y,Y
+357780,KR7357780006,Soulbrain Co. Ltd.,솔브레인,Soulbrain,KOSDAQ,1510,Materials,반도체 소재,,,,Y,Y
+058470,KR7058470006,Leeno Industrial Inc.,리노공업,Leeno,KOSDAQ,4520,Information Technology,반도체 테스트,,,,Y,Y
+240810,KR7240810002,Wonik IPS Co. Ltd.,원익아이피에스,WonikIPS,KOSDAQ,4520,Information Technology,반도체 장비,,,,Y,Y
+348210,KR7348210006,Nextin Inc.,넥스틴,Nextin,KOSDAQ,4520,Information Technology,반도체 검사,,,,Y,Y
+086900,KR7086900008,Medytox Inc.,메디톡스,Medytox,KOSDAQ,3020,Consumer Staples,뷰티 의료,,,,Y,Y
+214150,KR7214150005,Classys Inc.,클래시스,Classys,KOSDAQ,3020,Consumer Staples,미용 의료,,,,Y,Y
+122870,KR7122870009,Yes24 Co. Ltd.,예스24,Yes24,KOSDAQ,2510,Consumer Discretionary,전자상거래,,,,Y,Y
+137310,KR7137310009,SD Biosensor Inc.,에스디바이오센서,SDBio,KOSPI,3520,Health Care,진단,,,,,
+095340,KR7095340006,ISC Co. Ltd.,ISC,ISC,KOSDAQ,4520,Information Technology,반도체 패키징,,,,Y,Y
+084370,KR7084370006,Eugene Technology Co. Ltd.,유진테크,EugeneTech,KOSDAQ,4520,Information Technology,반도체 장비,,,,Y,Y
+277810,KR7277810008,RFHIC Corporation,알에프에이치아이씨,RFHIC,KOSDAQ,4520,Information Technology,RF 부품,,,,Y,Y
+091990,KR7091990002,Celltrion Pharm Inc.,셀트리온제약,CelltrionPh,KOSDAQ,3520,Health Care,제약,,,,Y,Y
+049770,KR7049770001,Dongwon F&B Co. Ltd.,동원F&B,DongwonFnB,KOSPI,3020,Consumer Staples,식품,,,,Y,Y
+069260,KR7069260008,TKG Huchems Co. Ltd.,TKG휴켐스,TKGHuchems,KOSPI,1510,Materials,특수화학,,,Y,,Y
+005250,KR7005250006,GC Corp Holdings,녹십자홀딩스,GCHCorp,KOSPI,3520,Health Care,지주,,,Y,,Y
+003090,KR7003090008,Daewoong Corporation,대웅,Daewoong,KOSPI,3520,Health Care,지주,,,Y,,Y
+192080,KR7192080000,DoubleU Games Co. Ltd.,더블유게임즈,DoubleUGames,KOSDAQ,5020,Communication Services,게임,,,,Y,Y
+475150,KR7475150009,Doosan Skoda Power,두산스코다파워,DWS,KOSPI,2010,Industrials,중공업,,,Y,,Y
+454910,KR7454910001,Doosan Robotics Inc.,두산로보틱스,DoosanRobotics,KOSPI,2010,Industrials,로보틱스,,,,Y,Y
+003230,KR7003230000,Samyang Foods Co. Ltd.,삼양식품,SamyangFood,KOSPI,3020,Consumer Staples,식품,,,Y,,Y
+004490,KR7004490009,Sebang Global Battery Co. Ltd.,세방전지,SGBC,KOSPI,2510,Consumer Discretionary,2차전지,,,,,
+001430,KR7001430008,SeAH Besteel Holdings,세아베스틸지주,SBHC,KOSPI,1510,Materials,철강,,,,,
+003030,KR7003030004,SeAH Steel Holdings,세아제강지주,SeAHSteelHoldings,KOSPI,1510,Materials,철강 지주,,,,,
+009970,KR7009970005,Youngone Holdings Co. Ltd.,영원무역홀딩스,YoungoneHoldings,KOSPI,2520,Consumer Discretionary,의류 지주,,,Y,,Y
+000670,KR7000670000,Youngpoong Corporation,영풍,Youngpoong,KOSPI,1510,Materials,비철금속,,,Y,,Y
+001800,KR7001800002,Orion Holdings Corp.,오리온홀딩스,ORIONHoldings,KOSPI,3020,Consumer Staples,지주,,,Y,,Y
+008730,KR7008730004,Yulchon Chemical Co. Ltd.,율촌화학,YoulchonChem,KOSDAQ,1510,Materials,특수화학,,,Y,,Y
+457190,KR7457190007,Isu Specialty Chemical Co. Ltd.,이수스페셜티케미컬,ISUSPECIALTYCHEMICAL,KOSPI,1510,Materials,특수화학,,,,,
+103140,KR7103140000,Poongsan Corporation,풍산,POONGSAN,KOSPI,1510,Materials,비철금속,,,Y,,Y
+000240,KR7000240002,Hankook & Company Co. Ltd.,한국앤컴퍼니,HANKOOK&COMPANY,KOSPI,2510,Consumer Discretionary,지주,,,,,
+300720,KR7300720000,Hanil Cement Co. Ltd.,한일시멘트,HANILCMT,KOSPI,1510,Materials,시멘트,,,,,
+403870,KR7403870009,HPSP Co. Ltd.,에이치피에스피,HPSP,KOSDAQ,4520,Information Technology,반도체 장비,,,,Y,Y
+067160,KR7067160002,SOOP Co. Ltd.,숲,SOOP,KOSDAQ,5020,Communication Services,미디어,,,,,
+393890,KR7393890009,WCP Co. Ltd.,더블유씨피,WCP,KOSDAQ,1510,Materials,2차전지 분리막,,,,Y,Y
+086450,KR7086450004,Dong-A ST Co. Ltd.,동국제약,DongKookPharm,KOSPI,3520,Health Care,제약,,,,,
+131970,KR7131970006,Doosan Tesna Co. Ltd.,두산테스나,DOOSANTESNA,KOSDAQ,4520,Information Technology,반도체 테스트,,,,Y,Y
+036830,KR7036830008,Soulbrain Holdings Co. Ltd.,솔브레인홀딩스,SoulbrainHoldings,KOSDAQ,1510,Materials,반도체 소재 지주,,,,Y,Y
+222800,KR7222800005,Simmtech Co. Ltd.,심텍,SIMMTECH,KOSDAQ,4520,Information Technology,반도체 PCB,,,,Y,Y
+084850,KR7084850007,ITM Semiconductor Co. Ltd.,아이티엠반도체,ITMSemiconductor,KOSDAQ,4520,Information Technology,반도체 패키징,,,,,
+383310,KR7383310000,Ecopro HN Co. Ltd.,에코프로에이치엔,ECOPROHN,KOSDAQ,1510,Materials,특수화학,,,,Y,Y
+002840,KR7002840007,Miwon Commercial Co. Ltd.,미원상사,MiwonComd,KOSPI,1510,Materials,특수화학,,,Y,,Y
+183300,KR7183300003,KoMiCo Ltd.,코미코,KoMiCo,KOSDAQ,,,,,,,,
+009520,KR7009520008,POSCO M-Tech Co. Ltd.,포스코엠텍,POSCOM-TECH,KOSDAQ,1510,Materials,철강 가공,,,Y,,Y
+278470,KR7278470000,APR Corp.,에이피알,APR,KOSPI,3020,Consumer Staples,뷰티,,,,Y,Y
+348370,KR7348370008,Hanwha Vision Co. Ltd.,한화비전,Hanwha Vision,KOSPI,4520,Information Technology,보안,,,,,
+007340,KR7007340003,DN Automotive Corporation,DN오토모티브,DN AUTOMOTIVE,KOSPI,2510,Consumer Discretionary,자동차부품,,,Y,,Y
+443060,KR7443060009,HD Hyundai Marine Solution Co. Ltd.,HD현대마린솔루션,HDHMS,KOSPI,2010,Industrials,조선 서비스,,,Y,,Y
+006040,KR7006040000,Dongwon Industries Co. Ltd.,동원산업,Dongwonind,KOSPI,3020,Consumer Staples,수산,,,Y,,Y
+268280,KR7268280005,Miwon Specialty Chemical Co. Ltd.,미원에스씨,MIWON SC,KOSPI,1510,Materials,특수화학,,,,Y,Y
+071320,KR7071320006,Korea District Heating Corporation,한국지역난방공사,KDHC,KOSPI,5510,Utilities,난방,,,Y,,Y
