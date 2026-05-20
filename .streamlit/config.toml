@@ -12,9 +12,11 @@ enableCORS = false
 gatherUsageStats = false
 
 [theme]
-# Mandata 브랜드 컬러 — Midnight Executive
-primaryColor = "#1E40AF"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F8FAFC"
-textColor = "#0F172A"
+# Mandata Dark — 보여주신 mandata_kr/web 화면과 동일 톤
+# 배경: 거의 검정 / 강조: Mandata 오렌지 (로고 "data" 부분 색) / 텍스트: 거의 흰색
+base = "dark"
+primaryColor = "#F59E0B"           # Mandata orange — 강조 + 링크 + primary 버튼
+backgroundColor = "#0A0A0B"        # 메인 배경 (거의 검정, 살짝 따뜻한 톤)
+secondaryBackgroundColor = "#161618"  # 사이드바 / 카드 / 입력박스 배경
+textColor = "#F1F5F9"              # 주 텍스트 (off-white)
 font = "sans serif"

@@ -55,6 +55,10 @@ from pages_registry import (  # noqa: E402
 )
 
 
+# Mandata Dark 테마 CSS 주입 — 모든 페이지에 일관 적용
+app_utils.inject_theme_css()
+
+
 _running_on_cloud = app_utils.is_streamlit_cloud()
 
 
