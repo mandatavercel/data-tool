@@ -169,12 +169,95 @@ def render() -> None:
             st.caption(":orange[Demo set] — run KRX sync for full universe")
 
     if not meta:
-        st.warning(
-            "번들된 hand-curated 데모셋 사용 중 (KRX 전체 ~2,500 종목 중 일부). "
-            "풀 커버리지로 키우려면 터미널에서: "
-            "`cd ~/Desktop/data-tool/korea-security-id && python3 -m mandata_kr.sync`",
-            icon="⚠️",
-        )
+        warn_col, btn_col = st.columns([4, 1.3])
+        with warn_col:
+            st.warning(
+                f"번들된 hand-curated 데모셋 사용 중 ({total}개 종목). "
+                "KRX 전체 (~2,500개) 로 늘리려면 오른쪽 버튼 → 2~5분 소요.",
+                icon="⚠️",
+            )
+        with btn_col:
+            do_patch = st.button(
+                "🔄 전체 종목 패치하기",
+                type="primary",
+                use_container_width=True,
+                key="_krx_patch_btn",
+                help="pykrx로 KOSPI+KOSDAQ 전체 종목을 받아 마스터에 추가합니다 (hand-curated 행은 보존)",
+            )
+
+        if do_patch:
+            progress = st.progress(0.0)
+            status = st.empty()
+
+            def _patch_cb(msg: str, frac: float):
+                progress.progress(min(max(frac, 0.0), 1.0))
+                status.info(msg)
+
+            try:
+                # 같은 폴더의 krx_sync 모듈 import
+                import sys as _sys
+                from pathlib import Path as _Path
+                _here = _Path(__file__).resolve().parent
+                if str(_here) not in _sys.path:
+                    _sys.path.insert(0, str(_here))
+                import krx_sync  # noqa: E402
+
+                meta_new = krx_sync.patch_full_universe(progress_cb=_patch_cb)
+                status.success(
+                    f"✅ 완료 — 총 **{meta_new['row_count']:,}개** "
+                    f"(hand-curated {meta_new['preserved']:,} + 신규 {meta_new['added']:,})"
+                )
+                st.balloons()
+
+                # Cloud 환경이면 영구 반영을 위한 안내 + 다운로드
+                try:
+                    _root = _here.parent
+                    if str(_root) not in _sys.path:
+                        _sys.path.insert(0, str(_root))
+                    import app_utils  # noqa: E402
+                    if app_utils.is_streamlit_cloud():
+                        st.warning(
+                            "☁️ **Cloud 환경**: 이 변경은 reboot 시 사라져요. "
+                            "영구 반영하려면 아래에서 두 파일을 받아 GitHub에 commit해주세요.",
+                            icon="📌",
+                        )
+                        dc1, dc2 = st.columns(2)
+                        with dc1:
+                            st.download_button(
+                                "📥 equity_master.csv",
+                                data=krx_sync.get_master_path().read_bytes(),
+                                file_name="equity_master.csv",
+                                mime="text/csv",
+                                use_container_width=True,
+                            )
+                        with dc2:
+                            import json as _json
+                            meta_path = krx_sync.get_master_path().parent / "sync_meta.json"
+                            if meta_path.exists():
+                                st.download_button(
+                                    "📥 sync_meta.json",
+                                    data=meta_path.read_bytes(),
+                                    file_name="sync_meta.json",
+                                    mime="application/json",
+                                    use_container_width=True,
+                                )
+                        st.caption(
+                            "두 파일을 `korea-security-id/mandata_kr/data/` 폴더에 덮어쓴 뒤 "
+                            "`git add ... && git commit -m 'data: KRX 전체 종목 sync' && git push`"
+                        )
+                except Exception:
+                    pass
+
+                # 사용자가 명시적으로 reload 하도록 — 자동 rerun하면 성공 메시지 못 봄
+                if st.button("🔁 캐시 비우고 다시 로드", type="primary"):
+                    st.cache_resource.clear()
+                    st.rerun()
+            except Exception as e:
+                status.error(f"❌ 패치 실패: {e}")
+                st.caption(
+                    "네트워크/방화벽으로 KRX 접근이 막혔거나 pykrx 호출에 실패했어요. "
+                    "잠시 후 다시 시도하거나 데모셋 그대로 사용하셔도 됩니다."
+                )
 
     tab_lookup, tab_search, tab_members, tab_validate, tab_bulk = st.tabs(
         ["Lookup", "Search by name", "Index members", "Validate ISIN", "Bulk CSV"]
