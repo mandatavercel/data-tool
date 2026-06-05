@@ -147,6 +147,18 @@ _BASE_PAGES: list[PageEntry] = [
         ),
         entry_file="pages/fx_signal.py",
     ),
+    PageEntry(
+        key="ar",
+        name="AR Management",
+        icon="💰",
+        category="Sales",
+        description=(
+            "고객사 계약·인보이스 자동 일정·수금 추적·데이터 오너 배분 관리. "
+            "Billing frequency(월/분기/연/일회성)에 맞춰 인보이스 일정 자동 생성. "
+            "임박/연체 인보이스 한눈에. (Phase 2에서 이메일 알림·배분 송금서·월별 리포트 추가)"
+        ),
+        entry_file="pages/ar.py",
+    ),
 
     # ──── ⚙️ Operations ────────────────────────────────────
     PageEntry(
