@@ -288,3 +288,77 @@ def run_backtest(
         score_series=score_series,
         outperformance_pct=float(outperf),
     )
+
+
+# ─────────────────────────────────────────────────────────────
+# 최적 조합 탐색 (parameter sweep)
+# ─────────────────────────────────────────────────────────────
+def parameter_sweep(
+    usdkrw: pd.Series,
+    score_series: pd.Series,
+    monthly_deposit_usd: float = 10_000.0,
+    weak_grid: Optional[list[float]] = None,
+    strong_grid: Optional[list[float]] = None,
+    hold_grid: Optional[list[int]] = None,
+) -> pd.DataFrame:
+    """
+    여러 (약한, 강한, 한도) 조합으로 신호 시뮬레이션을 반복 실행 → outperformance 순으로 정렬.
+
+    핵심 트릭: score_series는 외부에서 한 번만 계산. 시뮬레이션 자체는 ms 단위라
+    수백 조합도 1초 이내 처리 가능.
+
+    Returns DataFrame: weak, strong, hold, outperf_pct, n_trades, avg_rate
+    """
+    if weak_grid is None:
+        weak_grid = [0, -5, -10, -15, -20, -25, -30, -35]
+    if strong_grid is None:
+        strong_grid = [-20, -25, -30, -35, -40, -45, -50, -55, -60]
+    if hold_grid is None:
+        hold_grid = [90, 120, 150, 180, 240, 300, 365]
+
+    # baseline: 즉시 환전 (한 번만)
+    baseline_params = BacktestParams(monthly_deposit_usd=float(monthly_deposit_usd))
+    trades_imm = simulate_immediate(usdkrw, baseline_params)
+    baseline_avg = float(trades_imm["krw"].sum() / trades_imm["usd"].sum()) if trades_imm["usd"].sum() > 0 else 0.0
+
+    rows = []
+    for weak in weak_grid:
+        for strong in strong_grid:
+            if strong > weak:  # 강한은 약한보다 더 음수여야 (강한 ≤ 약한)
+                continue
+            for hold in hold_grid:
+                params = BacktestParams(
+                    monthly_deposit_usd=float(monthly_deposit_usd),
+                    max_hold_days=int(hold),
+                    threshold_strong=float(strong),
+                    threshold_weak=float(weak),
+                )
+                trades_sig = simulate_signal(usdkrw, score_series, params)
+                if trades_sig.empty or trades_sig["usd"].sum() <= 0:
+                    continue
+                sig_avg = float(trades_sig["krw"].sum() / trades_sig["usd"].sum())
+                outperf = (sig_avg / baseline_avg - 1.0) * 100.0 if baseline_avg > 0 else 0.0
+
+                # 신호로 trigger된 trade vs 강제 환전 분리 카운트
+                trades_sig_reasons = trades_sig["reason"].fillna("").str.contains
+                n_strong = int(trades_sig_reasons("강한 환전 신호").sum())
+                n_weak = int(trades_sig_reasons("환전 신호").sum()) - n_strong
+                n_forced = int(trades_sig_reasons("강제").sum())
+                n_endclear = int(trades_sig_reasons("기간 종료").sum())
+
+                rows.append({
+                    "약한": int(weak),
+                    "강한": int(strong),
+                    "한도(일)": int(hold),
+                    "outperf_%": round(outperf, 3),
+                    "환전 횟수": int(len(trades_sig)),
+                    "신호 환전": n_strong + n_weak,
+                    "강제 환전": n_forced + n_endclear,
+                    "평균 환율": round(sig_avg, 2),
+                })
+
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return df
+    df = df.sort_values("outperf_%", ascending=False).reset_index(drop=True)
+    return df

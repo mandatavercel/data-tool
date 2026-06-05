@@ -520,6 +520,142 @@ with st.expander("🧪 백테스트 — 신호 따랐다면 환전을 얼마나 
         "→ 신호 기반이 outperform 했다면 실제 환전 정책으로 채택 검토."
     )
 
+    # ─── 🎯 최적 조합 자동 탐색 (사용자가 슬라이더 만지기 전에 추천) ──
+    sweep_cols = st.columns([3, 1])
+    with sweep_cols[0]:
+        st.markdown(
+            "<div style='font-size:0.95rem; color:#F1F5F9; font-weight:600;'>"
+            "🎯 최적 조합 자동 찾기</div>"
+            "<div style='font-size:0.8rem; color:rgba(241,245,249,0.6); margin-top:2px;'>"
+            "수십 개 슬라이더 조합을 한 번에 시도해서 outperformance가 가장 좋은 조합 추천. "
+            "월 입금액 정하고 버튼만 누르면 끝.</div>",
+            unsafe_allow_html=True,
+        )
+    with sweep_cols[1]:
+        bt_sweep_run = st.button("🎯 최적 조합 찾기", type="secondary",
+                                  use_container_width=True, key="bt_sweep_run")
+
+    if bt_sweep_run:
+        with st.spinner("과거 시계열 + 점수 시계열 계산 → 수백 조합 시뮬레이션 중…"):
+            from fx_signal_app import backtest as fx_backtest_sweep
+
+            # 데이터 로드
+            try:
+                bt_period_years_sweep = st.session_state.get("bt_years", 2)
+            except Exception:
+                bt_period_years_sweep = 2
+            try:
+                bt_monthly_sweep = st.session_state.get("bt_monthly", 10_000)
+            except Exception:
+                bt_monthly_sweep = 10_000
+
+            extra_years = 1
+            total_period = f"{bt_period_years_sweep + extra_years}y"
+            full_map_sweep: dict[str, pd.Series] = {}
+            for k in ALL_KEYS:
+                s = fx_data.fetch_long_series(k, period=total_period)
+                if not s.empty:
+                    full_map_sweep[k] = s
+
+            if "USDKRW" not in full_map_sweep:
+                st.error("USD/KRW 시계열 못 받아서 sweep 불가.")
+            else:
+                usdkrw_sweep = full_map_sweep["USDKRW"]
+                end_dt = usdkrw_sweep.index[-1]
+                start_dt = end_dt - pd.Timedelta(days=bt_period_years_sweep * 365)
+                mask = (usdkrw_sweep.index >= start_dt) & (usdkrw_sweep.index <= end_dt)
+                usdkrw_sub = usdkrw_sweep.loc[mask]
+
+                # 점수 시계열 한 번만 계산 (가장 비싼 부분)
+                score_series_sweep = fx_backtest_sweep.build_score_series(
+                    full_map_sweep, usdkrw_sub.index
+                )
+
+                # sweep 실행
+                sweep_df = fx_backtest_sweep.parameter_sweep(
+                    usdkrw_sub,
+                    score_series_sweep,
+                    monthly_deposit_usd=float(bt_monthly_sweep),
+                )
+                st.session_state["_bt_sweep_df"] = sweep_df
+
+    # sweep 결과 표시
+    sweep_df = st.session_state.get("_bt_sweep_df")
+    if sweep_df is not None and not sweep_df.empty:
+        # 두 그룹으로 분리: 신호가 실제로 효과 있었던 조합 vs 강제 환전만 있던 조합
+        meaningful = sweep_df[sweep_df["신호 환전"] >= 1].copy()
+        only_forced = sweep_df[sweep_df["신호 환전"] == 0].copy()
+
+        # 추천 조합 = 신호 환전 ≥ 1 중 outperf 가장 높은 것 (없으면 전체 1위)
+        if not meaningful.empty:
+            best = meaningful.iloc[0]
+            best_label = "신호 환전이 실제 발생한 조합 중 최고"
+        else:
+            best = sweep_df.iloc[0]
+            best_label = "전체 최고 (신호 환전 0번, 강제 환전만 발생)"
+
+        # 추천 카드
+        best_color = "#22C55E" if best["outperf_%"] > 0.3 else (
+            "#EF4444" if best["outperf_%"] < -0.3 else "#94A3B8"
+        )
+        st.markdown(
+            f"""
+            <div style="background: linear-gradient(135deg, {best_color}15 0%, {best_color}05 100%);
+                        border: 1px solid {best_color}55; border-left: 4px solid {best_color};
+                        border-radius: 10px; padding: 14px 18px; margin: 10px 0;">
+              <div style="font-size:0.72rem; color:rgba(241,245,249,0.55);
+                          text-transform:uppercase; letter-spacing:0.1em; font-weight:600;">
+                🏆 추천 조합 ({best_label})
+              </div>
+              <div style="display:flex; gap:24px; align-items:center; margin-top:8px; flex-wrap:wrap;">
+                <div style="font-size:1.45rem; font-weight:700; color:{best_color}; line-height:1;">
+                  Outperformance {best['outperf_%']:+.2f}%
+                </div>
+                <div style="font-size:0.95rem; color:rgba(241,245,249,0.85);">
+                  약한 <b>{int(best['약한'])}</b> · 강한 <b>{int(best['강한'])}</b> · 한도 <b>{int(best['한도(일)'])}일</b>
+                </div>
+                <div style="font-size:0.85rem; color:rgba(241,245,249,0.65);">
+                  환전 {int(best['환전 횟수'])}회 (신호 {int(best['신호 환전'])} · 강제 {int(best['강제 환전'])}) · 평균 환율 {best['평균 환율']:,.2f}
+                </div>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        apply_cols = st.columns([1, 3])
+        with apply_cols[0]:
+            if st.button("✅ 이 조합 적용", key="bt_apply_best", type="primary",
+                         use_container_width=True):
+                # session_state로 슬라이더 값 갱신
+                st.session_state["bt_thr_range"] = (int(best["강한"]), int(best["약한"]))
+                st.session_state["bt_max_hold"] = int(best["한도(일)"])
+                st.rerun()
+
+        # Top 5 표
+        st.markdown(
+            "<div style='font-size:0.78rem; color:rgba(241,245,249,0.55); "
+            "text-transform:uppercase; letter-spacing:0.08em; font-weight:600; "
+            "margin: 14px 0 6px 0;'>📊 상위 조합 (신호 환전 ≥ 1)</div>",
+            unsafe_allow_html=True,
+        )
+        if not meaningful.empty:
+            st.dataframe(meaningful.head(8), hide_index=True, use_container_width=True)
+        else:
+            st.info("신호 환전이 한 번이라도 발생한 조합이 없습니다. 임계값을 더 완화(0에 가깝게)해야 신호가 trigger 될 수 있어요.")
+
+        show_forced = st.toggle("🔒 강제 환전만 발생한 조합도 보기 (참고용)", key="bt_show_forced")
+        if show_forced and not only_forced.empty:
+            st.dataframe(only_forced.head(8), hide_index=True, use_container_width=True)
+
+        # 면책
+        st.caption(
+            "⚠️ 과거 데이터 최적화의 한계: 백테스트에서 최적이었던 조합이 미래에도 최적이라는 보장은 없습니다. "
+            "Overfitting 위험을 줄이려면 여러 기간(예: 1년 / 2년 / 3년)에서 다 좋은 조합을 고르는 게 안전합니다."
+        )
+
+    st.markdown("---")
+
     # ─── 점수 부호 규약 안내 (슬라이더 위에 먼저) ────────────────
     st.markdown(
         """
