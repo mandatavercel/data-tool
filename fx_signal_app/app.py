@@ -534,6 +534,86 @@ with st.expander("🧪 백테스트 — 신호 따랐다면 환전을 얼마나 
     with bt_cols[4]:
         bt_max_hold = st.slider("강제 환전 한도 (일)", 60, 365, 180, step=30, key="bt_max_hold")
 
+    # ─── 슬라이더 즉시 해석 — "이 설정의 의미" ─────────────────────
+    # 예시: 한도 일수 / 30 만큼 입금이 누적 후 강제 환전 발생 시점.
+    # 풀에 쌓이는 최대 USD는 대략 (한도_일/30) × 월 입금.
+    typical_pool_months = max(1, int(bt_max_hold / 30))
+    typical_pool_usd = bt_monthly * typical_pool_months
+    weak_usd = typical_pool_usd * 0.5
+    strong_usd = typical_pool_usd * 1.0
+
+    # 오늘의 적용 (현재 단기·중기 평균)
+    today_score = (short.score + mid.score) / 2.0
+    if today_score <= bt_thr_strong:
+        today_color = "#22C55E"
+        today_action = f"🟢 보유 USD 100% 환전 (점수 {today_score:+.0f} ≤ {bt_thr_strong})"
+    elif today_score <= bt_thr_weak:
+        today_color = "#84CC16"
+        today_action = f"🟢 보유 USD 50% 환전 (점수 {today_score:+.0f} ≤ {bt_thr_weak})"
+    else:
+        today_color = "#94A3B8"
+        today_action = f"⚪ 환전 안 함 / 보유 (점수 {today_score:+.0f} > {bt_thr_weak})"
+
+    st.markdown(
+        f"""
+        <div style="background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.08);
+                    border-radius: 10px; padding: 14px 18px; margin: 14px 0 8px 0;">
+          <div style="font-size:0.72rem; color:rgba(241,245,249,0.55);
+                      text-transform:uppercase; letter-spacing:0.1em; font-weight:600; margin-bottom:10px;">
+            이 설정의 의미 · 매월 ${bt_monthly:,} 입금 가정
+          </div>
+          <table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
+            <thead>
+              <tr style="color:rgba(241,245,249,0.55); font-size:0.75rem;
+                         text-transform:uppercase; letter-spacing:0.06em;">
+                <th style="text-align:left; padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.08);">점수 구간</th>
+                <th style="text-align:left; padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.08);">행동</th>
+                <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.08);">예시 환전 액수</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding:8px; color:#22C55E; font-family:'JetBrains Mono',monospace; font-weight:600;">≤ {bt_thr_strong}</td>
+                <td style="padding:8px; color:#F1F5F9;">🟢 <b>풀의 100% 환전</b> (강한 신호)</td>
+                <td style="padding:8px; text-align:right; color:#22C55E; font-family:'JetBrains Mono',monospace; font-weight:600;">~ ${strong_usd:,.0f}</td>
+              </tr>
+              <tr>
+                <td style="padding:8px; color:#84CC16; font-family:'JetBrains Mono',monospace; font-weight:600;">{bt_thr_strong + 1} ~ {bt_thr_weak}</td>
+                <td style="padding:8px; color:#F1F5F9;">🟢 <b>풀의 50% 환전</b> (약한 신호)</td>
+                <td style="padding:8px; text-align:right; color:#84CC16; font-family:'JetBrains Mono',monospace; font-weight:600;">~ ${weak_usd:,.0f}</td>
+              </tr>
+              <tr>
+                <td style="padding:8px; color:#94A3B8; font-family:'JetBrains Mono',monospace; font-weight:600;">{bt_thr_weak + 1} ~ +100</td>
+                <td style="padding:8px; color:#F1F5F9;">⚪ <b>보유 / 환전 안 함</b></td>
+                <td style="padding:8px; text-align:right; color:#94A3B8; font-family:'JetBrains Mono',monospace;">$0</td>
+              </tr>
+              <tr>
+                <td style="padding:8px; color:#F59E0B; font-family:'JetBrains Mono',monospace; font-weight:600;">한도 초과</td>
+                <td style="padding:8px; color:#F1F5F9;">🟡 <b>강제 환전</b> ({bt_max_hold}일 ≈ {typical_pool_months}개월 묵힌 USD)</td>
+                <td style="padding:8px; text-align:right; color:#F59E0B; font-family:'JetBrains Mono',monospace; font-weight:600;">~ ${bt_monthly:,}/회</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="margin-top:12px; padding:10px 14px; background:rgba(255,255,255,0.025);
+                      border-left:3px solid {today_color}; border-radius:6px;">
+            <div style="font-size:0.72rem; color:rgba(241,245,249,0.55);
+                        text-transform:uppercase; letter-spacing:0.08em; font-weight:600; margin-bottom:4px;">
+              오늘 이 설정으로는
+            </div>
+            <div style="font-size:0.95rem; color:{today_color}; font-weight:600;">
+              {today_action}
+            </div>
+          </div>
+          <div style="font-size:0.78rem; color:rgba(241,245,249,0.45); margin-top:10px; line-height:1.5;">
+            💡 풀(pool) = 아직 환전 안 한 누적 보유 USD.
+            한도 일수가 길수록 풀이 더 많이 쌓여서 한 번에 환전하는 액수도 커집니다.
+            예시 액수는 풀이 평균 {typical_pool_months}개월치(${typical_pool_usd:,}) 쌓였다고 가정한 것.
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     if st.button("🚀 백테스트 실행", type="primary", use_container_width=False, key="bt_run"):
         with st.spinner("과거 시계열 가져오는 중 + 시뮬레이션…"):
             from fx_signal_app import backtest as fx_backtest
