@@ -131,6 +131,23 @@ _BASE_PAGES: list[PageEntry] = [
         entry_file="pages/security_id.py",
     ),
 
+    # 마켓 데이터 페이지는 Next.js (hangang/) 로 이동됨 — 2026-05 데시전.
+    # marketdata_app/ 의 data.py·brief.py 는 FastAPI 백엔드 포팅 참조용으로 보존.
+
+    # ──── 💰 Sales / Finance ──────────────────────────────
+    PageEntry(
+        key="fx_signal",
+        name="FX 환율 신호",
+        icon="💱",
+        category="Sales",
+        description=(
+            "글로벌 매출(USD) → KRW 환전 타이밍을 신호 점수로 제시. "
+            "단기(1~2주) + 중기(1~3개월) 두 호라이즌으로 USD/KRW·DXY·UST·KOSPI·원유·CNY를 "
+            "종합해 '지금 환전 / 대기 / 중립' 판정. 매크로 이벤트 캘린더 포함."
+        ),
+        entry_file="pages/fx_signal.py",
+    ),
+
     # ──── ⚙️ Operations ────────────────────────────────────
     PageEntry(
         key="catalog",
@@ -168,6 +185,18 @@ _BASE_PAGES: list[PageEntry] = [
             "산정 근거 즉시 출력. 산정 이력 저장 및 PDF 인쇄 지원."
         ),
         entry_file="pages/revshare.py",
+    ),
+    PageEntry(
+        key="contract",
+        name="계약서 생성기",
+        icon="📜",
+        category="Partnership",
+        description=(
+            "데이터 공급 계약서·NDA·DDQ 등 표준 양식을 질문 답변만으로 자동 생성. "
+            "맨데이터 정통 법무 양식(국내 DSA v1.0 기본 포함)에 진척도·미치환 변수 감지·"
+            "입력값 백업까지 한 화면에서 처리. 새 양식은 templates/<key>/ 폴더만 추가하면 즉시 인식."
+        ),
+        entry_file="pages/contract.py",
     ),
 
     # ──── 🛡 Admin (관리자 전용) ───────────────────────────

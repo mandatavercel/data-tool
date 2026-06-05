@@ -1,0 +1,51 @@
+[
+  {
+    "date": "2026-06-05",
+    "title": "미국 5월 고용지표 (NFP)",
+    "category": "US Data",
+    "impact": "high",
+    "note": "08:30 ET · 첫째 주 금요일 정례"
+  },
+  {
+    "date": "2026-06-10",
+    "title": "미국 5월 CPI",
+    "category": "US Data",
+    "impact": "high",
+    "note": "08:30 ET · Fed 다음 회의의 핵심 인풋"
+  },
+  {
+    "date": "2026-06-11",
+    "title": "ECB 통화정책 결정",
+    "category": "ECB",
+    "impact": "medium",
+    "note": "14:15 CET · EUR 강세/약세 → DXY 경유 KRW 영향"
+  },
+  {
+    "date": "2026-06-17",
+    "title": "FOMC 6월 회의 + 점도표 (SEP)",
+    "category": "Fed",
+    "impact": "high",
+    "note": "14:00 ET 성명 · 14:30 ET 파월 기자회견 · 분기 점도표 업데이트"
+  },
+  {
+    "date": "2026-06-25",
+    "title": "미국 5월 PCE",
+    "category": "US Data",
+    "impact": "high",
+    "note": "08:30 ET · Fed가 선호하는 인플레 지표"
+  },
+  {
+    "date": "2026-07-03",
+    "title": "미국 6월 고용지표 (NFP)",
+    "category": "US Data",
+    "impact": "high",
+    "note": "08:30 ET · 7월 FOMC 직전 핵심 자료"
+  },
+  {
+    "date": "2026-07-16",
+    "title": "한국은행 7월 금통위 (통화정책방향)",
+    "category": "BOK",
+    "impact": "high",
+    "note": "기준금리 결정 · KRW 직접 영향"
+  }
+]
