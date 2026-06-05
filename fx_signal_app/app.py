@@ -580,43 +580,51 @@ with st.expander("🧪 백테스트 — 신호 따랐다면 환전을 얼마나 
         imm = bt_result.summary[bt_result.summary["시나리오"] == "즉시 환전"].iloc[0]
         sig = bt_result.summary[bt_result.summary["시나리오"] == "신호 기반"].iloc[0]
 
-        # KPI 3개
+        # KPI 3개 — 비교 대상 명시 (신호 vs 즉시)
         kpi_cols = st.columns(3)
         with kpi_cols[0]:
             st.metric(
-                "즉시 환전 (baseline)",
-                f"{imm['평균 실효 환율']:,.2f} 원/달러",
-                f"누적 KRW {imm['누적 KRW']/1e6:.1f}M",
+                "🅰 즉시 환전 (baseline)",
+                f"{imm['평균 실효 환율']:,.2f} 원/$",
+                f"누적 {imm['누적 KRW']/1e6:.1f}M원",
                 delta_color="off",
+                help="매월 입금된 USD를 그 날 바로 100% 환전했을 때의 평균 환율. 비교 기준선.",
             )
         with kpi_cols[1]:
             outperf = bt_result.outperformance_pct
             st.metric(
-                "신호 기반",
-                f"{sig['평균 실효 환율']:,.2f} 원/달러",
-                f"누적 KRW {sig['누적 KRW']/1e6:.1f}M",
+                "🅱 신호 기반",
+                f"{sig['평균 실효 환율']:,.2f} 원/$",
+                f"누적 {sig['누적 KRW']/1e6:.1f}M원",
                 delta_color="off",
+                help="신호 점수에 따라 환전 시점을 조절했을 때의 평균 환율. (음수 점수일 때만 환전 + 6개월 한도)",
             )
         with kpi_cols[2]:
             extra_krw = sig["누적 KRW"] - imm["누적 KRW"]
-            verdict_color = "#22C55E" if outperf > 0 else ("#EF4444" if outperf < -0.1 else "#94A3B8")
+            verdict_color = "#22C55E" if outperf > 0.3 else ("#EF4444" if outperf < -0.3 else "#94A3B8")
             verdict_text = (
-                "🟢 신호 outperform" if outperf > 0.3
-                else ("🔴 신호 underperform" if outperf < -0.3
-                else "⚪ 거의 동일")
+                "🟢 신호 채택 검토" if outperf > 0.3
+                else ("🔴 신호 손해" if outperf < -0.3
+                else "⚪ 효과 미미")
             )
             st.metric(
-                "Outperformance",
+                "🅱 vs 🅰  Outperformance",
                 f"{outperf:+.2f}%",
-                f"{extra_krw/1e3:+,.0f}천원 차이",
+                f"신호 기반이 {extra_krw/1e3:+,.0f}천원 더 받음",
                 delta_color="normal",
+                help="신호 기반이 즉시 환전 대비 KRW를 얼마나 더(또는 덜) 받았는지. 양수면 신호 유리, 음수면 그냥 즉시 환전이 나음.",
             )
             st.markdown(
                 f"<div style='font-size:0.85rem; color:{verdict_color}; font-weight:600; margin-top:-12px;'>{verdict_text}</div>",
                 unsafe_allow_html=True,
             )
 
-        # 누적 평균 환율 차트
+        # 누적 평균 환율 차트 — 제목은 plotly 밖으로 빼서 겹침 방지
+        st.markdown(
+            "<div style='margin: 22px 0 6px 0; font-size:0.85rem; color:rgba(241,245,249,0.7); font-weight:600;'>"
+            "📈 누적 평균 실효 환율 — 낮을수록 같은 USD로 KRW를 더 잘 받은 것</div>",
+            unsafe_allow_html=True,
+        )
         try:
             import plotly.graph_objects as go
             fig_bt = go.Figure()
@@ -625,19 +633,18 @@ with st.expander("🧪 백테스트 — 신호 따랐다면 환전을 얼마나 
                 if col in cum_df.columns:
                     fig_bt.add_trace(go.Scatter(
                         x=cum_df.index, y=cum_df[col].values, name=col,
-                        line=dict(color=color, width=2),
+                        line=dict(color=color, width=2.2),
                         hovertemplate="%{x|%Y-%m-%d}<br>" + col + ": %{y:,.2f}<extra></extra>",
                     ))
             fig_bt.update_layout(
-                title="누적 평균 실효 환율 (낮을수록 환전 비용 낮음)",
-                height=320,
-                margin=dict(l=8, r=8, t=40, b=8),
+                height=340,
+                margin=dict(l=8, r=8, t=44, b=8),
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)",
                 font=dict(color="#F1F5F9", family="Inter, sans-serif", size=12),
-                xaxis=dict(gridcolor="rgba(255,255,255,0.06)"),
-                yaxis=dict(gridcolor="rgba(255,255,255,0.06)", tickformat=",.0f"),
-                legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="left", x=0),
+                xaxis=dict(gridcolor="rgba(255,255,255,0.06)", showline=False),
+                yaxis=dict(gridcolor="rgba(255,255,255,0.06)", showline=False, tickformat=",.0f"),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
                 hovermode="x unified",
             )
             st.plotly_chart(fig_bt, use_container_width=True, config={"displayModeBar": False})
@@ -645,11 +652,17 @@ with st.expander("🧪 백테스트 — 신호 따랐다면 환전을 얼마나 
             st.line_chart(bt_result.cumulative_rate)
 
         # 신호 점수 시계열 (작게)
-        st.caption("백테스트 기간의 일별 종합 점수 (단기+중기 평균)")
+        st.markdown(
+            "<div style='margin: 14px 0 4px 0; font-size:0.85rem; color:rgba(241,245,249,0.7); font-weight:600;'>"
+            "📊 백테스트 기간 일별 종합 점수 (단기+중기 평균) — 음수일 때 환전 trigger</div>",
+            unsafe_allow_html=True,
+        )
         st.line_chart(bt_result.score_series, height=180)
 
-        # 환전 액션 로그
-        with st.expander("📋 환전 액션 로그 (전체)", expanded=False):
+        # 환전 액션 로그 — expander 중첩 안 되므로 토글 버튼으로
+        st.markdown("")
+        show_log = st.toggle("📋 환전 액션 로그 보기", key="bt_show_log")
+        if show_log:
             trades_show = bt_result.trades.copy()
             trades_show["date"] = pd.to_datetime(trades_show["date"]).dt.strftime("%Y-%m-%d")
             trades_show["usd"] = trades_show["usd"].apply(lambda x: f"{x:,.0f}")
