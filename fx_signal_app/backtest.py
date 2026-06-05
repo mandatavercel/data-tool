@@ -42,7 +42,13 @@ class BacktestResult:
     summary: pd.DataFrame                     # 시나리오별 avg_rate, total_krw, total_usd
     cumulative_rate: pd.DataFrame             # date × scenario → 누적 평균 환율
     score_series: pd.Series                   # 백테스트 기간의 일별 종합 점수
-    outperformance_pct: float                 # signal vs immediate (KRW 기준 %)
+    outperformance_pct: float                 # signal vs immediate — 전체 (청산 효과 포함)
+    # 정직한 분리:
+    signal_only_outperf_pct: float = 0.0      # 신호 trigger된 trade만 vs 시장 평균. 신호의 진짜 실력
+    signal_trades_usd_share: float = 0.0      # 전체 USD 중 신호로 환전된 비율 (0~1)
+    market_avg_rate: float = 0.0              # 백테스트 기간 USDKRW 단순 평균 (참조 기준)
+    signal_avg_rate: float = 0.0              # 신호 trigger된 trade의 평균 환율 (없으면 NaN)
+    forced_avg_rate: float = 0.0              # 강제 + 종료 청산의 평균 환율
 
 
 # ─────────────────────────────────────────────────────────────
@@ -281,12 +287,41 @@ def run_backtest(
     imm_avg = summary.loc[summary["시나리오"] == "즉시 환전", "평균 실효 환율"].iloc[0]
     outperf = (sig_avg / imm_avg - 1.0) * 100.0 if imm_avg > 0 else 0.0
 
+    # 6) 신호 활동만의 outperformance — 진짜 신호 실력
+    # 분리: "신호 환전" reason 만 골라서 그것의 평균 환율 vs 같은 기간 시장 단순 평균
+    market_avg = float(usdkrw.mean())
+    sig_only = trades_signal[
+        trades_signal["reason"].fillna("").str.contains("환전 신호", regex=False, na=False)
+    ]
+    forced_only = trades_signal[
+        trades_signal["reason"].fillna("").str.contains("강제|기간 종료", regex=True, na=False)
+    ]
+
+    if not sig_only.empty and sig_only["usd"].sum() > 0:
+        sig_only_avg = float(sig_only["krw"].sum() / sig_only["usd"].sum())
+        sig_only_outperf = (sig_only_avg / market_avg - 1.0) * 100.0 if market_avg > 0 else 0.0
+        sig_share = float(sig_only["usd"].sum() / trades_signal["usd"].sum())
+    else:
+        sig_only_avg = float("nan")
+        sig_only_outperf = 0.0
+        sig_share = 0.0
+
+    if not forced_only.empty and forced_only["usd"].sum() > 0:
+        forced_avg = float(forced_only["krw"].sum() / forced_only["usd"].sum())
+    else:
+        forced_avg = float("nan")
+
     return BacktestResult(
         trades=all_trades,
         summary=summary,
         cumulative_rate=cum_df,
         score_series=score_series,
         outperformance_pct=float(outperf),
+        signal_only_outperf_pct=float(sig_only_outperf),
+        signal_trades_usd_share=float(sig_share),
+        market_avg_rate=float(market_avg),
+        signal_avg_rate=float(sig_only_avg) if not np.isnan(sig_only_avg) else 0.0,
+        forced_avg_rate=float(forced_avg) if not np.isnan(forced_avg) else 0.0,
     )
 
 
@@ -321,6 +356,9 @@ def parameter_sweep(
     trades_imm = simulate_immediate(usdkrw, baseline_params)
     baseline_avg = float(trades_imm["krw"].sum() / trades_imm["usd"].sum()) if trades_imm["usd"].sum() > 0 else 0.0
 
+    # 시장 단순 평균 (신호 실력 판정 기준선)
+    market_avg = float(usdkrw.mean())
+
     rows = []
     for weak in weak_grid:
         for strong in strong_grid:
@@ -339,18 +377,30 @@ def parameter_sweep(
                 sig_avg = float(trades_sig["krw"].sum() / trades_sig["usd"].sum())
                 outperf = (sig_avg / baseline_avg - 1.0) * 100.0 if baseline_avg > 0 else 0.0
 
-                # 신호로 trigger된 trade vs 강제 환전 분리 카운트
-                trades_sig_reasons = trades_sig["reason"].fillna("").str.contains
-                n_strong = int(trades_sig_reasons("강한 환전 신호").sum())
-                n_weak = int(trades_sig_reasons("환전 신호").sum()) - n_strong
-                n_forced = int(trades_sig_reasons("강제").sum())
-                n_endclear = int(trades_sig_reasons("기간 종료").sum())
+                # 신호로 trigger된 trade vs 강제 환전 분리
+                reasons = trades_sig["reason"].fillna("")
+                sig_only = trades_sig[reasons.str.contains("환전 신호", regex=False, na=False)]
+                n_strong = int(reasons.str.contains("강한 환전 신호", regex=False, na=False).sum())
+                n_weak = int(reasons.str.contains("환전 신호", regex=False, na=False).sum()) - n_strong
+                n_forced = int(reasons.str.contains("강제", regex=False, na=False).sum())
+                n_endclear = int(reasons.str.contains("기간 종료", regex=False, na=False).sum())
+
+                # 신호 실력 메트릭
+                if not sig_only.empty and sig_only["usd"].sum() > 0:
+                    sig_only_avg = float(sig_only["krw"].sum() / sig_only["usd"].sum())
+                    sig_only_outperf = (sig_only_avg / market_avg - 1.0) * 100.0 if market_avg > 0 else 0.0
+                    sig_share = float(sig_only["usd"].sum() / trades_sig["usd"].sum()) * 100
+                else:
+                    sig_only_outperf = 0.0
+                    sig_share = 0.0
 
                 rows.append({
                     "약한": int(weak),
                     "강한": int(strong),
                     "한도(일)": int(hold),
-                    "outperf_%": round(outperf, 3),
+                    "신호 실력 %": round(sig_only_outperf, 3),    # ⭐ 진짜 신호 효과
+                    "전체 outperf %": round(outperf, 3),         # 청산 효과 포함
+                    "신호 비중 %": round(sig_share, 1),           # 신호 환전이 전체 USD 중 차지 비율
                     "환전 횟수": int(len(trades_sig)),
                     "신호 환전": n_strong + n_weak,
                     "강제 환전": n_forced + n_endclear,
@@ -360,5 +410,8 @@ def parameter_sweep(
     df = pd.DataFrame(rows)
     if df.empty:
         return df
-    df = df.sort_values("outperf_%", ascending=False).reset_index(drop=True)
+    # 정직한 정렬: 신호 실력 기준 (신호 비중 5% 이상인 조합 우선)
+    df["_signal_meaningful"] = df["신호 비중 %"] >= 5.0
+    df = df.sort_values(["_signal_meaningful", "신호 실력 %"], ascending=[False, False]).reset_index(drop=True)
+    df = df.drop(columns=["_signal_meaningful"])
     return df

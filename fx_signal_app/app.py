@@ -582,21 +582,21 @@ with st.expander("🧪 백테스트 — 신호 따랐다면 환전을 얼마나 
     # sweep 결과 표시
     sweep_df = st.session_state.get("_bt_sweep_df")
     if sweep_df is not None and not sweep_df.empty:
-        # 두 그룹으로 분리: 신호가 실제로 효과 있었던 조합 vs 강제 환전만 있던 조합
-        meaningful = sweep_df[sweep_df["신호 환전"] >= 1].copy()
-        only_forced = sweep_df[sweep_df["신호 환전"] == 0].copy()
+        # 신호 비중이 5% 이상인 조합 (의미 있는 통계) vs 그 외
+        meaningful = sweep_df[sweep_df["신호 비중 %"] >= 5.0].copy()
 
-        # 추천 조합 = 신호 환전 ≥ 1 중 outperf 가장 높은 것 (없으면 전체 1위)
         if not meaningful.empty:
             best = meaningful.iloc[0]
-            best_label = "신호 환전이 실제 발생한 조합 중 최고"
+            best_label = "신호 비중 5% 이상 조합 중 신호 실력 최고"
+            best_metric = best["신호 실력 %"]
         else:
             best = sweep_df.iloc[0]
-            best_label = "전체 최고 (신호 환전 0번, 강제 환전만 발생)"
+            best_label = "신호 비중 5% 미만 (참고용)"
+            best_metric = best["신호 실력 %"]
 
-        # 추천 카드
-        best_color = "#22C55E" if best["outperf_%"] > 0.3 else (
-            "#EF4444" if best["outperf_%"] < -0.3 else "#94A3B8"
+        # 추천 카드 — 신호 실력 메트릭 기준
+        best_color = "#22C55E" if best_metric > 0.3 else (
+            "#EF4444" if best_metric < -0.3 else "#94A3B8"
         )
         st.markdown(
             f"""
@@ -605,17 +605,26 @@ with st.expander("🧪 백테스트 — 신호 따랐다면 환전을 얼마나 
                         border-radius: 10px; padding: 14px 18px; margin: 10px 0;">
               <div style="font-size:0.72rem; color:rgba(241,245,249,0.55);
                           text-transform:uppercase; letter-spacing:0.1em; font-weight:600;">
-                🏆 추천 조합 ({best_label})
+                🏆 추천 조합 — {best_label}
               </div>
               <div style="display:flex; gap:24px; align-items:center; margin-top:8px; flex-wrap:wrap;">
-                <div style="font-size:1.45rem; font-weight:700; color:{best_color}; line-height:1;">
-                  Outperformance {best['outperf_%']:+.2f}%
+                <div>
+                  <div style="font-size:0.7rem; color:rgba(241,245,249,0.55);">신호 실력 (vs 시장 평균)</div>
+                  <div style="font-size:1.45rem; font-weight:700; color:{best_color}; line-height:1;">
+                    {best_metric:+.2f}%
+                  </div>
                 </div>
-                <div style="font-size:0.95rem; color:rgba(241,245,249,0.85);">
-                  약한 <b>{int(best['약한'])}</b> · 강한 <b>{int(best['강한'])}</b> · 한도 <b>{int(best['한도(일)'])}일</b>
+                <div>
+                  <div style="font-size:0.7rem; color:rgba(241,245,249,0.55);">파라미터</div>
+                  <div style="font-size:0.95rem; color:rgba(241,245,249,0.85); font-weight:600;">
+                    약한 {int(best['약한'])} · 강한 {int(best['강한'])} · 한도 {int(best['한도(일)'])}일
+                  </div>
                 </div>
-                <div style="font-size:0.85rem; color:rgba(241,245,249,0.65);">
-                  환전 {int(best['환전 횟수'])}회 (신호 {int(best['신호 환전'])} · 강제 {int(best['강제 환전'])}) · 평균 환율 {best['평균 환율']:,.2f}
+                <div>
+                  <div style="font-size:0.7rem; color:rgba(241,245,249,0.55);">신호 비중 / 환전 횟수</div>
+                  <div style="font-size:0.95rem; color:rgba(241,245,249,0.85);">
+                    {best['신호 비중 %']:.1f}% / 신호 {int(best['신호 환전'])} · 강제 {int(best['강제 환전'])}회
+                  </div>
                 </div>
               </div>
             </div>
@@ -627,31 +636,41 @@ with st.expander("🧪 백테스트 — 신호 따랐다면 환전을 얼마나 
         with apply_cols[0]:
             if st.button("✅ 이 조합 적용", key="bt_apply_best", type="primary",
                          use_container_width=True):
-                # session_state로 슬라이더 값 갱신
                 st.session_state["bt_thr_range"] = (int(best["강한"]), int(best["약한"]))
                 st.session_state["bt_max_hold"] = int(best["한도(일)"])
                 st.rerun()
 
-        # Top 5 표
+        # Top 표 — 신호 실력 기준 정렬
         st.markdown(
             "<div style='font-size:0.78rem; color:rgba(241,245,249,0.55); "
             "text-transform:uppercase; letter-spacing:0.08em; font-weight:600; "
-            "margin: 14px 0 6px 0;'>📊 상위 조합 (신호 환전 ≥ 1)</div>",
+            "margin: 14px 0 6px 0;'>📊 상위 조합 — 신호 실력 기준 정렬</div>",
             unsafe_allow_html=True,
         )
         if not meaningful.empty:
-            st.dataframe(meaningful.head(8), hide_index=True, use_container_width=True)
+            st.dataframe(meaningful.head(10), hide_index=True, use_container_width=True)
+            st.caption(
+                "⭐ **신호 실력 %** = 신호 환전 평균 환율이 시장 단순 평균보다 얼마나 높은지. "
+                "양수 = 진짜 timing 실력 / 음수 = 신호가 오히려 안 좋은 시점에 환전. "
+                "**전체 outperf %** 는 청산 효과까지 포함된 결과(운빨 섞임)."
+            )
         else:
-            st.info("신호 환전이 한 번이라도 발생한 조합이 없습니다. 임계값을 더 완화(0에 가깝게)해야 신호가 trigger 될 수 있어요.")
+            st.warning(
+                "신호 비중 5% 이상인 조합이 없습니다. → 임계값이 너무 가혹해서 신호가 거의 trigger 안 됨. "
+                "임계값을 0에 더 가깝게 (예: 약한 -10, 강한 -20) 조정해보세요."
+            )
 
-        show_forced = st.toggle("🔒 강제 환전만 발생한 조합도 보기 (참고용)", key="bt_show_forced")
-        if show_forced and not only_forced.empty:
-            st.dataframe(only_forced.head(8), hide_index=True, use_container_width=True)
+        show_forced = st.toggle("🔒 신호 비중 5% 미만 조합도 보기 (참고)", key="bt_show_forced")
+        if show_forced:
+            below = sweep_df[sweep_df["신호 비중 %"] < 5.0].copy()
+            if not below.empty:
+                st.dataframe(below.head(10), hide_index=True, use_container_width=True)
 
-        # 면책
+        # 면책 — 더 강화
         st.caption(
             "⚠️ 과거 데이터 최적화의 한계: 백테스트에서 최적이었던 조합이 미래에도 최적이라는 보장은 없습니다. "
-            "Overfitting 위험을 줄이려면 여러 기간(예: 1년 / 2년 / 3년)에서 다 좋은 조합을 고르는 게 안전합니다."
+            "Overfitting 위험을 줄이려면 여러 기간(1년 / 2년 / 3년)에서 **모두 양수의 신호 실력**을 가진 조합을 채택하세요. "
+            "어떤 기간에도 신호 실력이 +0.3% 이상 안 나오면 그건 신호 자체가 작동 안 한다는 신호입니다."
         )
 
     st.markdown("---")
@@ -851,20 +870,102 @@ with st.expander("🧪 백테스트 — 신호 따랐다면 환전을 얼마나 
             extra_krw = sig["누적 KRW"] - imm["누적 KRW"]
             verdict_color = "#22C55E" if outperf > 0.3 else ("#EF4444" if outperf < -0.3 else "#94A3B8")
             verdict_text = (
-                "🟢 신호 채택 검토" if outperf > 0.3
-                else ("🔴 신호 손해" if outperf < -0.3
+                "🟢 표면적으로 신호 우위" if outperf > 0.3
+                else ("🔴 표면적으로 신호 손해" if outperf < -0.3
                 else "⚪ 효과 미미")
             )
             st.metric(
-                "🅱 vs 🅰  Outperformance",
+                "🅱 vs 🅰  전체 Outperformance",
                 f"{outperf:+.2f}%",
                 f"신호 기반이 {extra_krw/1e3:+,.0f}천원 더 받음",
                 delta_color="normal",
-                help="신호 기반이 즉시 환전 대비 KRW를 얼마나 더(또는 덜) 받았는지. 양수면 신호 유리, 음수면 그냥 즉시 환전이 나음.",
+                help="신호 + 강제 청산 + 종료 청산 모두 포함된 결과. 종료 청산 효과(운빨)가 섞여있어 신호 실력의 정확한 지표는 아님.",
             )
             st.markdown(
                 f"<div style='font-size:0.85rem; color:{verdict_color}; font-weight:600; margin-top:-12px;'>{verdict_text}</div>",
                 unsafe_allow_html=True,
+            )
+
+        # ─── 정직한 분리 — 신호 실력 vs 청산 운빨 ─────────────────
+        st.markdown(
+            "<div style='margin: 18px 0 8px 0; font-size:0.78rem; color:rgba(241,245,249,0.55); "
+            "text-transform:uppercase; letter-spacing:0.08em; font-weight:600;'>"
+            "🔬 정직한 분리 — 신호 실력 vs 청산 운빨</div>",
+            unsafe_allow_html=True,
+        )
+
+        honest_cols = st.columns(3)
+        with honest_cols[0]:
+            mkt_avg = bt_result.market_avg_rate
+            st.metric(
+                "📐 시장 단순 평균 (참조)",
+                f"{mkt_avg:,.2f} 원/$" if mkt_avg > 0 else "—",
+                "기간 USDKRW 평균",
+                delta_color="off",
+                help="백테스트 기간 USD/KRW의 일별 단순 평균. 신호 실력의 fair한 비교 기준선.",
+            )
+        with honest_cols[1]:
+            sig_share = bt_result.signal_trades_usd_share * 100
+            sig_only_outperf = bt_result.signal_only_outperf_pct
+            sig_avg_rate = bt_result.signal_avg_rate
+            label_color = "#22C55E" if sig_only_outperf > 0.3 else ("#EF4444" if sig_only_outperf < -0.3 else "#94A3B8")
+            if sig_share <= 0.5:
+                # 신호 환전 거의 없으면 의미 없음
+                st.metric(
+                    "🎯 신호 환전만의 평균",
+                    "— (신호 거의 없음)",
+                    f"전체 USD 중 신호 환전 {sig_share:.1f}%",
+                    delta_color="off",
+                    help="신호가 거의 trigger 안 됨 → 신호 실력 판정 불가. 임계값을 더 완화하거나 백테스트 기간 늘려보세요.",
+                )
+            else:
+                st.metric(
+                    "🎯 신호 환전만의 평균",
+                    f"{sig_avg_rate:,.2f} 원/$",
+                    f"전체 USD 중 신호 환전 {sig_share:.1f}%",
+                    delta_color="off",
+                    help="신호가 trigger 된 trade들만의 평균 환율. 시장 평균과 비교해야 신호의 진짜 실력.",
+                )
+        with honest_cols[2]:
+            if sig_share <= 0.5:
+                st.metric(
+                    "🏅 신호 실력 (vs 시장 평균)",
+                    "측정 불가",
+                    "신호 환전 부족",
+                    delta_color="off",
+                )
+            else:
+                st.metric(
+                    "🏅 신호 실력 (vs 시장 평균)",
+                    f"{sig_only_outperf:+.2f}%",
+                    "양수면 진짜 실력, 음수면 timing 실패",
+                    delta_color="normal",
+                    help="신호 환전 trade들의 평균 환율이 시장 단순 평균보다 얼마나 높은지. 종료 청산 운빨이 제거된 순수 신호 효과.",
+                )
+                st.markdown(
+                    f"<div style='font-size:0.85rem; color:{label_color}; font-weight:600; margin-top:-12px;'>"
+                    + (
+                        "🟢 진짜 신호 실력 있음" if sig_only_outperf > 0.3
+                        else ("🔴 신호가 오히려 안 좋은 timing" if sig_only_outperf < -0.3
+                        else "⚪ 신호 실력 미미")
+                    )
+                    + "</div>",
+                    unsafe_allow_html=True,
+                )
+
+        # 해석 박스 — 어떻게 읽어야 하나
+        with st.container(border=True):
+            st.markdown(
+                """
+                **📖 결과 해석 가이드**
+
+                - **전체 Outperformance** = 신호 환전 + 강제 환전 + 종료 청산 *모두 합친* 결과 → 청산 시점이 환율 고/저점 어디에 떨어지냐에 따라 운빨에 흔들림
+                - **신호 실력** = 신호 trigger 된 분만 시장 평균과 비교 → **진짜 신호의 timing skill**
+                - **신호 환전 비중이 5% 미만**이면 통계적으로 의미 없음 → 임계값 완화 또는 백테스트 기간 확장
+                - 차트의 마지막 부분이 갑자기 크게 점프하면 → **종료 청산이 우연히 좋은(나쁜) 환율에 떨어진 것**. 그건 신호 실력 아님
+
+                → "이 도구를 실제 채택할까?" 의 답은 **🏅 신호 실력** 메트릭으로만 판단하세요.
+                """
             )
 
         # 누적 평균 환율 차트 — 제목은 plotly 밖으로 빼서 겹침 방지
