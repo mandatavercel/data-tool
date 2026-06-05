@@ -33,15 +33,15 @@ if not email:
 # ─────────────────────────────────────────────────────────────
 # 헤더
 # ─────────────────────────────────────────────────────────────
-_logo = app_utils.get_logo_html(56)
+_logo = app_utils.get_logo_html(72)
 if _logo:
     st.markdown(
         f"""
-        <div style="display:flex; align-items:center; gap:18px; margin:0 0 4px 0;">
-          {_logo}
-          <div style="line-height:1.1;">
-            <div style="font-size:1.05rem; font-weight:600; color:#F1F5F9;">Internal Tool Launcher</div>
-            <div style="font-size:0.85rem; color:rgba(241,245,249,0.65); margin-top:2px;">
+        <div style="margin:8px 0 16px 0;">
+          <div style="margin-bottom:14px;">{_logo}</div>
+          <div style="line-height:1.25;">
+            <div style="font-size:1.15rem; font-weight:600; color:#F1F5F9;">Internal Tool Launcher</div>
+            <div style="font-size:0.85rem; color:rgba(241,245,249,0.65); margin-top:4px;">
               카테고리로 필터링하고, 카드의 <b>열기</b>를 누르면 앱이 열립니다.
             </div>
           </div>

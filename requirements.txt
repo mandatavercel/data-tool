@@ -35,3 +35,6 @@ anthropic==0.40.0
 # Final Report PPT/PDF export
 python-pptx==1.0.2
 reportlab==4.2.5
+
+# contract_app — 계약서 .docx 템플릿 변수 치환
+python-docx==1.1.2

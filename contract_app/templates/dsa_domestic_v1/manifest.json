@@ -1,0 +1,16 @@
+{
+  "key": "dsa_domestic_v1",
+  "name": "데이터 공급 계약서 (국내 원천사)",
+  "type": "DSA",
+  "scope": "domestic",
+  "language": "ko",
+  "version": "1.0",
+  "status": "active",
+  "doc_code": "MD-CT-DSA-DOM-T-001",
+  "party_a_role": "데이터 원천사 (카드사·포스사 등)",
+  "party_b_role": "맨데이터 (재공급 사업자)",
+  "description": "국내 카드사·포스사 등 원천사로부터 데이터를 공급받아 글로벌 고객에 재공급하기 위한 표준 데이터 공급 계약서. 21개 본문 조항 + 별첨 3종.",
+  "template_file": "template.docx",
+  "schema_file": "schema.json",
+  "tags": ["DSA", "domestic", "ko", "data-provider"]
+}

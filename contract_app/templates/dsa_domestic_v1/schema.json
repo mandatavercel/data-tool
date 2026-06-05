@@ -1,0 +1,1028 @@
+{
+  "key": "dsa_domestic_v1",
+  "name": "데이터 공급 계약서 (국내 원천사) v1.0",
+  "groups": [
+    {
+      "key": "basic",
+      "name": "기본 정보",
+      "icon": "👤",
+      "order": 1,
+      "sections": [
+        {
+          "title": "Ⅰ. 갑(데이터 원천사) 정보",
+          "fields": [
+            {
+              "var": "갑_회사명",
+              "label": "회사명(상호)",
+              "desc": "법인 정식 명칭. 등기부등본상 상호와 동일하게.",
+              "placeholder": "○○카드 주식회사",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "갑_대표자",
+              "label": "대표자",
+              "desc": "대표이사 성명. 공동대표일 경우 모두 기재.",
+              "placeholder": "홍길동",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "갑_주소",
+              "label": "본점 소재지",
+              "desc": "등기부등본상 주소.",
+              "placeholder": "서울특별시 중구 세종대로 ○○",
+              "default": "",
+              "type": "textarea"
+            },
+            {
+              "var": "갑_사업자번호",
+              "label": "사업자등록번호",
+              "desc": "하이픈 포함 표기.",
+              "placeholder": "123-45-67890",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "갑_담당자명",
+              "label": "실무 담당자",
+              "desc": "계약 이행 및 통지 수신 담당자.",
+              "placeholder": "김데이터 팀장",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "갑_담당자_이메일",
+              "label": "담당자 이메일",
+              "desc": "공식 통지 수신 이메일.",
+              "placeholder": "contact@example.com",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "갑_담당자_연락처",
+              "label": "담당자 연락처",
+              "desc": "유선 또는 모바일.",
+              "placeholder": "02-000-0000",
+              "default": "",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "title": "Ⅱ. 을(맨데이터) 정보 — 기본값 사용 권장",
+          "fields": [
+            {
+              "var": "을_회사명",
+              "label": "회사명(상호)",
+              "desc": "기본값 그대로 사용.",
+              "placeholder": "주식회사 맨데이터",
+              "default": "주식회사 맨데이터",
+              "type": "text"
+            },
+            {
+              "var": "을_대표자",
+              "label": "대표자",
+              "desc": "등기상 대표자.",
+              "placeholder": "",
+              "default": "[대표자 성명]",
+              "type": "text"
+            },
+            {
+              "var": "을_주소",
+              "label": "본점 소재지",
+              "desc": "맨데이터 본점 주소.",
+              "placeholder": "",
+              "default": "[맨데이터 주소]",
+              "type": "textarea"
+            },
+            {
+              "var": "을_사업자번호",
+              "label": "사업자등록번호",
+              "desc": "",
+              "placeholder": "",
+              "default": "[사업자번호]",
+              "type": "text"
+            },
+            {
+              "var": "을_담당자명",
+              "label": "실무 담당자",
+              "desc": "계약별로 지정.",
+              "placeholder": "이파트너 매니저",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "을_담당자_이메일",
+              "label": "담당자 이메일",
+              "desc": "",
+              "placeholder": "partner@mandata.kr",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "을_담당자_연락처",
+              "label": "담당자 연락처",
+              "desc": "",
+              "placeholder": "",
+              "default": "",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "title": "Ⅲ. 계약 기본 정보",
+          "fields": [
+            {
+              "var": "계약명",
+              "label": "계약서 제목",
+              "desc": "표지 및 본문 상단에 표시.",
+              "placeholder": "데이터 공급 계약서",
+              "default": "데이터 공급 계약서",
+              "type": "text"
+            },
+            {
+              "var": "계약체결일",
+              "label": "계약 체결일",
+              "desc": "양 당사자 서명일.",
+              "placeholder": "2026년 6월 1일",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "계약시작일",
+              "label": "계약 효력 개시일",
+              "desc": "체결일과 다를 수 있음.",
+              "placeholder": "2026년 7월 1일",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "계약기간",
+              "label": "계약 기간",
+              "desc": "개시일부터 종료일까지의 기간.",
+              "placeholder": "2년",
+              "default": "1년",
+              "type": "text"
+            },
+            {
+              "var": "계약종료일",
+              "label": "계약 종료일",
+              "desc": "개시일 + 계약기간.",
+              "placeholder": "2028년 6월 30일",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "자동갱신_여부",
+              "label": "자동갱신 여부",
+              "desc": "종료 N개월 전 미해지 통지 시 자동연장.",
+              "placeholder": "예",
+              "default": "예",
+              "type": "select",
+              "options": [
+                "예",
+                "아니요"
+              ]
+            },
+            {
+              "var": "자동갱신_기간",
+              "label": "갱신 단위",
+              "desc": "자동갱신 시 연장되는 기간.",
+              "placeholder": "1년",
+              "default": "1년",
+              "type": "text"
+            },
+            {
+              "var": "해지통지_시한",
+              "label": "해지의사 통지 시한",
+              "desc": "종료/갱신 기준일 기준 몇 개월 전까지 통지.",
+              "placeholder": "3개월",
+              "default": "3개월",
+              "type": "text"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "spec",
+      "name": "데이터 공급 사양",
+      "icon": "📦",
+      "order": 2,
+      "sections": [
+        {
+          "title": "Ⅰ. 공급 데이터 개요",
+          "fields": [
+            {
+              "var": "데이터_명칭",
+              "label": "데이터셋 명칭",
+              "desc": "공식 명칭. 별첨1 표제에 사용.",
+              "placeholder": "○○카드 가맹점 결제 데이터셋",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "데이터_종류",
+              "label": "데이터 종류",
+              "desc": "제3조(공급 범위) 및 정의 조항에 반영.",
+              "placeholder": "정형(결제) + 비정형(가맹점명 텍스트)",
+              "default": "정형",
+              "type": "select",
+              "options": [
+                "정형",
+                "비정형",
+                "정형+비정형(혼합)",
+                "라이선스·구독형 상품"
+              ]
+            },
+            {
+              "var": "데이터_상세설명",
+              "label": "데이터 상세 설명",
+              "desc": "무엇이 어떤 단위로 들어가는지 2~5문장.",
+              "placeholder": "국내 발급 신용·체크카드의 가맹점 결제 거래 데이터로 거래일시, 가맹점 분류(MCC), 결제금액 구간, 지역코드 등을 포함한다.",
+              "default": "",
+              "type": "textarea"
+            },
+            {
+              "var": "데이터_항목_목록",
+              "label": "주요 데이터 항목(필드)",
+              "desc": "필드명을 쉼표로 구분 또는 줄바꿈. 별첨1에 표로 들어감.",
+              "placeholder": "거래일자, 거래시간, MCC코드, 가맹점지역코드, 결제금액구간, 결제유형",
+              "default": "",
+              "type": "textarea"
+            },
+            {
+              "var": "데이터_기간",
+              "label": "공급 데이터 기간",
+              "desc": "제공 대상 기간(과거 이력 + 향후).",
+              "placeholder": "과거 3년 + 계약기간 중 신규 발생분",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "데이터_규모",
+              "label": "예상 데이터 규모",
+              "desc": "건수/용량 추정.",
+              "placeholder": "연 약 12억 건, 월 약 200GB",
+              "default": "",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "title": "Ⅱ. 공급 방식",
+          "fields": [
+            {
+              "var": "데이터_형식",
+              "label": "파일/데이터 포맷",
+              "desc": "전달 단위 포맷.",
+              "placeholder": "Parquet (압축 snappy)",
+              "default": "",
+              "type": "select",
+              "options": [
+                "CSV",
+                "TSV",
+                "JSON",
+                "Parquet",
+                "Avro",
+                "API(REST)",
+                "API(GraphQL)",
+                "DB Dump"
+              ]
+            },
+            {
+              "var": "전달방식",
+              "label": "전달 채널",
+              "desc": "기술적 전달 수단.",
+              "placeholder": "AWS S3 (을 지정 버킷, SSE-KMS)",
+              "default": "",
+              "type": "select",
+              "options": [
+                "SFTP",
+                "AWS S3",
+                "Azure Blob",
+                "GCS",
+                "API(Pull)",
+                "API(Push/Webhook)",
+                "전용선",
+                "기타"
+              ]
+            },
+            {
+              "var": "갱신주기",
+              "label": "갱신 주기",
+              "desc": "신규 데이터 공급 주기.",
+              "placeholder": "일 배치 (KST 06:00 이전 D-1 마감분)",
+              "default": "일배치",
+              "type": "select",
+              "options": [
+                "실시간",
+                "시간배치",
+                "일배치",
+                "주배치",
+                "월배치",
+                "수시"
+              ]
+            },
+            {
+              "var": "최초공급일",
+              "label": "최초 공급일",
+              "desc": "첫 데이터 전달 예정일.",
+              "placeholder": "2026년 7월 5일",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "수령확인_시한",
+              "label": "수령 확인 시한",
+              "desc": "을이 수령 후 검수·이상 통지하는 기한.",
+              "placeholder": "영업일 5일",
+              "default": "영업일 5일",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "title": "Ⅲ. 데이터 품질 기준",
+          "fields": [
+            {
+              "var": "품질기준_완전성",
+              "label": "필수항목 결측률 한도",
+              "desc": "필수 필드의 결측 허용률.",
+              "placeholder": "≤ 0.5%",
+              "default": "≤ 1%",
+              "type": "text"
+            },
+            {
+              "var": "품질기준_정확성",
+              "label": "정확성/스키마 일관성",
+              "desc": "스키마 변경·이상치 허용 수준.",
+              "placeholder": "스키마 변경 시 30일 전 사전통지, 이상치 ≤ 0.1%",
+              "default": "스키마 변경 시 30일 전 사전통지",
+              "type": "text"
+            },
+            {
+              "var": "품질기준_지연",
+              "label": "공급 지연 허용",
+              "desc": "갱신주기 대비 허용 지연.",
+              "placeholder": "월 평균 ≤ 2회, 1회 ≤ 24시간",
+              "default": "월 평균 ≤ 2회, 1회 ≤ 24시간",
+              "type": "text"
+            },
+            {
+              "var": "SLA_가동률",
+              "label": "공급 가용성(SLA)",
+              "desc": "전달 채널 가동률.",
+              "placeholder": "≥ 99.5% (월 단위)",
+              "default": "≥ 99.5%",
+              "type": "text"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "money",
+      "name": "대가 · 정산",
+      "icon": "💰",
+      "order": 3,
+      "sections": [
+        {
+          "title": "Ⅰ. 과금 모델",
+          "fields": [
+            {
+              "var": "과금방식",
+              "label": "과금 방식",
+              "desc": "하나만 선택하거나 혼합형 선택.",
+              "placeholder": "수익배분형 + 최소보장금액(MG)",
+              "default": "수익배분형",
+              "type": "select",
+              "options": [
+                "정액형(라이선스)",
+                "사용량 기반",
+                "수익배분형(Revenue Share)",
+                "수익배분 + 최소보장(MG)",
+                "혼합/별도협의"
+              ]
+            },
+            {
+              "var": "기본료_금액",
+              "label": "기본료(라이선스/MG)",
+              "desc": "정액 또는 최소보장 금액.",
+              "placeholder": "월 ₩50,000,000",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "기본료_주기",
+              "label": "기본료 청구 주기",
+              "desc": "",
+              "placeholder": "월",
+              "default": "월",
+              "type": "select",
+              "options": [
+                "월",
+                "분기",
+                "반기",
+                "연",
+                "일시불"
+              ]
+            },
+            {
+              "var": "단가",
+              "label": "사용량 단가",
+              "desc": "건당·GB당 단가 등.",
+              "placeholder": "건당 ₩2.0 (월 1억건 초과분 ₩1.5)",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "수익배분율_갑",
+              "label": "갑(원천사) 배분율",
+              "desc": "수익배분형 시 갑의 몫.",
+              "placeholder": "35%",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "수익배분율_을",
+              "label": "을(맨데이터) 배분율",
+              "desc": "수익배분형 시 을의 몫.",
+              "placeholder": "65%",
+              "default": "",
+              "type": "text"
+            },
+            {
+              "var": "수익_정의",
+              "label": "'수익(매출)'의 정의",
+              "desc": "순매출/총매출 등 기준. 비용 차감 항목 명시.",
+              "placeholder": "을이 글로벌 고객사로부터 수령한 총금액에서 지급수수료·환차손·환급액을 차감한 순매출",
+              "default": "순매출(Net Revenue) 기준",
+              "type": "textarea"
+            }
+          ]
+        },
+        {
+          "title": "Ⅱ. 정산·지급",
+          "fields": [
+            {
+              "var": "정산주기",
+              "label": "정산 주기",
+              "desc": "",
+              "placeholder": "분기",
+              "default": "분기",
+              "type": "select",
+              "options": [
+                "월",
+                "분기",
+                "반기",
+                "연"
+              ]
+            },
+            {
+              "var": "정산기준일",
+              "label": "정산 기준일",
+              "desc": "마감일.",
+              "placeholder": "매 분기 말일",
+              "default": "매 정산주기 말일",
+              "type": "text"
+            },
+            {
+              "var": "리포트_제공시한",
+              "label": "정산 리포트 제공 시한",
+              "desc": "을이 갑에게 리포트 송부 기한.",
+              "placeholder": "정산기준일 후 15영업일 이내",
+              "default": "정산기준일 후 15영업일 이내",
+              "type": "text"
+            },
+            {
+              "var": "세금계산서_발행시한",
+              "label": "세금계산서 발행 시한",
+              "desc": "리포트 확정 후 발행.",
+              "placeholder": "리포트 확정일 후 5영업일 이내",
+              "default": "리포트 확정일 후 5영업일 이내",
+              "type": "text"
+            },
+            {
+              "var": "지급_시한",
+              "label": "대금 지급 시한",
+              "desc": "세금계산서 수령 후 지급일.",
+              "placeholder": "세금계산서 수령일이 속한 달의 말일",
+              "default": "세금계산서 수령일이 속한 달의 말일",
+              "type": "text"
+            },
+            {
+              "var": "지연이자율",
+              "label": "지급 지연이자율(연)",
+              "desc": "미지급 시 연이율.",
+              "placeholder": "연 6%",
+              "default": "연 6%",
+              "type": "text"
+            },
+            {
+              "var": "세금부담",
+              "label": "부가가치세 처리",
+              "desc": "별도/포함.",
+              "placeholder": "부가세 별도",
+              "default": "부가세 별도",
+              "type": "select",
+              "options": [
+                "부가세 별도",
+                "부가세 포함"
+              ]
+            },
+            {
+              "var": "지급계좌",
+              "label": "갑 지급 계좌",
+              "desc": "은행, 계좌번호, 예금주.",
+              "placeholder": "○○은행 123-456-7890 (예금주: ○○카드㈜)",
+              "default": "",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "title": "Ⅲ. 감사·검증",
+          "fields": [
+            {
+              "var": "감사권_보유",
+              "label": "갑의 정산 감사권",
+              "desc": "수익배분형일 때 권장.",
+              "placeholder": "보유",
+              "default": "보유",
+              "type": "select",
+              "options": [
+                "보유",
+                "미보유"
+              ]
+            },
+            {
+              "var": "감사권_빈도",
+              "label": "감사 빈도/조건",
+              "desc": "행사 빈도, 최소 통지기간.",
+              "placeholder": "연 1회, 30일 전 서면통지, 영업시간 내",
+              "default": "연 1회, 30일 전 서면통지",
+              "type": "text"
+            },
+            {
+              "var": "감사_비용부담",
+              "label": "감사 비용 부담",
+              "desc": "오차 발견 시 부담 주체 명시.",
+              "placeholder": "갑 부담. 단, 5% 이상 과소지급 확인 시 을 부담",
+              "default": "갑 부담. 단, 5% 이상 과소지급 확인 시 을 부담",
+              "type": "text"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "scope",
+      "name": "이용범위 · 재공급",
+      "icon": "🌐",
+      "order": 4,
+      "sections": [
+        {
+          "title": "Ⅰ. 이용권의 성격",
+          "fields": [
+            {
+              "var": "이용목적",
+              "label": "이용 목적",
+              "desc": "제5조에 반영. 글로벌 재공급 목적을 명시.",
+              "placeholder": "글로벌 금융·투자·리테일 고객사 대상 시장분석·인사이트 상품 제공, AI 모델 학습 및 통계·파생물 생성",
+              "default": "글로벌 고객사 대상 데이터 분석·인사이트 상품 제공 및 AI/통계 모델 개발",
+              "type": "text"
+            },
+            {
+              "var": "독점성",
+              "label": "독점성",
+              "desc": "동종 데이터의 타사 공급 가능 여부.",
+              "placeholder": "비독점(국내 한정 일부 독점 가능)",
+              "default": "비독점",
+              "type": "select",
+              "options": [
+                "비독점",
+                "제한적 독점(국내)",
+                "독점(전세계)"
+              ]
+            },
+            {
+              "var": "독점성_상세",
+              "label": "독점성 상세 조건",
+              "desc": "독점/제한 독점일 경우 범위·기간·MG 등.",
+              "placeholder": "국내 글로벌 IB 대상 분석상품에 한해 독점, 단 MG ₩○억 충족 시",
+              "default": "",
+              "type": "textarea"
+            },
+            {
+              "var": "이용지역",
+              "label": "이용 지역",
+              "desc": "제5조에 명시.",
+              "placeholder": "전세계",
+              "default": "전세계",
+              "type": "select",
+              "options": [
+                "전세계",
+                "대한민국 외 전세계",
+                "특정지역(별도 명시)"
+              ]
+            }
+          ]
+        },
+        {
+          "title": "Ⅱ. 가공·재공급 권한",
+          "fields": [
+            {
+              "var": "가공_허용범위",
+              "label": "가공·집계 허용 범위",
+              "desc": "통계화, 익명화, AI학습용 가공 등.",
+              "placeholder": "통계·집계, 가명/익명 처리, AI 모델 학습, 파생 인사이트 생성 모두 허용",
+              "default": "통계·집계, 가명/익명 처리, AI 모델 학습, 파생물 생성 허용",
+              "type": "text"
+            },
+            {
+              "var": "재공급_허용여부",
+              "label": "제3자 재공급 허용",
+              "desc": "가장 핵심 조항. 글로벌 고객사 재공급권.",
+              "placeholder": "허용. 단, 원본 데이터 그대로의 재공급 금지, 가공·집계·파생 형태로만 재공급",
+              "default": "허용(가공·집계·파생 형태에 한함)",
+              "type": "select",
+              "options": [
+                "허용(가공·집계·파생 형태에 한함)",
+                "허용(원본 포함)",
+                "불허",
+                "사전 서면 동의 시 허용"
+              ]
+            },
+            {
+              "var": "재공급_고객유형",
+              "label": "재공급 가능한 고객 유형",
+              "desc": "국가/산업/유형별 한정.",
+              "placeholder": "전세계 금융기관, 자산운용사, 리서치사, 글로벌 리테일·핀테크 기업",
+              "default": "전세계 기업·기관 고객",
+              "type": "text"
+            },
+            {
+              "var": "재공급_금지대상",
+              "label": "재공급 금지 대상",
+              "desc": "경쟁사, 제재대상 등.",
+              "placeholder": "갑이 사전 서면으로 통지한 직접 경쟁 카드사, OFAC·EU·UN 제재대상",
+              "default": "갑이 사전 서면 지정한 경쟁사 및 국제 제재대상",
+              "type": "textarea"
+            },
+            {
+              "var": "파생물_권리귀속",
+              "label": "파생물(2차 저작물) 권리 귀속",
+              "desc": "통계·모델·리포트 등 가공물의 IP 귀속.",
+              "placeholder": "을에게 귀속",
+              "default": "을에게 귀속",
+              "type": "select",
+              "options": [
+                "을에게 귀속",
+                "공동귀속",
+                "원천 데이터에 의존하는 한 별도 협의"
+              ]
+            }
+          ]
+        },
+        {
+          "title": "Ⅲ. 상표·표기",
+          "fields": [
+            {
+              "var": "상표사용_허용",
+              "label": "갑 상표·로고 사용 허용",
+              "desc": "갑의 사명·로고를 마케팅·고객용 자료에 사용 가능 여부.",
+              "placeholder": "갑의 사전 서면 동의를 얻은 경우에 한해 허용",
+              "default": "갑의 사전 서면 동의 시 허용",
+              "type": "select",
+              "options": [
+                "허용",
+                "갑의 사전 서면 동의 시 허용",
+                "불허(데이터 출처를 'A Korean credit card company' 등으로만 표기)"
+              ]
+            },
+            {
+              "var": "출처표기_방식",
+              "label": "출처 표기 방식",
+              "desc": "재공급 시 데이터 출처를 어떻게 표기할지.",
+              "placeholder": "'Source: A leading Korean credit card issuer'와 같이 비식별 표기",
+              "default": "비식별 일반 표기('A leading Korean data provider')",
+              "type": "text"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "security",
+      "name": "개인정보 · 보안",
+      "icon": "🛡",
+      "order": 5,
+      "sections": [
+        {
+          "title": "Ⅰ. 개인정보·신용정보 처리",
+          "fields": [
+            {
+              "var": "개인정보_포함여부",
+              "label": "개인정보 포함 여부",
+              "desc": "공급 데이터에 개인식별정보가 포함되는지.",
+              "placeholder": "미포함(가명처리 후 공급)",
+              "default": "미포함(가명처리 후 공급)",
+              "type": "select",
+              "options": [
+                "미포함(원천 비식별)",
+                "미포함(가명처리 후 공급)",
+                "포함(별도 부속합의 필요)"
+              ]
+            },
+            {
+              "var": "신용정보_해당",
+              "label": "신용정보 해당 여부",
+              "desc": "신용정보법(신용정보의 이용 및 보호에 관한 법률) 적용 데이터인지.",
+              "placeholder": "해당(개인신용정보의 가명처리)",
+              "default": "해당",
+              "type": "select",
+              "options": [
+                "해당",
+                "비해당"
+              ]
+            },
+            {
+              "var": "가명처리_책임주체",
+              "label": "가명·익명처리 수행 주체",
+              "desc": "누가 가명·익명 처리를 하는지.",
+              "placeholder": "갑이 자체 수행 후 공급",
+              "default": "갑(공급 전 가명·익명처리 완료)",
+              "type": "select",
+              "options": [
+                "갑(공급 전 처리 완료)",
+                "공동(갑 1차",
+                "을 2차 강화)",
+                "을(갑이 지정한 결합전문기관 경유)"
+              ]
+            },
+            {
+              "var": "적정성평가_주체",
+              "label": "가명정보 적정성 평가 주체",
+              "desc": "개인정보보호법 시행령 제29조의5 등.",
+              "placeholder": "갑이 매년 자체 평가, 결과를 을에게 공유",
+              "default": "갑(연 1회 자체 평가, 을에 결과 공유)",
+              "type": "text"
+            },
+            {
+              "var": "동의확보_책임",
+              "label": "정보주체 동의/고지 책임",
+              "desc": "필요 시 동의·고지·옵트아웃 운영 주체.",
+              "placeholder": "갑",
+              "default": "갑",
+              "type": "select",
+              "options": [
+                "갑",
+                "을",
+                "공동"
+              ]
+            },
+            {
+              "var": "재식별_금지",
+              "label": "재식별 시도 금지",
+              "desc": "을 및 을의 고객사가 재식별 시도하지 않을 의무.",
+              "placeholder": "을은 어떠한 경우에도 재식별을 시도하지 아니하며, 재공급 계약에 동일 의무를 부과한다",
+              "default": "을·재공급 상대방 모두 재식별 시도 금지 의무 부과",
+              "type": "text"
+            },
+            {
+              "var": "국외이전_근거",
+              "label": "국외 이전 적법 근거",
+              "desc": "개인정보보호법 제28조의8 등.",
+              "placeholder": "가명/익명처리로 개인정보에 해당하지 않으므로 국외이전 규정 비적용. 단, 추가적 보호조치 적용",
+              "default": "가명·익명처리로 비식별화. 추가 보호조치 적용",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "title": "Ⅱ. 보안·기술적 조치",
+          "fields": [
+            {
+              "var": "보안인증_요구수준",
+              "label": "보안 인증/관리체계",
+              "desc": "을이 유지해야 할 인증.",
+              "placeholder": "ISMS-P + ISO/IEC 27001",
+              "default": "ISMS-P 또는 ISO/IEC 27001 이상 유지",
+              "type": "select",
+              "options": [
+                "ISMS",
+                "ISMS-P",
+                "ISO/IEC 27001",
+                "ISO/IEC 27701",
+                "SOC2 Type II",
+                "ISMS-P + ISO 27001(권장)"
+              ]
+            },
+            {
+              "var": "암호화_전송",
+              "label": "전송 구간 암호화",
+              "desc": "",
+              "placeholder": "TLS 1.2 이상",
+              "default": "TLS 1.2 이상",
+              "type": "text"
+            },
+            {
+              "var": "암호화_저장",
+              "label": "저장 구간 암호화",
+              "desc": "",
+              "placeholder": "AES-256 + KMS 관리",
+              "default": "AES-256 (KMS 관리)",
+              "type": "text"
+            },
+            {
+              "var": "접근통제_방식",
+              "label": "접근 통제",
+              "desc": "",
+              "placeholder": "역할기반(RBAC), MFA, 분기별 권한 재인증",
+              "default": "RBAC, MFA, 분기별 권한 재인증",
+              "type": "text"
+            },
+            {
+              "var": "보관위치",
+              "label": "데이터 보관 위치",
+              "desc": "리전·국가.",
+              "placeholder": "AWS Seoul(ap-northeast-2) 1차, 글로벌 분석용 가공물은 AWS Tokyo 2차",
+              "default": "AWS Seoul(ap-northeast-2)",
+              "type": "text"
+            },
+            {
+              "var": "보유기간",
+              "label": "데이터 보유 기간",
+              "desc": "계약종료 후 보유·반환·파기 정책.",
+              "placeholder": "계약종료 후 90일 내 파기 또는 반환. 단, 가명·집계·파생물은 보유 가능",
+              "default": "계약종료 후 90일 내 원본 파기. 가명·집계·파생물은 보유 가능",
+              "type": "text"
+            },
+            {
+              "var": "사고통지_시한",
+              "label": "보안사고 통지 시한",
+              "desc": "개인정보 유출·시스템 침해 등 인지 후.",
+              "placeholder": "인지 후 24시간 이내 1차 통지, 72시간 이내 상세 보고",
+              "default": "인지 후 24시간 내 1차, 72시간 내 상세",
+              "type": "text"
+            },
+            {
+              "var": "감사_보안실사",
+              "label": "갑의 보안 실사권",
+              "desc": "제3자 실사 또는 SOC2 보고서 제출 등으로 갈음.",
+              "placeholder": "연 1회, 30일 전 통지. SOC2 Type II 보고서로 갈음 가능",
+              "default": "연 1회, 30일 전 통지. SOC2 Type II 또는 ISMS-P 인증서로 갈음 가능",
+              "type": "text"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "general",
+      "name": "일반 조항",
+      "icon": "📜",
+      "order": 6,
+      "sections": [
+        {
+          "title": "Ⅰ. 비밀유지",
+          "fields": [
+            {
+              "var": "비밀유지_기간",
+              "label": "비밀유지 효력기간",
+              "desc": "계약 종료 후 N년 존속.",
+              "placeholder": "계약 종료 후 5년",
+              "default": "계약 종료 후 5년",
+              "type": "text"
+            },
+            {
+              "var": "비밀유지_예외",
+              "label": "비밀유지 예외사항",
+              "desc": "공지의 사실, 법령상 공개 등. 통상 표준조항.",
+              "placeholder": "표준 4가지 예외",
+              "default": "공지된 사실/독자 개발/적법 입수/법령·공권력 요구",
+              "type": "textarea"
+            }
+          ]
+        },
+        {
+          "title": "Ⅱ. 손해배상·책임 제한",
+          "fields": [
+            {
+              "var": "손해배상_한도",
+              "label": "손해배상 책임 한도",
+              "desc": "통상 직전 12개월 대가의 N배.",
+              "placeholder": "직전 12개월 을이 갑에게 지급한 대가의 1배 (단, 개인정보 유출·고의·중과실 시 한도 미적용)",
+              "default": "직전 12개월 대가의 1배 (개인정보·고의·중과실 제외)",
+              "type": "text"
+            },
+            {
+              "var": "간접손해_배제",
+              "label": "간접·결과적 손해 배제",
+              "desc": "일실이익, 명성 손해 등 배제.",
+              "placeholder": "적용",
+              "default": "적용(고의·중과실 제외)",
+              "type": "select",
+              "options": [
+                "적용(고의·중과실 제외)",
+                "적용",
+                "미적용"
+              ]
+            },
+            {
+              "var": "면책_갑",
+              "label": "갑의 면책(데이터 원천 책임)",
+              "desc": "갑은 데이터 원천의 적법성·정확성을 보장.",
+              "placeholder": "갑은 데이터 수집·처리의 적법성 및 가명처리 적정성을 보장한다",
+              "default": "갑은 데이터 수집·가명처리의 적법성을 보장하며, 그로 인한 분쟁은 갑이 책임진다",
+              "type": "textarea"
+            }
+          ]
+        },
+        {
+          "title": "Ⅲ. 해지·종료",
+          "fields": [
+            {
+              "var": "해지사유_중대위반",
+              "label": "중대 위반 시 최고 기간",
+              "desc": "위반 시정 요구 기간.",
+              "placeholder": "30일",
+              "default": "30일",
+              "type": "text"
+            },
+            {
+              "var": "즉시해지_사유",
+              "label": "즉시해지 사유",
+              "desc": "파산, 영업정지, 개인정보 중대 유출 등.",
+              "placeholder": "표준",
+              "default": "파산·회생개시, 영업정지, 중대한 개인정보 유출, 명백한 신뢰관계 파괴",
+              "type": "textarea"
+            },
+            {
+              "var": "종료시_의무",
+              "label": "종료 시 데이터 처리 의무",
+              "desc": "파기·반환 의무.",
+              "placeholder": "종료 후 90일 내 원본 파기, 파기증명서 제출. 가공·집계·파생물은 보유 가능",
+              "default": "종료 후 90일 내 원본 파기 및 파기증명서 제출. 가공·집계·파생물은 보유 가능",
+              "type": "textarea"
+            }
+          ]
+        },
+        {
+          "title": "Ⅳ. 분쟁해결·기타",
+          "fields": [
+            {
+              "var": "준거법",
+              "label": "준거법",
+              "desc": "",
+              "placeholder": "대한민국법",
+              "default": "대한민국법",
+              "type": "text"
+            },
+            {
+              "var": "분쟁해결_방식",
+              "label": "분쟁해결 방식",
+              "desc": "법원 관할 vs 중재.",
+              "placeholder": "서울중앙지방법원 전속관할",
+              "default": "서울중앙지방법원 전속관할",
+              "type": "select",
+              "options": [
+                "서울중앙지방법원 전속관할",
+                "대한상사중재원 중재(서울",
+                "한국어)",
+                "당사자 본점 소재지 관할",
+                "기타"
+              ]
+            },
+            {
+              "var": "통지방식",
+              "label": "공식 통지 방법",
+              "desc": "",
+              "placeholder": "서면 + 이메일",
+              "default": "서면(등기우편) 및 이메일 병행",
+              "type": "text"
+            },
+            {
+              "var": "양도금지_예외",
+              "label": "양도금지 예외",
+              "desc": "계열사·합병·영업양도 등 사전동의 없이 양도 가능한 경우.",
+              "placeholder": "100% 자회사 합병·영업양도 시 사전 통지로 갈음",
+              "default": "양도 원칙 금지. 단, 100% 지배관계 내 조직재편은 사전 통지로 갈음",
+              "type": "text"
+            },
+            {
+              "var": "불가항력_정의",
+              "label": "불가항력 사유 범위",
+              "desc": "표준 + 보충.",
+              "placeholder": "자연재해, 전쟁, 폭동, 팬데믹, 정부 명령, 백본 통신망 장애",
+              "default": "자연재해, 전쟁, 폭동, 팬데믹, 정부의 명령·제재, 기간통신망 광역장애",
+              "type": "textarea"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
