@@ -520,6 +520,29 @@ with st.expander("🧪 백테스트 — 신호 따랐다면 환전을 얼마나 
         "→ 신호 기반이 outperform 했다면 실제 환전 정책으로 채택 검토."
     )
 
+    # ─── 점수 부호 규약 안내 (슬라이더 위에 먼저) ────────────────
+    st.markdown(
+        """
+        <div style="background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.08);
+                    border-radius: 8px; padding: 10px 14px; margin: 4px 0 14px 0;
+                    display:flex; gap:24px; flex-wrap:wrap; font-size:0.85rem;">
+          <div style="color:rgba(241,245,249,0.55); font-size:0.72rem;
+                      text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">
+            점수 부호
+          </div>
+          <div><span style="color:#22C55E; font-weight:600;">◀ 음수 (-100~0)</span>
+               <span style="color:rgba(241,245,249,0.65);"> = USD/KRW 하락 압력 → <b>환전 유리</b></span></div>
+          <div><span style="color:#EF4444; font-weight:600;">▶ 양수 (0~+100)</span>
+               <span style="color:rgba(241,245,249,0.65);"> = USD/KRW 상승 압력 → <b>대기 유리</b> (환전 trigger 안 됨)</span></div>
+        </div>
+        <div style="font-size:0.78rem; color:rgba(241,245,249,0.5); margin:-6px 0 10px 0; line-height:1.5;">
+          💡 환전 신호는 <b>음수 영역</b>에서만 발생하므로 슬라이더는 <code>−80 ~ 0</code> 범위로 제한.
+          실제 점수는 보통 <code>−60 ~ +60</code> 사이에서 움직이고, <code>−50 미만</code>은 매우 드문 극단입니다.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     bt_cols = st.columns([1, 1, 2, 1])
     with bt_cols[0]:
         bt_period_years = st.selectbox("백테스트 기간", [1, 2, 3], index=1, key="bt_years",
