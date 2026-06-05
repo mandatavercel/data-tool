@@ -162,23 +162,31 @@ def _driver_card(col, title: str, drivers: list, color: str, empty_msg: str):
                 )
                 return
             for d in drivers:
+                friendly_html = (
+                    f"<div style='font-size:0.82rem; color:rgba(241,245,249,0.65); "
+                    f"line-height:1.45; margin-top:6px; padding:6px 10px; "
+                    f"background:rgba(255,255,255,0.025); border-left:2px solid {color}; "
+                    f"border-radius:4px;'>💡 {d.friendly}</div>"
+                ) if d.friendly else ""
                 st.markdown(
                     f"""
-                    <div style="display:flex; justify-content:space-between; align-items:center;
-                                padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04);">
-                      <div style="flex:1; min-width:0;">
-                        <div style="font-size:0.7rem; color:rgba(241,245,249,0.5);
-                                    text-transform:uppercase; letter-spacing:0.06em; font-weight:600;">
-                          {d.label}
+                    <div style="padding:10px 0 12px 0; border-bottom:1px solid rgba(255,255,255,0.04);">
+                      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <div style="flex:1; min-width:0;">
+                          <div style="font-size:0.7rem; color:rgba(241,245,249,0.5);
+                                      text-transform:uppercase; letter-spacing:0.06em; font-weight:600;">
+                            {d.label}
+                          </div>
+                          <div style="font-size:0.88rem; color:rgba(241,245,249,0.85); margin-top:2px;">
+                            {d.detail}
+                          </div>
                         </div>
-                        <div style="font-size:0.88rem; color:rgba(241,245,249,0.85); margin-top:2px;">
-                          {d.detail}
+                        <div style="font-family:'JetBrains Mono', monospace; font-weight:700;
+                                    color:{color}; font-size:1.0rem; margin-left:12px;">
+                          {d.contribution:+.1f}
                         </div>
                       </div>
-                      <div style="font-family:'JetBrains Mono', monospace; font-weight:700;
-                                  color:{color}; font-size:1.0rem; margin-left:12px;">
-                        {d.contribution:+.1f}
-                      </div>
+                      {friendly_html}
                     </div>
                     """,
                     unsafe_allow_html=True,
