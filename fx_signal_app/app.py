@@ -64,9 +64,21 @@ with st.spinner("📡 시장 데이터를 받아오는 중 (yfinance)…"):
 usd_snap = snaps.get("USDKRW")
 if usd_snap is None:
     st.error(
-        "USD/KRW 시계열을 가져오지 못했어요. yfinance가 일시적으로 응답하지 않거나 "
-        "네트워크가 차단됐을 수 있습니다. 잠시 뒤 다시 시도해주세요."
+        "USD/KRW 시계열을 가져오지 못했어요. yfinance가 응답하지 않거나 "
+        "Yahoo Finance가 클라우드 IP를 차단했을 수 있습니다."
     )
+    with st.expander("🔧 디버그 정보 (어떤 ticker가 막혔는지)", expanded=False):
+        st.write("각 ticker별로 빠르게 health check를 수행합니다…")
+        with st.spinner("…"):
+            hc = fx_data.health_check()
+        st.write({k: ("✅ OK" if v else "❌ FAIL") for k, v in hc.items()})
+        st.caption(
+            "전부 ❌면 클라우드 IP가 Yahoo Finance에 차단된 상태. "
+            "잠시(15분~1시간) 후 자동 풀리거나, requirements.txt 의 yfinance 버전을 더 최신으로 올려보세요."
+        )
+        if st.button("🔄 다시 시도", type="primary"):
+            st.cache_data.clear()
+            st.rerun()
     st.stop()
 
 

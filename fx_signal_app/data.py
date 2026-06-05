@@ -96,26 +96,82 @@ USDKRW_SIGN: dict[str, int] = {
 # ─────────────────────────────────────────────────────────────
 # Internal helpers
 # ─────────────────────────────────────────────────────────────
+# Streamlit Cloud는 Yahoo Finance가 봇으로 차단하는 경우가 잦음.
+# curl-cffi 로 Chrome TLS fingerprint 위장 + yfinance에 session 명시.
+def _get_curl_session():
+    """curl-cffi Chrome impersonation Session. 없으면 None."""
+    try:
+        from curl_cffi import requests as curl_requests
+        return curl_requests.Session(impersonate="chrome")
+    except ImportError:
+        return None
+
+
+def _ensure_tz_cache():
+    """yfinance tz 캐시를 쓰기 가능한 위치로 (Cloud의 read-only home 회피)."""
+    try:
+        import yfinance as yf
+        import tempfile, os
+        cache_dir = os.path.join(tempfile.gettempdir(), "yfinance-cache")
+        os.makedirs(cache_dir, exist_ok=True)
+        if hasattr(yf, "set_tz_cache_location"):
+            yf.set_tz_cache_location(cache_dir)
+    except Exception:
+        pass
+
+
+_TZ_CACHE_INITIALIZED = False
+
+
 def _download_one(ticker: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
-    """yfinance.download — 단일 ticker. 실패 시 빈 DataFrame."""
+    """
+    yfinance에서 단일 ticker 종가 다운로드. Streamlit Cloud 차단 우회 위해:
+      1) curl-cffi Chrome 위장 session 으로 yf.Ticker().history() 시도
+      2) 실패 시 yf.download(session=...) 시도
+      3) 그래도 실패 시 빈 DataFrame
+    """
+    global _TZ_CACHE_INITIALIZED
     try:
         import yfinance as yf
     except ImportError:
         st.error("yfinance가 설치되지 않았습니다. `pip install yfinance` 후 다시 시도하세요.")
         return pd.DataFrame()
 
+    if not _TZ_CACHE_INITIALIZED:
+        _ensure_tz_cache()
+        _TZ_CACHE_INITIALIZED = True
+
+    session = _get_curl_session()
+
+    # Method 1: yf.Ticker(...).history() — session 지원 안정적
     try:
-        df = yf.download(
-            ticker,
+        if session is not None:
+            t = yf.Ticker(ticker, session=session)
+        else:
+            t = yf.Ticker(ticker)
+        df = t.history(period=period, interval=interval, auto_adjust=False)
+        if df is not None and not df.empty:
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            return df
+    except Exception:
+        pass
+
+    # Method 2: yf.download(session=...) fallback
+    try:
+        kwargs = dict(
+            tickers=ticker,
             period=period,
             interval=interval,
             auto_adjust=False,
             progress=False,
             threads=False,
         )
+        if session is not None:
+            kwargs["session"] = session
+        df = yf.download(**kwargs)
         if df is None or df.empty:
             return pd.DataFrame()
-        # yfinance 0.2.x: MultiIndex columns. flatten.
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
         return df
