@@ -510,6 +510,164 @@ else:
 
 
 # ─────────────────────────────────────────────────────────────
+# 6.5) 백테스트 — 지난 N년 신호 따랐다면 얼마나 더 받았을까?
+# ─────────────────────────────────────────────────────────────
+st.markdown("")
+with st.expander("🧪 백테스트 — 신호 따랐다면 환전을 얼마나 더 잘 했을까?", expanded=False):
+    st.caption(
+        "지난 N년 매월 가상으로 USD가 입금됐다고 가정하고, "
+        "**즉시 환전(no-timing)** vs **신호 기반 환전**을 비교합니다. "
+        "→ 신호 기반이 outperform 했다면 실제 환전 정책으로 채택 검토."
+    )
+
+    bt_cols = st.columns([1, 1, 1, 1, 1])
+    with bt_cols[0]:
+        bt_period_years = st.selectbox("백테스트 기간", [1, 2, 3], index=1, key="bt_years",
+                                        format_func=lambda x: f"{x}년")
+    with bt_cols[1]:
+        bt_monthly = st.number_input("월 입금 USD", min_value=1000, max_value=1_000_000,
+                                      value=10_000, step=1000, key="bt_monthly")
+    with bt_cols[2]:
+        bt_thr_weak = st.slider("약한 신호 (50% 환전)", -50, 0, -20, step=5, key="bt_thr_weak")
+    with bt_cols[3]:
+        bt_thr_strong = st.slider("강한 신호 (100% 환전)", -80, -20, -35, step=5, key="bt_thr_strong")
+    with bt_cols[4]:
+        bt_max_hold = st.slider("강제 환전 한도 (일)", 60, 365, 180, step=30, key="bt_max_hold")
+
+    if st.button("🚀 백테스트 실행", type="primary", use_container_width=False, key="bt_run"):
+        with st.spinner("과거 시계열 가져오는 중 + 시뮬레이션…"):
+            from fx_signal_app import backtest as fx_backtest
+
+            # 더 긴 시리즈 로드 (200MA 위해 백테스트 시작 전 추가 1년)
+            extra_years = 1
+            total_period = f"{bt_period_years + extra_years}y"
+            full_map: dict[str, pd.Series] = {}
+            for k in ALL_KEYS:
+                s = fx_data.fetch_long_series(k, period=total_period)
+                if not s.empty:
+                    full_map[k] = s
+
+            if "USDKRW" not in full_map:
+                st.error("USD/KRW 시계열을 못 받았어요. 백테스트 불가.")
+                st.stop()
+
+            usdkrw = full_map["USDKRW"]
+            end_dt = usdkrw.index[-1]
+            start_dt = end_dt - pd.Timedelta(days=bt_period_years * 365)
+
+            try:
+                bt_result = fx_backtest.run_backtest(
+                    full_series_map=full_map,
+                    start_date=start_dt,
+                    end_date=end_dt,
+                    params=fx_backtest.BacktestParams(
+                        monthly_deposit_usd=float(bt_monthly),
+                        max_hold_days=int(bt_max_hold),
+                        threshold_strong=float(bt_thr_strong),
+                        threshold_weak=float(bt_thr_weak),
+                    ),
+                )
+                st.session_state["_bt_result"] = bt_result
+            except Exception as e:
+                st.error(f"백테스트 실패: {e}")
+                st.stop()
+
+    # 결과 표시
+    bt_result = st.session_state.get("_bt_result")
+    if bt_result is not None:
+        st.markdown("---")
+
+        imm = bt_result.summary[bt_result.summary["시나리오"] == "즉시 환전"].iloc[0]
+        sig = bt_result.summary[bt_result.summary["시나리오"] == "신호 기반"].iloc[0]
+
+        # KPI 3개
+        kpi_cols = st.columns(3)
+        with kpi_cols[0]:
+            st.metric(
+                "즉시 환전 (baseline)",
+                f"{imm['평균 실효 환율']:,.2f} 원/달러",
+                f"누적 KRW {imm['누적 KRW']/1e6:.1f}M",
+                delta_color="off",
+            )
+        with kpi_cols[1]:
+            outperf = bt_result.outperformance_pct
+            st.metric(
+                "신호 기반",
+                f"{sig['평균 실효 환율']:,.2f} 원/달러",
+                f"누적 KRW {sig['누적 KRW']/1e6:.1f}M",
+                delta_color="off",
+            )
+        with kpi_cols[2]:
+            extra_krw = sig["누적 KRW"] - imm["누적 KRW"]
+            verdict_color = "#22C55E" if outperf > 0 else ("#EF4444" if outperf < -0.1 else "#94A3B8")
+            verdict_text = (
+                "🟢 신호 outperform" if outperf > 0.3
+                else ("🔴 신호 underperform" if outperf < -0.3
+                else "⚪ 거의 동일")
+            )
+            st.metric(
+                "Outperformance",
+                f"{outperf:+.2f}%",
+                f"{extra_krw/1e3:+,.0f}천원 차이",
+                delta_color="normal",
+            )
+            st.markdown(
+                f"<div style='font-size:0.85rem; color:{verdict_color}; font-weight:600; margin-top:-12px;'>{verdict_text}</div>",
+                unsafe_allow_html=True,
+            )
+
+        # 누적 평균 환율 차트
+        try:
+            import plotly.graph_objects as go
+            fig_bt = go.Figure()
+            cum_df = bt_result.cumulative_rate.copy()
+            for col, color in [("즉시 환전", "#94A3B8"), ("신호 기반", "#F59E0B")]:
+                if col in cum_df.columns:
+                    fig_bt.add_trace(go.Scatter(
+                        x=cum_df.index, y=cum_df[col].values, name=col,
+                        line=dict(color=color, width=2),
+                        hovertemplate="%{x|%Y-%m-%d}<br>" + col + ": %{y:,.2f}<extra></extra>",
+                    ))
+            fig_bt.update_layout(
+                title="누적 평균 실효 환율 (낮을수록 환전 비용 낮음)",
+                height=320,
+                margin=dict(l=8, r=8, t=40, b=8),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#F1F5F9", family="Inter, sans-serif", size=12),
+                xaxis=dict(gridcolor="rgba(255,255,255,0.06)"),
+                yaxis=dict(gridcolor="rgba(255,255,255,0.06)", tickformat=",.0f"),
+                legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="left", x=0),
+                hovermode="x unified",
+            )
+            st.plotly_chart(fig_bt, use_container_width=True, config={"displayModeBar": False})
+        except ImportError:
+            st.line_chart(bt_result.cumulative_rate)
+
+        # 신호 점수 시계열 (작게)
+        st.caption("백테스트 기간의 일별 종합 점수 (단기+중기 평균)")
+        st.line_chart(bt_result.score_series, height=180)
+
+        # 환전 액션 로그
+        with st.expander("📋 환전 액션 로그 (전체)", expanded=False):
+            trades_show = bt_result.trades.copy()
+            trades_show["date"] = pd.to_datetime(trades_show["date"]).dt.strftime("%Y-%m-%d")
+            trades_show["usd"] = trades_show["usd"].apply(lambda x: f"{x:,.0f}")
+            trades_show["rate"] = trades_show["rate"].apply(lambda x: f"{x:,.2f}")
+            trades_show["krw"] = trades_show["krw"].apply(lambda x: f"{x:,.0f}")
+            trades_show = trades_show.rename(columns={
+                "date": "날짜", "usd": "USD", "rate": "환율", "krw": "KRW", "scenario": "시나리오", "reason": "사유",
+            })
+            st.dataframe(trades_show, hide_index=True, use_container_width=True)
+
+        # 면책
+        st.caption(
+            "⚠️ 백테스트는 과거 데이터 기반. 과거 outperformance가 미래 outperformance를 보장하지 않습니다. "
+            "또 매월 같은 액수 입금이라는 가정이며, 실제 매출 변동 / 입금 일자 / 환전 스프레드는 미반영."
+        )
+
+
+# ─────────────────────────────────────────────────────────────
 # 7) 점수 계산 로직 설명
 # ─────────────────────────────────────────────────────────────
 st.markdown("")
