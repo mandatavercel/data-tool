@@ -66,6 +66,23 @@ class CombinedVerdict:
     action: str          # "큰 비중 환전" / "일부 환전" / "DCA / 필요 만큼만" / "필수 자금만" / "보류"
 
 
+@dataclass
+class DriverItem:
+    """"지금 왜 USD/KRW가 오르는지/떨어지는지"의 한 요인."""
+    label: str         # "단기 · DXY 5일" 또는 "중기 · 60MA / 200MA"
+    detail: str        # "DXY 5일 +0.30%"
+    contribution: float  # 점수 기여 (부호 보존)
+
+
+@dataclass
+class MarketNarrative:
+    """"지금 USD/KRW가 왜 오르는지/떨어지는지" 한눈 요약."""
+    up_drivers: list[DriverItem]    # USD/KRW 끌어올리는 (양수 기여) 요인 TOP N
+    down_drivers: list[DriverItem]  # USD/KRW 끌어내리는 (음수 기여) 요인 TOP N
+    summary: str                     # 한 줄 자연어 요약
+    net_score: float                 # 모든 컴포넌트 점수 합 (-200 ~ +200)
+
+
 # ─────────────────────────────────────────────────────────────
 # 헬퍼
 # ─────────────────────────────────────────────────────────────
@@ -397,4 +414,89 @@ def combined_verdict(short: SignalResult, mid: SignalResult) -> CombinedVerdict:
         color="#94A3B8",
         emoji="⚪",
         action="DCA / 자금 사정에 맞춰",
+    )
+
+
+# ─────────────────────────────────────────────────────────────
+# "지금 왜 오르는지/떨어지는지" — 자연어 요약
+# ─────────────────────────────────────────────────────────────
+def market_narrative(
+    short: SignalResult,
+    mid: SignalResult,
+    max_each: int = 3,
+    min_abs: float = 2.0,
+) -> MarketNarrative:
+    """
+    단기·중기의 모든 컴포넌트를 모아 부호별로 정렬, 상위 요인을 추출.
+
+    - up_drivers: 양수 기여 (USD/KRW 상승 압력) 상위 max_each
+    - down_drivers: 음수 기여 (USD/KRW 하락 압력) 상위 max_each
+    - summary: 한 줄 자연어
+    """
+    all_items: list[DriverItem] = []
+    for c in short.components:
+        if abs(c.value) >= min_abs:
+            all_items.append(DriverItem(
+                label=f"단기 · {c.name}",
+                detail=c.detail,
+                contribution=c.value,
+            ))
+    for c in mid.components:
+        if abs(c.value) >= min_abs:
+            all_items.append(DriverItem(
+                label=f"중기 · {c.name}",
+                detail=c.detail,
+                contribution=c.value,
+            ))
+
+    ups = sorted([d for d in all_items if d.contribution > 0],
+                 key=lambda x: -x.contribution)[:max_each]
+    downs = sorted([d for d in all_items if d.contribution < 0],
+                   key=lambda x: x.contribution)[:max_each]
+
+    net = sum(d.contribution for d in all_items)
+
+    # 한 줄 요약 — 두 큰 축을 한 문장에
+    def _short(d: DriverItem) -> str:
+        # "DXY 5일 +0.30%" 같은 detail 그대로 사용
+        return d.detail
+
+    if ups and downs:
+        top_up = ups[0]
+        top_down = downs[0]
+        if net > 5:
+            summary = (
+                f"📈 USD/KRW에 <b>상승 압력</b>이 우세. "
+                f"가장 큰 요인: <b>{_short(top_up)}</b>. "
+                f"반대 방향: {_short(top_down)}."
+            )
+        elif net < -5:
+            summary = (
+                f"📉 USD/KRW에 <b>하락 압력</b>이 우세. "
+                f"가장 큰 요인: <b>{_short(top_down)}</b>. "
+                f"반대 방향: {_short(top_up)}."
+            )
+        else:
+            summary = (
+                f"⚖️ <b>방향성 혼조</b>. "
+                f"오르는 힘({_short(top_up)})과 내리는 힘({_short(top_down)})이 균형."
+            )
+    elif ups and not downs:
+        summary = (
+            f"📈 USD/KRW에 <b>상승 압력만</b> 보이고 반대 힘이 약합니다. "
+            f"핵심: <b>{_short(ups[0])}</b>."
+        )
+    elif downs and not ups:
+        summary = (
+            f"📉 USD/KRW에 <b>하락 압력만</b> 보이고 반대 힘이 약합니다. "
+            f"핵심: <b>{_short(downs[0])}</b>."
+        )
+    else:
+        summary = "⚪ 모든 매크로 지표가 잠잠한 구간. 단기적으로는 큰 방향성을 잡기 어렵습니다."
+
+    return MarketNarrative(
+        up_drivers=ups,
+        down_drivers=downs,
+        summary=summary,
+        net_score=float(net),
     )

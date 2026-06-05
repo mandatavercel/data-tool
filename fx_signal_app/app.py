@@ -74,6 +74,7 @@ if usd_snap is None:
 short = fx_signals.compute_short_term(snaps)
 mid = fx_signals.compute_mid_term(snaps)
 verdict = fx_signals.combined_verdict(short, mid)
+narrative = fx_signals.market_narrative(short, mid)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -122,6 +123,85 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+
+# ─────────────────────────────────────────────────────────────
+# 0.5) "지금 왜 오르고/떨어지는지" 시장 요약
+# ─────────────────────────────────────────────────────────────
+st.markdown(
+    f"""
+    <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 12px; padding: 16px 20px; margin: 0 0 18px 0;">
+      <div style="font-size:0.72rem; color:rgba(241,245,249,0.55);
+                  text-transform:uppercase; letter-spacing:0.1em; font-weight:600; margin-bottom:8px;">
+        지금 왜 오르고 · 왜 떨어지는지
+      </div>
+      <div style="font-size:0.95rem; color:rgba(241,245,249,0.85); line-height:1.55;">
+        {narrative.summary}
+      </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# 두 컬럼: 끌어올리는 요인 / 끌어내리는 요인
+def _driver_card(col, title: str, drivers: list, color: str, empty_msg: str):
+    with col:
+        with st.container(border=True):
+            st.markdown(
+                f"<div style='font-size:0.78rem; color:{color}; "
+                f"text-transform:uppercase; letter-spacing:0.08em; font-weight:700; margin-bottom:10px;'>"
+                f"{title}</div>",
+                unsafe_allow_html=True,
+            )
+            if not drivers:
+                st.markdown(
+                    f"<div style='color:rgba(241,245,249,0.45); font-size:0.85rem; padding:6px 0;'>{empty_msg}</div>",
+                    unsafe_allow_html=True,
+                )
+                return
+            for d in drivers:
+                st.markdown(
+                    f"""
+                    <div style="display:flex; justify-content:space-between; align-items:center;
+                                padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04);">
+                      <div style="flex:1; min-width:0;">
+                        <div style="font-size:0.7rem; color:rgba(241,245,249,0.5);
+                                    text-transform:uppercase; letter-spacing:0.06em; font-weight:600;">
+                          {d.label}
+                        </div>
+                        <div style="font-size:0.88rem; color:rgba(241,245,249,0.85); margin-top:2px;">
+                          {d.detail}
+                        </div>
+                      </div>
+                      <div style="font-family:'JetBrains Mono', monospace; font-weight:700;
+                                  color:{color}; font-size:1.0rem; margin-left:12px;">
+                        {d.contribution:+.1f}
+                      </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+
+narrative_cols = st.columns(2, gap="medium")
+_driver_card(
+    narrative_cols[0],
+    "📈 USD/KRW 끌어올리는 요인 (오르는 이유)",
+    narrative.up_drivers,
+    "#EF4444",
+    "현재 USD/KRW를 끌어올리는 매크로 요인이 약합니다.",
+)
+_driver_card(
+    narrative_cols[1],
+    "📉 USD/KRW 끌어내리는 요인 (떨어지는 이유)",
+    narrative.down_drivers,
+    "#22C55E",
+    "현재 USD/KRW를 끌어내리는 매크로 요인이 약합니다.",
+)
+
+st.markdown("")  # spacer
 
 
 # ─────────────────────────────────────────────────────────────
