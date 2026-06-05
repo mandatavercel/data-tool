@@ -14,11 +14,12 @@ rapidfuzz==3.10.1
 beautifulsoup4==4.12.3
 lxml==5.3.0
 
-# analysis_app.py 전용
-yfinance==0.2.50
+# analysis_app.py 전용 + fx_signal_app
+# yfinance 0.2.50은 Yahoo API 변경에 대응 못 해 Streamlit Cloud에서 종종 차단됨.
+# 0.2.65+ 부터 curl-cffi 통합과 봇 우회가 안정적.
+yfinance>=0.2.65,<0.3.0
 # Chrome TLS fingerprint 위장 — Streamlit Cloud에서 Yahoo Finance 차단 우회
-# (yfinance가 자체 dep로 가져오지만 명시적으로 추가)
-curl-cffi
+curl-cffi>=0.7.0
 scipy==1.13.1
 plotly==5.24.1
 pytest==8.3.3

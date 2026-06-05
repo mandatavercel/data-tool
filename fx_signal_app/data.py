@@ -188,6 +188,42 @@ def _resolve_ticker(key: str, period: str, interval: str) -> tuple[str, pd.DataF
     return "", pd.DataFrame()
 
 
+# ─────────────────────────────────────────────────────────────
+# Frankfurter (ECB) — USD/KRW 만의 백업 데이터 소스
+# yfinance가 Streamlit Cloud에서 차단됐을 때 최후 보루.
+# 무료, 인증 없음, ECB 공식 데이터.
+# ─────────────────────────────────────────────────────────────
+def _frankfurter_usdkrw(period: str = "1y") -> pd.DataFrame:
+    """Frankfurter API로 USD/KRW 일별 시계열. (yfinance 백업용)"""
+    try:
+        import requests
+        from datetime import date, timedelta
+
+        days_map = {
+            "5d": 5, "1mo": 32, "3mo": 95, "6mo": 190,
+            "1y": 380, "2y": 740, "5y": 1830,
+        }
+        days = days_map.get(period, 380)
+        end = date.today()
+        start = end - timedelta(days=days)
+
+        url = f"https://api.frankfurter.app/{start.isoformat()}..{end.isoformat()}?from=USD&to=KRW"
+        r = requests.get(url, timeout=15)
+        r.raise_for_status()
+        data = r.json()
+        rates = data.get("rates", {})
+        if not rates:
+            return pd.DataFrame()
+
+        rows = sorted(rates.items())
+        idx = pd.to_datetime([d for d, _ in rows])
+        vals = [v.get("KRW", float("nan")) for _, v in rows]
+        df = pd.DataFrame({"Close": vals}, index=idx).dropna()
+        return df
+    except Exception:
+        return pd.DataFrame()
+
+
 def _normalize_ust10y(close: pd.Series) -> pd.Series:
     """^TNX 는 실제 % × 10 으로 옴 (예: 4.5% → 45.0). %로 변환."""
     if close.empty:
@@ -212,6 +248,11 @@ def fetch_series(key: str, period: str = "1y", interval: str = "1d") -> pd.Serie
         return pd.Series(dtype=float, name=key)
 
     _, df = _resolve_ticker(key, period=period, interval=interval)
+
+    # yfinance 실패 시 USDKRW는 Frankfurter 백업으로 시도
+    if df.empty and key == "USDKRW":
+        df = _frankfurter_usdkrw(period=period)
+
     if df.empty:
         return pd.Series(dtype=float, name=key)
 
