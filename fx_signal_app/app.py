@@ -520,7 +520,7 @@ with st.expander("🧪 백테스트 — 신호 따랐다면 환전을 얼마나 
         "→ 신호 기반이 outperform 했다면 실제 환전 정책으로 채택 검토."
     )
 
-    bt_cols = st.columns([1, 1, 1, 1, 1])
+    bt_cols = st.columns([1, 1, 2, 1])
     with bt_cols[0]:
         bt_period_years = st.selectbox("백테스트 기간", [1, 2, 3], index=1, key="bt_years",
                                         format_func=lambda x: f"{x}년")
@@ -528,10 +528,19 @@ with st.expander("🧪 백테스트 — 신호 따랐다면 환전을 얼마나 
         bt_monthly = st.number_input("월 입금 USD", min_value=1000, max_value=1_000_000,
                                       value=10_000, step=1000, key="bt_monthly")
     with bt_cols[2]:
-        bt_thr_weak = st.slider("약한 신호 (50% 환전)", -50, 0, -20, step=5, key="bt_thr_weak")
+        # 단일 RangeSlider — 왼쪽 핸들 = 강한, 오른쪽 핸들 = 약한
+        # 강한 ≤ 약한 자동 보장 (Streamlit이 두 핸들 순서 유지)
+        bt_thr_strong, bt_thr_weak = st.slider(
+            "환전 trigger 점수 구간  (← 100% 환전 | 50% 환전 →)",
+            min_value=-80, max_value=0, value=(-35, -20), step=5,
+            key="bt_thr_range",
+            help=(
+                "점수가 왼쪽 값 이하 → 풀 전부 환전 (강한 신호). "
+                "두 값 사이 → 풀의 50% 환전 (약한 신호). "
+                "오른쪽 값보다 크면 환전 안 함."
+            ),
+        )
     with bt_cols[3]:
-        bt_thr_strong = st.slider("강한 신호 (100% 환전)", -80, -20, -35, step=5, key="bt_thr_strong")
-    with bt_cols[4]:
         bt_max_hold = st.slider("강제 환전 한도 (일)", 60, 365, 180, step=30, key="bt_max_hold")
 
     # ─── 슬라이더 즉시 해석 — "이 설정의 의미" ─────────────────────
