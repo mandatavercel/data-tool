@@ -29,20 +29,32 @@ DATA_DIR.mkdir(exist_ok=True)
 CUSTOMERS_PATH = DATA_DIR / "customers.json"
 CONTRACTS_PATH = DATA_DIR / "contracts.json"
 INVOICES_PATH = DATA_DIR / "invoices.json"
+STAFF_PATH = DATA_DIR / "staff.json"
 
 
 # ─────────────────────────────────────────────────────────────
 # Dataclasses
 # ─────────────────────────────────────────────────────────────
 @dataclass
+class Staff:
+    """담당자/회계자 풀. 한 번 등록해두고 고객사 매핑 시 재사용."""
+    id: str
+    name: str
+    email: str
+    role: str = ""           # "AR 담당" / "회계" / "고객 담당" 등
+    notes: str = ""
+    created_at: str = ""
+
+
+@dataclass
 class Customer:
     id: str
     name: str
     biz_no: str = ""                # 사업자등록번호
-    contact_name: str = ""          # 담당자 이름
-    contact_email: str = ""         # 담당자 이메일 (인보이스 발행 대상)
-    ar_manager: str = ""            # 우리 쪽 담당자 이메일 (미수금 알림 대상)
-    accounting_email: str = ""      # 회계 담당자 이메일 (수금 확인 알림 대상)
+    contact_name: str = ""          # 고객사 담당자 이름
+    contact_email: str = ""         # 고객사 담당자 이메일 (인보이스 발행 대상)
+    ar_manager_id: str = ""         # 우리 쪽 AR 담당자 Staff.id 참조
+    accounting_id: str = ""         # 우리 쪽 회계 담당자 Staff.id 참조
     created_at: str = ""
     notes: str = ""
 
@@ -107,12 +119,33 @@ def load_customers() -> list[Customer]:
         raw = json.loads(CUSTOMERS_PATH.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return []
-    return [Customer(**c) for c in raw]
+    result: list[Customer] = []
+    valid_fields = {f for f in Customer.__dataclass_fields__}
+    for c in raw:
+        # backward compat: 옛 필드(ar_manager, accounting_email) 제거
+        c_clean = {k: v for k, v in c.items() if k in valid_fields}
+        result.append(Customer(**c_clean))
+    return result
 
 
 def save_customers(customers: list[Customer]) -> None:
     data = [asdict(c) for c in customers]
     CUSTOMERS_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def load_staff() -> list[Staff]:
+    _ensure_file(STAFF_PATH)
+    try:
+        raw = json.loads(STAFF_PATH.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    valid_fields = {f for f in Staff.__dataclass_fields__}
+    return [Staff(**{k: v for k, v in s.items() if k in valid_fields}) for s in raw]
+
+
+def save_staff(staff: list[Staff]) -> None:
+    data = [asdict(s) for s in staff]
+    STAFF_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def load_contracts() -> list[Contract]:
@@ -169,6 +202,10 @@ def next_customer_id(existing: list[Customer]) -> str:
 
 def next_contract_id(existing: list[Contract]) -> str:
     return _next_id("CT", [c.id for c in existing])
+
+
+def next_staff_id(existing: list[Staff]) -> str:
+    return _next_id("S", [s.id for s in existing])
 
 
 def next_invoice_id(contract_id: str, issue_date: str, existing: list[Invoice]) -> str:
