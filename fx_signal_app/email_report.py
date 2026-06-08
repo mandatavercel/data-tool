@@ -194,22 +194,6 @@ def build_html_report(
         </div>
       </div>
 
-      <!-- CTA: 대시보드 링크 -->
-      {f'''
-      <div style="text-align:center; margin-bottom:22px;">
-        <a href="{app_url}" target="_blank" style="
-          display:inline-block; background:#F59E0B; color:#0A0A0B;
-          padding:12px 28px; border-radius:8px; text-decoration:none;
-          font-weight:700; font-size:0.95rem; letter-spacing:-0.01em;
-          box-shadow:0 2px 6px rgba(245,158,11,0.25);">
-          🔗 대시보드에서 자세히 보기 →
-        </a>
-        <div style="font-size:0.75rem; color:#94A3B8; margin-top:8px;">
-          차트 · 백테스트 · 모든 매크로 드라이버 · 이벤트별 상세 분석
-        </div>
-      </div>
-      ''' if app_url else ''}
-
       <!-- 시장 narrative -->
       <div style="background:#F8FAFC; border-radius:8px; padding:16px; margin-bottom:22px;
                   font-size:0.92rem; color:#334155; line-height:1.65;">
@@ -255,6 +239,28 @@ def build_html_report(
       </div>
 
       {events_section}
+
+      <!-- CTA: 대시보드 링크 (본문 끝 — 모든 분석 확인 후) -->
+      {f'''
+      <div style="text-align:center; margin:28px 0 20px 0; padding:20px;
+                  background:linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+                  border-radius:10px; border:1px solid #F59E0B33;">
+        <div style="font-size:0.78rem; color:#92400E; text-transform:uppercase;
+                    letter-spacing:0.08em; font-weight:700; margin-bottom:10px;">
+          더 자세한 분석은 대시보드에서
+        </div>
+        <a href="{app_url}" target="_blank" style="
+          display:inline-block; background:#F59E0B; color:#0A0A0B;
+          padding:14px 32px; border-radius:8px; text-decoration:none;
+          font-weight:700; font-size:1.0rem; letter-spacing:-0.01em;
+          box-shadow:0 2px 8px rgba(245,158,11,0.3);">
+          🔗 FX Signal 대시보드 열기 →
+        </a>
+        <div style="font-size:0.78rem; color:#78350F; margin-top:12px; line-height:1.5;">
+          12개월 차트 · 백테스트 · 전체 매크로 드라이버 표 · 이벤트별 상세 시나리오
+        </div>
+      </div>
+      ''' if app_url else ''}
 
       <!-- Footer -->
       <div style="border-top:1px solid #E2E8F0; padding-top:16px; margin-top:8px;
