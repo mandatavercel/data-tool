@@ -138,108 +138,67 @@ st.markdown(
 
 
 # ─────────────────────────────────────────────────────────────
-# 0.25) 📧 이메일 발송 — 현재 신호 요약을 이메일로
+# 0.25) 📧 이메일 발송 — mailto 링크로 기본 메일 클라이언트 열기
 # ─────────────────────────────────────────────────────────────
 try:
     from fx_signal_app import email_report as fx_email
 except ImportError:
     import email_report as fx_email  # type: ignore
 
-_email_cfg = fx_email.load_email_config()
+# 7일 이내 이벤트 (본문 생성용)
+_events_7d = fx_events.upcoming(7)
 
-mail_cols = st.columns([3, 2, 1])
-with mail_cols[0]:
-    if _email_cfg and _email_cfg.is_complete:
-        st.caption(
-            f"📡 SMTP 연결 준비됨 (`{_email_cfg.smtp_host}:{_email_cfg.smtp_port}` · "
-            f"보내는 사람 `{_email_cfg.from_addr}`)"
-        )
-    else:
-        st.caption("⚠️ 이메일 설정이 없어요. 아래 [📧 이메일 보내기] 누르면 설정 방법 안내가 떠요.")
-with mail_cols[1]:
-    default_to = (_email_cfg.to_addr if _email_cfg else "") or ""
-    mail_to = st.text_input(
-        "받는 사람", value=default_to, placeholder="you@example.com",
-        label_visibility="collapsed", key="fx_mail_to",
+# 현재 데이터로 본문 미리 생성 (mailto 링크에 들어갈 plain 본문)
+_, _mail_plain = fx_email.build_html_report(
+    usdkrw_last=usd_snap.last,
+    usdkrw_delta_pct=usd_snap.pct_1d if not pd.isna(usd_snap.pct_1d) else 0.0,
+    verdict=verdict, narrative=narrative, short=short, mid=mid,
+    upcoming_events=_events_7d,
+)
+_mail_subject = (
+    f"[FX Signal] USD/KRW {usd_snap.last:,.2f} · "
+    f"{verdict.emoji} {verdict.headline} · "
+    f"{date.today().strftime('%Y-%m-%d')}"
+)
+
+with st.container(border=True):
+    st.markdown(
+        "<div style='font-size:0.85rem; color:#F1F5F9; font-weight:600;'>"
+        "📧 이메일로 받기 — 받는 사람만 입력하면 메일 앱이 열립니다 (셋업 X)</div>",
+        unsafe_allow_html=True,
     )
-with mail_cols[2]:
-    mail_send = st.button("📧 이메일 보내기", type="secondary",
-                           use_container_width=True, key="fx_mail_send_btn")
-
-if mail_send:
-    if not _email_cfg or not _email_cfg.is_complete:
-        with st.expander("🔧 이메일 설정 방법 — secrets.toml 에 SMTP 추가", expanded=True):
-            st.markdown(
-                """
-                ### 1) Streamlit Cloud 의 경우
-                앱 → **Settings** → **Secrets** 에 아래 형식 추가 후 Save:
-
-                ```toml
-                [email]
-                smtp_host = "smtp.gmail.com"
-                smtp_port = 587
-                smtp_user = "you@gmail.com"
-                smtp_password = "xxxx xxxx xxxx xxxx"   # Gmail App Password
-                from_addr = "you@gmail.com"
-                to_addr   = "yonghan@mandata.kr"
-                ```
-
-                ### 2) 로컬의 경우
-                프로젝트 루트의 `.streamlit/secrets.toml` 에 위 내용 추가.
-                (이 파일은 `.gitignore` 에 들어있는지 확인 — credential은 git 에 올리지 않음)
-
-                ### 3) Gmail App Password 만드는 법
-                - [구글 계정](https://myaccount.google.com) → 보안 → **2단계 인증 켜기**
-                - 2단계 인증 켜진 상태에서 → [앱 비밀번호](https://myaccount.google.com/apppasswords)
-                - "App"을 Mail, "Device"를 Other("FX Signal") 로 만들고 16자리 비밀번호 복사
-
-                ### 4) Naver / Daum / 회사 메일
-                같은 형식, `smtp_host` 만 바꾸면 됨:
-                - Naver: `smtp.naver.com:587`
-                - Daum:  `smtp.daum.net:465` (SSL — 코드 수정 필요할 수 있음)
-                - 회사 SMTP: IT 담당자 문의
-
-                설정 후 페이지 새로고침 → 다시 [📧 이메일 보내기] 클릭.
-                """
+    mail_cols = st.columns([3, 2])
+    with mail_cols[0]:
+        mail_to = st.text_input(
+            "받는 사람",
+            value="yonghan@mandata.kr",
+            placeholder="you@example.com",
+            label_visibility="collapsed",
+            key="fx_mail_to",
+        )
+    with mail_cols[1]:
+        if mail_to.strip():
+            mailto_url = fx_email.build_mailto_url(
+                to_addr=mail_to.strip(),
+                subject=_mail_subject,
+                body=_mail_plain,
             )
-    elif not mail_to.strip():
-        st.error("받는 사람 이메일을 입력해주세요.")
-    else:
-        try:
-            with st.spinner("📤 이메일 발송 중…"):
-                # 7일 이내 이벤트
-                events_7d = fx_events.upcoming(7)
-                html, plain = fx_email.build_html_report(
-                    usdkrw_last=usd_snap.last,
-                    usdkrw_delta_pct=usd_snap.pct_1d if not pd.isna(usd_snap.pct_1d) else 0.0,
-                    verdict=verdict,
-                    narrative=narrative,
-                    short=short,
-                    mid=mid,
-                    upcoming_events=events_7d,
-                )
-                subject = (
-                    f"[FX Signal] USD/KRW {usd_snap.last:,.2f} · "
-                    f"{verdict.emoji} {verdict.headline} · "
-                    f"{date.today().strftime('%Y-%m-%d')}"
-                )
-                fx_email.send_email(
-                    cfg=_email_cfg,
-                    to_addr=mail_to.strip(),
-                    subject=subject,
-                    html=html,
-                    plain=plain,
-                )
-            st.success(f"✅ {mail_to.strip()} 로 발송 완료")
-        except Exception as e:
-            st.error(f"❌ 발송 실패: {type(e).__name__}: {e}")
-            with st.expander("⚠️ 디버그 정보", expanded=False):
-                st.code(str(e))
-                st.caption(
-                    "흔한 원인: (a) Gmail App Password 가 아니라 일반 비밀번호 사용, "
-                    "(b) 2단계 인증 안 켜짐, (c) SMTP 포트가 회사 방화벽에 막힘, "
-                    "(d) 보내는 사람 주소가 실제 SMTP 계정과 다름."
-                )
+            st.link_button(
+                "📧 메일 앱에서 작성",
+                url=mailto_url,
+                type="primary",
+                use_container_width=True,
+            )
+        else:
+            st.button("📧 메일 앱에서 작성", disabled=True, use_container_width=True)
+
+    st.caption(
+        "💡 누르면 기본 메일 클라이언트(Gmail web · Apple Mail · Outlook 등)가 열리고 "
+        "받는 사람·제목·본문이 자동 채워져요. 보내기 버튼만 누르시면 끝."
+    )
+
+    with st.expander("📄 보낼 본문 미리보기", expanded=False):
+        st.code(_mail_plain, language="text")
 
 st.markdown("")
 

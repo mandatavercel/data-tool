@@ -1,18 +1,11 @@
 """
 FX Signal — 이메일 리포트.
 
-현재 신호 화면의 핵심 내용을 HTML 형식으로 정리해서 SMTP로 발송.
+현재 신호 화면의 핵심 내용을 정리해서:
+  1) mailto: 링크 — 셋업 없이 기본 메일 클라이언트로 발송 (Gmail web/Apple Mail/Outlook)
+  2) SMTP — secrets.toml 설정 시 자동 발송 (선택)
 
-설정 (Streamlit secrets.toml):
-  [email]
-  smtp_host = "smtp.gmail.com"        # Gmail
-  smtp_port = 587
-  smtp_user = "you@gmail.com"
-  smtp_password = "xxxx xxxx xxxx xxxx"  # Gmail은 App Password (2FA 후 생성)
-  from_addr = "you@gmail.com"
-  to_addr   = "yonghan@mandata.kr"    # 기본 받는 사람
-
-Gmail 외 다른 SMTP (Naver, Daum, Outlook 등)도 같은 구조.
+기본은 mailto. SMTP는 future use (정기 자동 발송 등)를 위해 살려둠.
 """
 from __future__ import annotations
 
@@ -22,6 +15,7 @@ from dataclasses import dataclass
 from datetime import date
 from email.message import EmailMessage
 from typing import Any, Optional
+from urllib.parse import quote
 
 
 @dataclass
@@ -295,6 +289,26 @@ def build_html_report(
 
 # ─────────────────────────────────────────────────────────────
 # SMTP 발송
+# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# mailto: 링크 — 셋업 없이 메일 클라이언트로 발송
+# ─────────────────────────────────────────────────────────────
+def build_mailto_url(to_addr: str, subject: str, body: str) -> str:
+    """
+    mailto: URL 생성. 사용자가 클릭하면 기본 메일 클라이언트가 열리고
+    받는 사람/제목/본문이 미리 채워짐.
+
+    주의: 대부분의 메일 클라이언트가 본문 ~2KB 까지 안정적. 그 이상은 잘릴 수 있음.
+    """
+    return (
+        f"mailto:{quote(to_addr)}"
+        f"?subject={quote(subject)}"
+        f"&body={quote(body)}"
+    )
+
+
+# ─────────────────────────────────────────────────────────────
+# SMTP 발송 (옵션 — 자동 발송용)
 # ─────────────────────────────────────────────────────────────
 def send_email(
     cfg: EmailConfig,
