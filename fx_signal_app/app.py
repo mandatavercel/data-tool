@@ -643,6 +643,12 @@ if not events_30d:
         "스키마는 `fx_signal_app/events.py` 상단 docstring 참고."
     )
 else:
+    # 분석 모듈 import
+    try:
+        from fx_signal_app import events_analysis as fx_ea
+    except ImportError:
+        import events_analysis as fx_ea  # type: ignore
+
     today = date.today()
     for ev in events_30d:
         d_left = (ev.date - today).days
@@ -667,6 +673,70 @@ else:
                     f"<div style='font-size:0.75rem; color:rgba(241,245,249,0.5); margin-top:2px;'>"
                     f"{ev.date.strftime('%m/%d (%a)')}</div>"
                     f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+            # 환율 영향 분석 expander
+            ea = fx_ea.analyze_event(ev.category, ev.title)
+            with st.expander("📊 환율 영향 분석 보기", expanded=False):
+                st.markdown(
+                    f"""
+                    **개요**
+                    {ea.overview}
+
+                    **발표 시각 (한국시간)**: {ea.release_time_kst}
+
+                    **시장이 주목하는 변수**
+                    """
+                )
+                for kv in ea.key_variables:
+                    st.markdown(f"- {kv}")
+
+                # 시나리오 두 개 — 색깔 박스
+                st.markdown(
+                    f"""
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:14px 0;">
+                      <div style="background:rgba(239,68,68,0.08); border-left:3px solid #EF4444;
+                                  padding:12px 14px; border-radius:6px;">
+                        <div style="font-size:0.72rem; color:#EF4444; text-transform:uppercase;
+                                    letter-spacing:0.08em; font-weight:700; margin-bottom:6px;">
+                          {ea.hawkish_label}
+                        </div>
+                        <div style="font-size:0.85rem; color:rgba(241,245,249,0.85); line-height:1.55;">
+                          {ea.hawkish_path}
+                        </div>
+                        <div style="font-size:0.85rem; color:#EF4444; font-weight:700; margin-top:8px;">
+                          {ea.hawkish_direction}
+                        </div>
+                      </div>
+                      <div style="background:rgba(34,197,94,0.08); border-left:3px solid #22C55E;
+                                  padding:12px 14px; border-radius:6px;">
+                        <div style="font-size:0.72rem; color:#22C55E; text-transform:uppercase;
+                                    letter-spacing:0.08em; font-weight:700; margin-bottom:6px;">
+                          {ea.dovish_label}
+                        </div>
+                        <div style="font-size:0.85rem; color:rgba(241,245,249,0.85); line-height:1.55;">
+                          {ea.dovish_path}
+                        </div>
+                        <div style="font-size:0.85rem; color:#22C55E; font-weight:700; margin-top:8px;">
+                          {ea.dovish_direction}
+                        </div>
+                      </div>
+                    </div>
+                    <div style="background:rgba(245,158,11,0.06); border-left:3px solid #F59E0B;
+                                padding:12px 14px; border-radius:6px; margin-bottom:8px;">
+                      <div style="font-size:0.72rem; color:#F59E0B; text-transform:uppercase;
+                                  letter-spacing:0.08em; font-weight:700; margin-bottom:6px;">
+                        💡 환전자 관점 권고
+                      </div>
+                      <div style="font-size:0.88rem; color:rgba(241,245,249,0.9); line-height:1.55;">
+                        {ea.actionable}
+                      </div>
+                    </div>
+                    <div style="font-size:0.78rem; color:rgba(241,245,249,0.55); margin-top:6px;">
+                      ⚡ <b>예상 변동성</b>: {ea.volatility}
+                    </div>
+                    """,
                     unsafe_allow_html=True,
                 )
 
