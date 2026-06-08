@@ -291,7 +291,35 @@ def build_html_report(
 # SMTP 발송
 # ─────────────────────────────────────────────────────────────
 # ─────────────────────────────────────────────────────────────
-# mailto: 링크 — 셋업 없이 메일 클라이언트로 발송
+# 도메인별 SMTP 자동 추정
+# ─────────────────────────────────────────────────────────────
+SMTP_DEFAULTS: dict[str, tuple[str, int]] = {
+    "gmail.com":      ("smtp.gmail.com",   587),
+    "googlemail.com": ("smtp.gmail.com",   587),
+    "naver.com":      ("smtp.naver.com",   587),
+    "daum.net":       ("smtp.daum.net",    465),
+    "hanmail.net":    ("smtp.daum.net",    465),
+    "kakao.com":      ("smtp.kakao.com",   465),
+    "nate.com":       ("smtp.mail.nate.com", 465),
+    "outlook.com":    ("smtp-mail.outlook.com", 587),
+    "hotmail.com":    ("smtp-mail.outlook.com", 587),
+    "live.com":       ("smtp-mail.outlook.com", 587),
+    "yahoo.com":      ("smtp.mail.yahoo.com", 587),
+    "icloud.com":     ("smtp.mail.me.com", 587),
+    "me.com":         ("smtp.mail.me.com", 587),
+}
+
+
+def guess_smtp(email_addr: str) -> tuple[str, int]:
+    """이메일 도메인 → (smtp_host, smtp_port). 모르는 도메인이면 (빈 host, 587)."""
+    if "@" not in email_addr:
+        return ("", 587)
+    domain = email_addr.split("@", 1)[1].lower().strip()
+    return SMTP_DEFAULTS.get(domain, ("", 587))
+
+
+# ─────────────────────────────────────────────────────────────
+# mailto: 링크 — 셋업 없이 메일 클라이언트로 발송 (백업)
 # ─────────────────────────────────────────────────────────────
 def build_mailto_url(to_addr: str, subject: str, body: str) -> str:
     """
@@ -318,7 +346,8 @@ def send_email(
     plain: str,
 ) -> None:
     """
-    SMTP로 이메일 발송. 실패 시 예외 raise (UI에서 catch).
+    SMTP로 이메일 발송. 포트 465 = SSL, 587 = STARTTLS.
+    실패 시 예외 raise (UI에서 catch).
     """
     msg = EmailMessage()
     msg["Subject"] = subject
@@ -328,10 +357,17 @@ def send_email(
     msg.add_alternative(html, subtype="html")
 
     context = ssl.create_default_context()
-    # STARTTLS (587) — 가장 일반적
-    with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port, timeout=20) as server:
-        server.ehlo()
-        server.starttls(context=context)
-        server.ehlo()
-        server.login(cfg.smtp_user, cfg.smtp_password)
-        server.send_message(msg)
+
+    if cfg.smtp_port == 465:
+        # SSL 직접
+        with smtplib.SMTP_SSL(cfg.smtp_host, cfg.smtp_port, context=context, timeout=20) as server:
+            server.login(cfg.smtp_user, cfg.smtp_password)
+            server.send_message(msg)
+    else:
+        # STARTTLS (587 등)
+        with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port, timeout=20) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
+            server.login(cfg.smtp_user, cfg.smtp_password)
+            server.send_message(msg)

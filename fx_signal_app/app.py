@@ -139,18 +139,15 @@ st.markdown(
 
 
 # ─────────────────────────────────────────────────────────────
-# 0.25) 📧 이메일 발송 — mailto 링크로 기본 메일 클라이언트 열기
+# 0.25) 📧 이메일 발송 — 세션 단위 로그인 + HTML 본문
 # ─────────────────────────────────────────────────────────────
 try:
     from fx_signal_app import email_report as fx_email
 except ImportError:
     import email_report as fx_email  # type: ignore
 
-# 7일 이내 이벤트 (본문 생성용)
 _events_7d = fx_events.upcoming(7)
-
-# 현재 데이터로 본문 미리 생성 (mailto 링크에 들어갈 plain 본문)
-_, _mail_plain = fx_email.build_html_report(
+_mail_html, _mail_plain = fx_email.build_html_report(
     usdkrw_last=usd_snap.last,
     usdkrw_delta_pct=usd_snap.pct_1d if not pd.isna(usd_snap.pct_1d) else 0.0,
     verdict=verdict, narrative=narrative, short=short, mid=mid,
@@ -162,44 +159,142 @@ _mail_subject = (
     f"{date.today().strftime('%Y-%m-%d')}"
 )
 
+# 세션에서 로그인 상태 조회
+sender_email = st.session_state.get("_fx_sender_email", "")
+sender_pwd = st.session_state.get("_fx_sender_pwd", "")
+sender_host = st.session_state.get("_fx_sender_host", "")
+sender_port = int(st.session_state.get("_fx_sender_port", 587))
+logged_in = bool(sender_email and sender_pwd and sender_host)
+
 with st.container(border=True):
-    st.markdown(
-        "<div style='font-size:0.85rem; color:#F1F5F9; font-weight:600;'>"
-        "📧 이메일로 받기 — 받는 사람만 입력하면 메일 앱이 열립니다 (셋업 X)</div>",
-        unsafe_allow_html=True,
-    )
-    mail_cols = st.columns([3, 2])
-    with mail_cols[0]:
-        mail_to = st.text_input(
-            "받는 사람",
-            value="yonghan@mandata.kr",
-            placeholder="you@example.com",
-            label_visibility="collapsed",
-            key="fx_mail_to",
+    if not logged_in:
+        # ── 로그인 UI ───────────────────────────────────────
+        st.markdown(
+            "<div style='font-size:0.85rem; color:#F1F5F9; font-weight:600;'>"
+            "📧 HTML 이메일 발송 — 한 번 로그인하면 이 세션 내내 사용</div>",
+            unsafe_allow_html=True,
         )
-    with mail_cols[1]:
-        if mail_to.strip():
-            mailto_url = fx_email.build_mailto_url(
-                to_addr=mail_to.strip(),
-                subject=_mail_subject,
-                body=_mail_plain,
+        st.caption(
+            "💡 Gmail은 [App Password](https://myaccount.google.com/apppasswords) 가 필요해요 "
+            "(2단계 인증 ON 후 발급되는 16자리). 일반 비밀번호로는 SMTP 인증 안 됨."
+        )
+        with st.form("fx_email_login_form", clear_on_submit=False):
+            email_in = st.text_input(
+                "보내는 사람 이메일",
+                value="",
+                placeholder="you@gmail.com",
+                key="fx_login_email",
             )
-            st.link_button(
-                "📧 메일 앱에서 작성",
-                url=mailto_url,
-                type="primary",
-                use_container_width=True,
+            pwd_in = st.text_input(
+                "앱 비밀번호 (또는 SMTP 비밀번호)",
+                value="",
+                type="password",
+                placeholder="xxxx xxxx xxxx xxxx",
+                key="fx_login_pwd",
             )
-        else:
-            st.button("📧 메일 앱에서 작성", disabled=True, use_container_width=True)
 
-    st.caption(
-        "💡 누르면 기본 메일 클라이언트(Gmail web · Apple Mail · Outlook 등)가 열리고 "
-        "받는 사람·제목·본문이 자동 채워져요. 보내기 버튼만 누르시면 끝."
-    )
+            # 도메인 자동 추정
+            guess_host, guess_port = fx_email.guess_smtp(email_in)
+            cols_smtp = st.columns([3, 1])
+            with cols_smtp[0]:
+                host_in = st.text_input(
+                    "SMTP 서버",
+                    value=guess_host or "",
+                    placeholder="smtp.gmail.com",
+                    help="이메일 도메인으로 자동 추정. 회사 메일은 직접 입력.",
+                    key="fx_login_host",
+                )
+            with cols_smtp[1]:
+                port_in = st.number_input(
+                    "포트",
+                    value=guess_port,
+                    min_value=1, max_value=65535,
+                    help="465 = SSL · 587 = STARTTLS",
+                    key="fx_login_port",
+                )
 
-    with st.expander("📄 보낼 본문 미리보기", expanded=False):
-        st.code(_mail_plain, language="text")
+            submit_login = st.form_submit_button("🔐 로그인 (이 세션만)", type="primary")
+            if submit_login:
+                if not email_in.strip() or not pwd_in or not host_in.strip():
+                    st.error("이메일, 비밀번호, SMTP 서버는 모두 필요.")
+                else:
+                    st.session_state["_fx_sender_email"] = email_in.strip()
+                    st.session_state["_fx_sender_pwd"] = pwd_in
+                    st.session_state["_fx_sender_host"] = host_in.strip()
+                    st.session_state["_fx_sender_port"] = int(port_in)
+                    st.rerun()
+
+        st.caption(
+            "🔒 비밀번호는 이 세션 메모리에만 잠시 보관. 페이지 닫거나 새로고침하면 사라집니다. "
+            "Streamlit Cloud 디스크나 git에 저장되지 않아요."
+        )
+    else:
+        # ── 로그인 완료 — 발송 UI ──────────────────────────
+        head_cols = st.columns([4, 1])
+        with head_cols[0]:
+            st.markdown(
+                f"<div style='font-size:0.85rem; color:#F1F5F9; font-weight:600;'>"
+                f"📧 HTML 이메일 발송 — 보내는 사람: "
+                f"<span style='color:#F59E0B;'>{sender_email}</span> "
+                f"<span style='color:rgba(241,245,249,0.5); font-weight:400;'>"
+                f"({sender_host}:{sender_port})</span></div>",
+                unsafe_allow_html=True,
+            )
+        with head_cols[1]:
+            if st.button("🔒 로그아웃", key="fx_logout", use_container_width=True):
+                for k in ("_fx_sender_email", "_fx_sender_pwd", "_fx_sender_host", "_fx_sender_port"):
+                    st.session_state.pop(k, None)
+                st.rerun()
+
+        send_cols = st.columns([3, 1])
+        with send_cols[0]:
+            mail_to = st.text_input(
+                "받는 사람",
+                value="yonghan@mandata.kr",
+                placeholder="you@example.com",
+                label_visibility="collapsed",
+                key="fx_mail_to",
+            )
+        with send_cols[1]:
+            do_send = st.button("📧 발송", type="primary", use_container_width=True,
+                                 key="fx_do_send", disabled=not mail_to.strip())
+
+        if do_send:
+            try:
+                with st.spinner("📤 발송 중…"):
+                    cfg = fx_email.EmailConfig(
+                        smtp_host=sender_host,
+                        smtp_port=sender_port,
+                        smtp_user=sender_email,
+                        smtp_password=sender_pwd,
+                        from_addr=sender_email,
+                        to_addr=mail_to.strip(),
+                    )
+                    fx_email.send_email(
+                        cfg=cfg,
+                        to_addr=mail_to.strip(),
+                        subject=_mail_subject,
+                        html=_mail_html,
+                        plain=_mail_plain,
+                    )
+                st.success(f"✅ {mail_to.strip()} 로 발송 완료")
+            except Exception as e:
+                st.error(f"❌ 발송 실패: {type(e).__name__}: {e}")
+                with st.expander("⚠️ 디버그 정보 / 흔한 원인", expanded=False):
+                    st.code(str(e))
+                    st.markdown(
+                        """
+                        흔한 원인:
+                        - **Gmail App Password 가 아니라 일반 비밀번호 사용** — Gmail은 2FA 활성화 후 [App Password](https://myaccount.google.com/apppasswords) 발급 필요
+                        - **2단계 인증이 꺼져있음** — 켜야 App Password 발급 가능
+                        - **회사 메일 SMTP가 외부 접속 차단** — IT 담당자에게 SMTP 외부 사용 허용 요청
+                        - **SMTP 호스트/포트 오타** — Gmail: `smtp.gmail.com:587`, Naver: `smtp.naver.com:587`, Daum: `smtp.daum.net:465`
+                        - **포트 587 → STARTTLS, 465 → SSL** — 자동 감지하지만 호스트와 안 맞으면 실패
+                        """
+                    )
+
+        with st.expander("📄 보낼 본문 미리보기 (HTML 렌더링은 메일 클라이언트에서)", expanded=False):
+            st.components.v1.html(_mail_html, height=500, scrolling=True)
 
 st.markdown("")
 
