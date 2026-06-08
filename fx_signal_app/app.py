@@ -17,6 +17,7 @@ for p in (str(_ROOT), str(_HERE.parent)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
+import pandas as pd
 import streamlit as st
 
 try:
