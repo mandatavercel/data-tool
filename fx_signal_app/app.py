@@ -147,11 +147,13 @@ except ImportError:
     import email_report as fx_email  # type: ignore
 
 _events_7d = fx_events.upcoming(7)
+_app_url = fx_email.get_app_url()  # 자동 감지: secrets > 환경변수 > request headers
 _mail_html, _mail_plain = fx_email.build_html_report(
     usdkrw_last=usd_snap.last,
     usdkrw_delta_pct=usd_snap.pct_1d if not pd.isna(usd_snap.pct_1d) else 0.0,
     verdict=verdict, narrative=narrative, short=short, mid=mid,
     upcoming_events=_events_7d,
+    app_url=_app_url,
 )
 _mail_subject = (
     f"[FX Signal] USD/KRW {usd_snap.last:,.2f} · "

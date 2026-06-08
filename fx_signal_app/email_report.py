@@ -73,6 +73,7 @@ def build_html_report(
     mid: Any,               # SignalResult
     upcoming_events: list,  # list[MacroEvent], 7일 이내
     report_date: Optional[date] = None,
+    app_url: str = "",      # 대시보드 base URL (있으면 CTA 추가)
 ) -> tuple[str, str]:
     """
     HTML 본문 + plain-text fallback 반환.
@@ -193,6 +194,22 @@ def build_html_report(
         </div>
       </div>
 
+      <!-- CTA: 대시보드 링크 -->
+      {f'''
+      <div style="text-align:center; margin-bottom:22px;">
+        <a href="{app_url}" target="_blank" style="
+          display:inline-block; background:#F59E0B; color:#0A0A0B;
+          padding:12px 28px; border-radius:8px; text-decoration:none;
+          font-weight:700; font-size:0.95rem; letter-spacing:-0.01em;
+          box-shadow:0 2px 6px rgba(245,158,11,0.25);">
+          🔗 대시보드에서 자세히 보기 →
+        </a>
+        <div style="font-size:0.75rem; color:#94A3B8; margin-top:8px;">
+          차트 · 백테스트 · 모든 매크로 드라이버 · 이벤트별 상세 분석
+        </div>
+      </div>
+      ''' if app_url else ''}
+
       <!-- 시장 narrative -->
       <div style="background:#F8FAFC; border-radius:8px; padding:16px; margin-bottom:22px;
                   font-size:0.92rem; color:#334155; line-height:1.65;">
@@ -241,9 +258,15 @@ def build_html_report(
 
       <!-- Footer -->
       <div style="border-top:1px solid #E2E8F0; padding-top:16px; margin-top:8px;
-                  font-size:0.75rem; color:#94A3B8; text-align:center; line-height:1.6;">
-        <b>Mandata Data Intelligence</b> · 매크로 신호 기반 의사결정 보조 도구<br>
-        신호는 휴리스틱이며 투자/환전 추천이 아닙니다. 실제 환전은 본인 판단으로.
+                  font-size:0.78rem; color:#94A3B8; text-align:center; line-height:1.7;">
+        <div style="font-weight:600; color:#475569; font-size:0.85rem; letter-spacing:-0.01em;">
+          Andrew Yoon by Mandata
+        </div>
+        <div style="margin-top:4px;">Mandata Data Intelligence · 매크로 신호 기반 의사결정 보조 도구</div>
+        {f'<div style="margin-top:6px;"><a href="{app_url}" style="color:#F59E0B; text-decoration:none;">대시보드로 가기 →</a></div>' if app_url else ''}
+        <div style="margin-top:6px; font-size:0.72rem; color:#CBD5E1;">
+          신호는 휴리스틱이며 투자/환전 추천이 아닙니다. 실제 환전은 본인 판단으로.
+        </div>
       </div>
     </div>
   </div>
@@ -282,7 +305,15 @@ def build_html_report(
             day_str = "오늘" if d_left == 0 else ("내일" if d_left == 1 else f"D-{d_left}")
             plain += f"  • {day_str} ({e.date.strftime('%m/%d')}) {e.title}\n"
 
-    plain += "\n— Mandata Data Intelligence\n신호는 투자/환전 추천이 아닙니다."
+    if app_url:
+        plain += f"\n🔗 대시보드에서 자세히 보기:\n   {app_url}\n"
+
+    plain += (
+        "\n──────────────────────────────\n"
+        "Andrew Yoon by Mandata\n"
+        "Mandata Data Intelligence · 매크로 신호 기반 의사결정 보조 도구\n"
+        "신호는 휴리스틱이며 투자/환전 추천이 아닙니다."
+    )
 
     return html, plain
 
@@ -316,6 +347,37 @@ def guess_smtp(email_addr: str) -> tuple[str, int]:
         return ("", 587)
     domain = email_addr.split("@", 1)[1].lower().strip()
     return SMTP_DEFAULTS.get(domain, ("", 587))
+
+
+def get_app_url() -> str:
+    """
+    현재 Streamlit 앱의 base URL 추정.
+    우선순위: secrets[app_url] > 환경변수 STREAMLIT_APP_URL > request headers > 빈 문자열.
+    """
+    import os
+    # 1) secrets
+    try:
+        import streamlit as st
+        url = str(st.secrets.get("app_url", "")).strip()
+        if url:
+            return url.rstrip("/")
+    except Exception:
+        pass
+    # 2) 환경변수
+    url = os.environ.get("STREAMLIT_APP_URL", "").strip()
+    if url:
+        return url.rstrip("/")
+    # 3) request headers (Streamlit Cloud는 x-forwarded-host 제공)
+    try:
+        import streamlit as st
+        headers = st.context.headers
+        host = (headers.get("x-forwarded-host") or headers.get("host") or "").strip()
+        proto = (headers.get("x-forwarded-proto") or "https").strip()
+        if host:
+            return f"{proto}://{host}".rstrip("/")
+    except Exception:
+        pass
+    return ""
 
 
 # ─────────────────────────────────────────────────────────────
