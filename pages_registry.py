@@ -245,25 +245,52 @@ def _empty_overrides() -> dict:
     return {"category_overrides": {}}
 
 
-def load_overrides() -> dict:
-    """page_overrides.json 로드. 없거나 손상되면 빈 overrides."""
+def _read_overrides_file() -> dict:
     if not _OVERRIDES_PATH.exists():
         return _empty_overrides()
     try:
-        data = json.loads(_OVERRIDES_PATH.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
+        return json.loads(_OVERRIDES_PATH.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, ValueError):
         return _empty_overrides()
+
+
+def load_overrides() -> dict:
+    """카테고리 override 로드. DB(설정 시) 우선, 어떤 오류든 파일로 폴백."""
+    data = None
+    try:
+        from ar_app import db_store
+        if db_store.enabled():
+            data = db_store.read("page_overrides")
+            if data is None:
+                data = _read_overrides_file()
+                try:
+                    db_store.write("page_overrides", data)
+                except Exception:
+                    pass
+    except Exception:
+        data = None
+    if not isinstance(data, dict):
+        data = _read_overrides_file()
     data.setdefault("category_overrides", {})
     return data
 
 
 def save_overrides(data: dict) -> None:
-    """page_overrides.json 저장 (Cloud는 ephemeral fs라 Export 권장)."""
+    """카테고리 override 저장. DB(설정 시) + 파일 둘 다. DB 있으면 git commit 없이 영구 보존."""
     out = {k: v for k, v in data.items()}
-    _OVERRIDES_PATH.write_text(
-        json.dumps(out, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    try:
+        from ar_app import db_store
+        if db_store.enabled():
+            try:
+                db_store.write("page_overrides", out)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    try:
+        _OVERRIDES_PATH.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
 
 
 def apply_overrides(base: list[PageEntry], overrides: dict | None = None) -> list[PageEntry]:

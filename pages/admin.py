@@ -81,11 +81,22 @@ with top2:
         f"현재 사용자: `{email}`"
     )
 
-if _on_cloud:
+try:
+    from ar_app import db_store as _dbs
+    _db_on = _dbs.enabled()
+except Exception:
+    _db_on = False
+
+if _db_on:
+    st.success(
+        "✅ **DB(Neon) 영구 저장 연결됨.** 권한·카테고리 변경이 자동으로 영구 저장됩니다 "
+        "(GitHub commit 불필요)."
+    )
+elif _on_cloud:
     st.warning(
         "⚠️ **Streamlit Cloud는 파일이 영구 저장되지 않아요.** "
-        "변경 후 반드시 **💾 저장/Export** 탭에서 JSON을 받아 GitHub에 commit해주세요. "
-        "(GitHub 변경 감지 시 Cloud가 자동 재배포 → 변경사항 영구 반영)"
+        "변경 후 반드시 **💾 저장/Export** 탭에서 JSON을 받아 GitHub에 commit하거나, "
+        "secrets에 `DATABASE_URL`(Neon)을 설정해 영구 저장을 켜세요."
     )
 
 st.divider()

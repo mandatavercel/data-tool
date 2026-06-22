@@ -48,15 +48,32 @@ def _empty_acl() -> dict:
     }
 
 
-def get_acl() -> dict:
-    """acl.json을 로드. 파일 없거나 파싱 실패면 빈 ACL 반환."""
+def _read_acl_file() -> dict:
     if not _ACL_PATH.exists():
         return _empty_acl()
     try:
-        data = json.loads(_ACL_PATH.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
+        return json.loads(_ACL_PATH.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, ValueError):
         return _empty_acl()
-    # 정합성 보정
+
+
+def get_acl() -> dict:
+    """ACL 로드. DB(설정 시) 우선, 어떤 오류든 파일(acl.json)로 폴백 — 로그인은 절대 안 깨지게."""
+    data = None
+    try:
+        from ar_app import db_store
+        if db_store.enabled():
+            data = db_store.read("acl")
+            if data is None:  # DB 비어있음 → 파일로 1회 시드
+                data = _read_acl_file()
+                try:
+                    db_store.write("acl", data)
+                except Exception:
+                    pass
+    except Exception:
+        data = None
+    if not isinstance(data, dict):
+        data = _read_acl_file()
     data.setdefault("admins", [])
     data.setdefault("default_access", [])
     data.setdefault("page_access", {})
@@ -64,13 +81,21 @@ def get_acl() -> dict:
 
 
 def save_acl(data: dict) -> None:
-    """ACL을 파일에 저장. Streamlit Cloud는 ephemeral fs라 보존 보장 안 됨 (admin 페이지에서 export 권장)."""
-    # 내부 키 정리 (_schema, _notes는 보존)
+    """ACL 저장. DB(설정 시) + 파일 둘 다. DB 있으면 git commit 없이 영구 보존."""
     out = {k: v for k, v in data.items()}
-    _ACL_PATH.write_text(
-        json.dumps(out, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    try:
+        from ar_app import db_store
+        if db_store.enabled():
+            try:
+                db_store.write("acl", out)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    try:
+        _ACL_PATH.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
 
 
 # ─────────────────────────────────────────────────────────────
