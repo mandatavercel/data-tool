@@ -92,3 +92,6 @@ Icon
 # ── OS / 기타 ────────────────────────────────────────────────────────────
 Thumbs.db
 desktop.ini
+
+# AR Management — 1인 편집 락(세션마다 바뀌는 임시 파일, 커밋 불필요)
+ar_app/data/lock.json

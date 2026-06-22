@@ -55,6 +55,7 @@ fi
 declare -A PKG_IMPORT_MAP=(
     ["beautifulsoup4"]="bs4"
     ["python-pptx"]="pptx"
+    ["python-docx"]="docx"
     ["pyyaml"]="yaml"
     ["scikit-learn"]="sklearn"
 )
@@ -69,6 +70,8 @@ ALL_PKGS=(
     plotly pykrx yfinance scipy curl-cffi python-pptx reportlab
     # mapping_app / catalog_app
     rapidfuzz
+    # contract_app
+    python-docx
 )
 
 NEED_INSTALL=""

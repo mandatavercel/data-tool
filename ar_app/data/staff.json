@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "id": "S001",
+    "name": "윤용한",
+    "email": "yonghan@mandata.kr",
+    "role": "책임자",
+    "notes": "",
+    "created_at": "2026-06-22"
+  },
+  {
+    "id": "S002",
+    "name": "김민재",
+    "email": "minjae@mandata.kr",
+    "role": "AR담당자",
+    "notes": "",
+    "created_at": "2026-06-22"
+  },
+  {
+    "id": "S003",
+    "name": "이수영",
+    "email": "sylee@mandata.kr",
+    "role": "회계담당자",
+    "notes": "",
+    "created_at": "2026-06-22"
+  }
+]

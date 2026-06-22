@@ -1,0 +1,50 @@
+# 데이터 오너별 원천 스키마 → 표준(canonical) 컬럼 매핑
+# 각 canonical 컬럼에 대해, 원천 파일에 나타날 수 있는 헤더 후보를 나열한다.
+# 첫 번째 값 = 대표(native) 헤더. 나머지는 동의어(alias).
+# 새 오너는 여기 블록만 추가하면 같은 파이프라인으로 처리된다.
+
+default_owner: cu
+
+required:           # 최소조건 — 이것만 있으면 어떤 입자도든 처리(없으면 자동 보완)
+  - date
+  - company_kr
+  - sales_amt
+
+recommended:        # 있으면 더 풍부한 분석(브랜드/SKU/카테고리/ASP). 없으면 가용분석만
+  - brand_kr
+  - cat_l2
+  - cat_l3
+  - barcode
+  - sku_name_kr
+  - sales_qty
+
+owners:
+  cu:               # 기본 — BGF리테일 CU 편의점 POS 백테스트 포맷
+    date:         [YMD_CD, 거래일자, 일자, 판매일자, date, sales_dt]
+    region_code:  [SIDO_CD]
+    region:       [SIDO_NM, 지역, region]
+    company_code: [GRP_ACNT_CD]
+    company_kr:   [GRP_ACNT_NM, 제조사, 회사명, vendor, manufacturer, company]
+    brand_code:   [GRP_ITEM_CD]
+    brand_kr:     [GRP_ITEM_NM, 브랜드, 브랜드명, 상품군, brand, brand_nm, product_brand]
+    cat_l1:       [LRCL_NM, 대분류]
+    cat_l2:       [MDCL_NM, 중분류]
+    cat_l3:       [SMCL_NM, 소분류]
+    barcode:      [ITEM_CD, 바코드, 상품코드, gtin]
+    sku_name_kr:  [ITEM_NM, 상품명, SKU명, sku_nm, item, product_nm]
+    sales_amt:    [SALE_AMT, 매출액, 판매금액, amount, net_sales, sales]
+    sales_qty:    [SALE_QTY, 판매수량, 수량, qty, units, unit_sold]
+    sales_cnt:    [SALE_CNT, 판매건수, 건수, 영수증수, trx_cnt, transaction_count]
+
+  owner_b:          # 예시 — 영문 헤더 오너 (다른 스키마도 같은 파이프라인으로)
+    date:         [sales_dt, date]
+    company_kr:   [manufacturer, company, vendor]
+    brand_kr:     [brand_nm, product_brand, brand]
+    cat_l1:       [category_1]
+    cat_l2:       [category_2, category]
+    cat_l3:       [category_3]
+    barcode:      [gtin, barcode]
+    sku_name_kr:  [product_nm, item, sku_nm]
+    sales_amt:    [net_sales, sales, amount]
+    sales_qty:    [unit_sold, units, qty]
+    sales_cnt:    [transaction_count, trx_cnt]

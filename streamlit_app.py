@@ -138,8 +138,21 @@ def render_login_screen():
 
 
 if not _current_email:
-    _login_page = st.Page(render_login_screen, title="Login", icon="🔒", default=True)
-    _login_nav = st.navigation([_login_page], position="hidden")
+    # 로그인 전에는 모든 알려진 서브경로(/ar 등 북마크된 URL 포함)를 로그인 화면으로 받아서
+    # "Page not found" 안내가 뜨지 않게 한다.
+    _login_pages = [st.Page(render_login_screen, title="Login", icon="🔒", default=True)]
+    _seen_paths = {"login"}
+    for _p in PAGES:
+        try:
+            _up = Path(str(_p.absolute_entry)).stem
+        except Exception:
+            _up = None
+        if _up and _up not in _seen_paths:
+            _seen_paths.add(_up)
+            _login_pages.append(
+                st.Page(render_login_screen, title=f"login-{_up}", url_path=_up)
+            )
+    _login_nav = st.navigation(_login_pages, position="hidden")
     _login_nav.run()
     st.stop()
 

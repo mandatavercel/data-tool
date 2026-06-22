@@ -10,6 +10,11 @@ openpyxl==3.1.5
 # 회사명 유사도 매칭 가속 (10~100배). 없으면 difflib로 자동 폴백.
 rapidfuzz==3.10.1
 
+# kfnb_app — 대용량 POS(수백만 행) 집계 가속. 없으면 pandas 폴백(kfnb_app/dataio.py).
+duckdb==1.1.3
+# kfnb_app — configs/*.yaml 설정 로더
+PyYAML==6.0.2
+
 # bizno_app — 사업자번호 → 업체명 조회 (bizno.net 스크래핑)
 beautifulsoup4==4.12.3
 lxml==5.3.0
@@ -39,3 +44,6 @@ reportlab==4.2.5
 
 # contract_app — 계약서 .docx 템플릿 변수 치환
 python-docx==1.1.2
+
+# ar_app — 클라우드 배포 시 영구 저장용 Postgres(Neon/Supabase). DATABASE_URL 미설정 시 JSON 폴백.
+psycopg2-binary==2.9.9

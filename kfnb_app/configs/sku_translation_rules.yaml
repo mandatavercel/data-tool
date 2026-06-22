@@ -1,0 +1,74 @@
+# SKU 영문명 규칙 사전 — 한글 토큰 → 영문. (순서 = 치환 우선순위, 긴 토큰 먼저!)
+# brand 를 제거한 나머지(variant/포장/맛)를 이 규칙으로 표준화한다.
+sku_token_en:
+  큰사발컵: Big Bowl Cup
+  큰사발면: Big Bowl
+  큰사발: Big Bowl
+  사발면: Bowl
+  사발: Bowl
+  큰컵: Big Cup
+  소컵: Small Cup
+  큰용기: Big Cup
+  용기: Cup
+  컵: Cup
+  봉지: Bag
+  즉석: Instant
+  두부김치: Tofu Kimchi
+  김치: Kimchi
+  볶음면: Stir-fried
+  범벅: Beombeok
+  건면: Dried Noodle
+  비빔: Bibim
+  짜장: Jjajang
+  까르보: Carbonara
+  치즈: Cheese
+  불닭: Buldak
+  매운맛: Spicy
+  매운: Spicy
+  오리지널: Original
+  스파이시퀸: Spicy Queen
+  슈퍼스타: Superstar
+  제페토: Zepetto
+  햄버거: Hamburger
+  더블랙: The Black
+  블랙: Black
+  골드: Gold
+  더레드: The Red
+  마라: Mala
+  사천: Sichuan
+  툼바: Toomba
+  순하군: Soonhan
+  프리미엄: Premium
+  # 주류 맛/타입
+  무알콜: Non-alcohol
+  논알콜: Non-alcohol
+  제로: Zero
+  라이트: Light
+  순한: Mild
+  진한: Rich
+  다래: Darae
+  살구: Apricot
+  큰: Big
+
+# 포장 형태 추론 — cat_l3(SMCL) 토큰 → 표준 라벨
+package_format_map:
+  봉지면: Bag
+  용기면: Cup/Bowl
+  캔: Can
+  병: Bottle
+  페트: PET
+  팩: Pack
+
+# SKU명 토큰 → 포장 (cat_l3 로 못 잡을 때, 긴 토큰 먼저)
+package_name_tokens:
+  미니캔: Mini Can
+  소캔: Small Can
+  캔: Can
+  페트: PET
+  병: Bottle
+  봉지: Bag
+  큰사발: Big Bowl
+  사발: Bowl
+  소컵: Small Cup
+  큰컵: Big Cup
+  컵: Cup

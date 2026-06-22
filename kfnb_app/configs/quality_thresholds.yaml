@@ -1,0 +1,13 @@
+# 검증/QC 임계값
+thresholds:
+  min_rows: 100
+  asp_min_won: 100.0          # ASP sanity 하한
+  asp_max_won: 100000.0       # ASP sanity 상한
+  barcode_len: 13             # EAN-13
+  map_coverage_warn: 0.95     # 매출기준 상장 매핑 커버리지 경고선
+  nonpos_amt_warn_pct: 1.0    # 음수/0 매출 비율 경고선(%)
+  spike_ratio: 3.0            # 전기간 대비 급증/급락 배수 (QC)
+  pos_release_lag_days: 15    # POS 데이터 입수 지연(월말/일자 + N일) — PIT available_date
+
+# 파이프라인 게이트: 이 severity 이상이면 진행 중단
+halt_severities: [error, critical]

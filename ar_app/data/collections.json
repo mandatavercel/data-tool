@@ -1,0 +1,442 @@
+{
+  "CT001|2024-02-05": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "collected_at": "2026-06-22",
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22"
+  },
+  "CT002|2025-11-29": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "collected_at": "2026-06-22",
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT001|2026-08-05": {
+    "manager": false,
+    "accounting": false,
+    "ar": false
+  },
+  "CT001|2022-11-14": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "collected_at": "2026-06-22",
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout_at": "",
+    "payout_done": false,
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      },
+      "롯데카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT001|2023-02-14": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "collected_at": "2026-06-22",
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      },
+      "롯데카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT001|2023-05-14": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "collected_at": "2026-06-22",
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      },
+      "롯데카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT001|2023-08-14": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "collected_at": "2026-06-22",
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      },
+      "롯데카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT001|2023-11-14": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "collected_at": "2026-06-22",
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      },
+      "롯데카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT001|2024-02-14": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "collected_at": "2026-06-22",
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      },
+      "롯데카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT001|2024-05-14": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout_done": false,
+    "payout_at": "",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      },
+      "롯데카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT001|2024-08-14": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout_done": false,
+    "payout_at": "",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      },
+      "롯데카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT002|2024-08-29": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout_done": false,
+    "payout_at": "",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT002|2024-11-29": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout_done": false,
+    "payout_at": "",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT002|2025-02-28": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT002|2025-05-29": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT002|2025-08-29": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT002|2026-02-28": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT002|2026-05-29": {
+    "manager": false,
+    "accounting": false,
+    "ar": false,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "",
+    "payout": {}
+  },
+  "CT001|2024-11-14": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      },
+      "롯데카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT001|2025-02-14": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      },
+      "롯데카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT001|2025-05-14": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      },
+      "롯데카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT001|2025-08-14": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      },
+      "롯데카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT001|2025-11-14": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      },
+      "롯데카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT001|2026-02-14": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      },
+      "롯데카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  },
+  "CT001|2026-05-14": {
+    "manager": true,
+    "accounting": true,
+    "ar": true,
+    "invoiced": true,
+    "invoiced_at": "2026-06-22",
+    "paid_at": "2026-06-22",
+    "payout": {
+      "삼성카드": {
+        "tax_invoice": true,
+        "expense": true,
+        "paid": true
+      }
+    }
+  }
+}

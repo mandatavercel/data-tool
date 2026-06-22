@@ -1,0 +1,14 @@
+# 데이터 출처 명세(Data Spec) 기본값.
+# ⚠️ 이 값들은 데이터셋마다 다르다 — 업로드할 때 UI/CLI에서 덮어쓴다.
+# 결론·백테스트/라이브 적합성 판단은 전적으로 이 명세를 근거로 한다(거짓 금지).
+
+amount_basis: vat_incl_retail   # vat_incl_retail | vat_excl | discounted_net | unknown
+qty_basis: selling_unit         # selling_unit(바코드1=1) | each(낱개환산) | unknown
+currency: KRW
+
+channel_scope: ""               # 자유서술 (예: "CU 편의점")
+population: unknown              # census | sample | multi_channel | unknown
+release_cadence: unknown         # monthly | weekly | daily | unknown
+release_lag_days: 15            # available_date = 기준일 + N일
+restatement: unknown            # none | revised | unknown
+notes: ""

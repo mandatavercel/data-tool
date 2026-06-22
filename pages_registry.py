@@ -119,6 +119,18 @@ _BASE_PAGES: list[PageEntry] = [
         entry_file="pages/mapping.py",
     ),
     PageEntry(
+        key="kfnb",
+        name="K-F&B 데이터 상품",
+        icon="🍜",
+        category="Data Analysis",
+        description=(
+            "F&B POS(편의점 등) 원천 데이터를 글로벌 투자기관용 '투자등급' 데이터 "
+            "상품으로 자동 변환. ①프로파일링 → ②정규화(SKU 파싱) → ③투자 테마 태깅 "
+            "→ ④티커 매핑 → ⑤패널 집계 → ⑥xlsx 상품 생성까지 단계마다 검증."
+        ),
+        entry_file="pages/kfnb.py",
+    ),
+    PageEntry(
         key="security_id",
         name="종목 식별",
         icon="🔎",

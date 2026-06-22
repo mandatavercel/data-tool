@@ -1,0 +1,2468 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MTC v0.2 · Mandata Taxonomy Code · DNA</title>
+  <meta name="description" content="Mandata's proprietary taxonomy for Korean equities and alternative data." />
+  <style>
+    :root {
+      --bg-100: #0a0e1a;
+      --bg-50:  #11192b;
+      --bg-200: #060912;
+      --edge:   #1f2a44;
+      --ink-100: #f3f6fb;
+      --ink-200: #c4ccdb;
+      --ink-300: #8c95a8;
+      --ink-400: #5d6679;
+      --accent: #ff8a40;
+      --accent-50: rgba(255,138,64,0.18);
+      --accent-20: rgba(255,138,64,0.10);
+      --accent-30: rgba(255,138,64,0.30);
+      --chip-blue: #6da3ff;
+      --chip-teal: #5ee6b8;
+      --up:    #3dd68c;
+      --down:  #f56565;
+      --purple-300: #d7b1ff;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg-100);
+      color: var(--ink-200);
+      font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Inter, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .num { font-variant-numeric: tabular-nums; }
+
+    /* Layout */
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 32px 32px 80px; }
+    .demo-banner {
+      background: linear-gradient(90deg, var(--accent-50), transparent);
+      border-bottom: 1px solid var(--edge);
+      padding: 6px 32px;
+      font-size: 11px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-weight: 700;
+    }
+    .nav-top {
+      border-bottom: 1px solid var(--edge);
+      background: rgba(17,25,43,0.92);
+      backdrop-filter: blur(8px);
+      padding: 12px 32px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .nav-top .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .nav-top .brand-mark {
+      width: 26px; height: 26px;
+      display: grid; place-items: center;
+      background: var(--accent-50);
+      color: var(--accent);
+      border: 1px solid var(--accent-30);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .nav-top .brand-name { color: var(--accent); }
+    .nav-top .brand-sub { color: var(--ink-400); font-size: 11px; font-weight: 400; text-transform: uppercase; letter-spacing: 0.16em; }
+
+    /* Hero */
+    .breadcrumb { font-size: 12px; color: var(--ink-400); margin-bottom: 28px; }
+    .breadcrumb span.cur { color: var(--ink-200); }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--accent);
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.14em;
+    }
+    h1.hero {
+      margin: 12px 0 0;
+      font-size: clamp(32px, 4vw, 48px);
+      line-height: 1.05;
+      letter-spacing: -0.01em;
+      color: var(--ink-100);
+      font-weight: 700;
+      max-width: 34ch;
+    }
+    h1.hero .editorial {
+      font-family: "Source Serif Pro", "PT Serif", Georgia, serif;
+      font-style: italic;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .hero-copy {
+      margin-top: 20px;
+      max-width: 78ch;
+      color: var(--ink-300);
+      font-size: 15px;
+      line-height: 1.65;
+    }
+    .hero-copy strong { color: var(--ink-100); }
+
+    /* Stat grid */
+    .stat-grid {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    @media (max-width: 720px) { .stat-grid { grid-template-columns: 1fr 1fr; } }
+    .stat {
+      background: var(--bg-50);
+      border: 1px solid var(--edge);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .stat .lbl {
+      font-size: 10.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: var(--ink-400);
+    }
+    .stat .val {
+      font: 700 26px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: var(--ink-100);
+      margin-top: 4px;
+    }
+    .stat .sub { margin-top: 6px; font-size: 10.5px; color: var(--ink-400); }
+
+    /* Section heading */
+    .section { margin-top: 56px; }
+    .section h2.title {
+      font-size: 22px; font-weight: 700; letter-spacing: -0.01em;
+      color: var(--ink-100); margin: 4px 0 12px;
+    }
+    .section .sub {
+      max-width: 80ch; font-size: 12.5px; color: var(--ink-300); line-height: 1.7;
+    }
+
+    /* Tag glossary */
+    .tag-groups {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+    .tag-group {
+      background: var(--bg-50);
+      border: 1px solid var(--edge);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .tag-group h4 {
+      margin: 0 0 8px; font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: var(--accent);
+    }
+    .tag-defs { display: flex; flex-direction: column; gap: 6px; }
+    .tag-def { display: flex; align-items: center; gap: 8px; }
+    .tag-def .tag-chip { flex-shrink: 0; }
+    .tag-desc { font-size: 12px; color: var(--ink-300); }
+
+    /* L1 sector card */
+    .l1 {
+      background: var(--bg-50);
+      border: 1px solid var(--edge);
+      border-radius: 16px;
+      padding: 20px 22px;
+      margin-top: 18px;
+    }
+    .l1-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap;
+    }
+    .l1-head h2.l1-name {
+      margin: 4px 0 0;
+      font-size: 22px; font-weight: 700; letter-spacing: -0.01em;
+      color: var(--ink-100);
+    }
+    .l1-name .korean { color: var(--ink-400); font-weight: 500; font-size: 14px; }
+    .l1-meta { text-align: right; }
+    .l1-meta .gics-top {
+      font-size: 11px; color: var(--ink-400); margin-bottom: 6px;
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .prims { display: inline-flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+    .l1-intro {
+      max-width: 80ch; margin: 12px 0 16px;
+      font-size: 12.5px; color: var(--ink-300); line-height: 1.7;
+    }
+
+    /* Codes */
+    .code {
+      font: 600 11.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      border-radius: 4px;
+      padding: 3px 6px;
+      border: 1px solid var(--accent-30);
+      background: var(--accent-20);
+      color: var(--accent);
+      display: inline-block;
+      letter-spacing: 0.04em;
+    }
+    .l1-code { font-size: 13px; padding: 4px 8px; }
+
+    /* L2 / L3 / L4 disclosure */
+    details.l2, details.l3 { border-top: 1px solid var(--edge); padding: 10px 0; }
+    details.l2 > summary, details.l3 > summary {
+      list-style: none; cursor: pointer;
+      display: flex; align-items: baseline; gap: 10px;
+      flex-wrap: wrap;
+    }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::before {
+      content: "▸";
+      color: var(--ink-400);
+      font-size: 10px;
+      transition: transform 0.15s;
+      display: inline-block;
+    }
+    details[open] > summary::before { transform: rotate(90deg); }
+    .l2 > summary .name {
+      font-size: 14px; font-weight: 600; color: var(--ink-100);
+    }
+    .l2 > summary .gics { font-size: 11px; color: var(--ink-400); font-style: italic; }
+    .l3 { margin-left: 14px; }
+    .l3 > summary .name { font-size: 13px; color: var(--ink-200); }
+    .l4-grid {
+      margin: 8px 0 4px 28px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 8px;
+    }
+    .l4 {
+      background: rgba(17,25,43,0.5);
+      border: 1px solid var(--edge);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .l4-head { display: flex; align-items: baseline; gap: 8px; }
+    .l4-head .name { font-size: 12.5px; color: var(--ink-100); font-weight: 600; }
+    .l4-code { font-size: 10.5px; padding: 2px 5px; }
+
+    .anchors {
+      display: flex; flex-wrap: wrap; gap: 4px;
+      margin: 6px 0 4px 28px;
+    }
+    .l4 .anchors { margin: 6px 0 0; }
+    .ticker {
+      font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: rgba(17,25,43,0.7);
+      border: 1px solid var(--edge);
+      color: var(--ink-300);
+      padding: 3px 6px;
+      border-radius: 4px;
+    }
+    .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .tag-chip {
+      font-size: 9.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--accent-30);
+      background: var(--accent-20);
+      color: var(--accent);
+      display: inline-block;
+    }
+
+    /* Primitive chips · colour-coded */
+    .prim-chip {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 3px 6px;
+      border-radius: 4px;
+      border: 1px solid;
+      display: inline-block;
+    }
+    .prim-card      { background: rgba(255,138,64,0.20); color: var(--accent);       border-color: var(--accent-30); }
+    .prim-pos       { background: rgba(109,163,255,0.20); color: var(--chip-blue);   border-color: rgba(109,163,255,0.4); }
+    .prim-customs   { background: rgba(61,214,140,0.20); color: var(--up);           border-color: rgba(61,214,140,0.3); }
+    .prim-footprint { background: rgba(124,58,237,0.20); color: var(--purple-300);   border-color: rgba(124,58,237,0.4); }
+    .prim-text      { background: rgba(94,230,184,0.20); color: var(--chip-teal);    border-color: rgba(94,230,184,0.4); }
+    .prim-telecom   { background: rgba(245,101,101,0.20); color: var(--down);        border-color: rgba(245,101,101,0.3); }
+    .prim-holdings, .prim-taxonomy { background: var(--bg-50); color: var(--ink-200); border-color: var(--edge); }
+
+    /* Footer */
+    .footer {
+      margin-top: 80px;
+      padding-top: 24px;
+      border-top: 1px solid var(--edge);
+      font-size: 11.5px;
+      color: var(--ink-400);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+
+<div class="demo-banner">Demo · MTC v0.2 · Mandata Taxonomy Code</div>
+
+<div class="nav-top">
+  <span class="brand">
+    <span class="brand-mark">D</span>
+    <span class="brand-name">DNA</span>
+    <span class="brand-sub">Korea Market Data AI · by Mandata</span>
+  </span>
+</div>
+
+<main class="wrap">
+  <div class="breadcrumb">
+    DNA <span style="margin: 0 8px;">/</span> <span class="cur">MTC · Mandata Taxonomy Code</span>
+  </div>
+
+  <section>
+    <div class="eyebrow">✦ MTC v0.2 · how we classify the KR equity universe</div>
+    <h1 class="hero">One taxonomy that handles <span class="editorial">Korea&rsquo;s real shape.</span></h1>
+    <p class="hero-copy">
+      <strong>MTC</strong> is Mandata&rsquo;s proprietary classification system for Korean
+      equities and alternative data, built to stay compatible with GICS while
+      drilling deeper into Korea-specific revenue drivers, consumption channels,
+      and investable themes. Each MTC node links to relevant Korean tickers,
+      observable Mandata data primitives, and investor-facing attributes · so
+      global investors can analyse Korean markets at a more decision-useful
+      level than standard industry classification alone.
+    </p>
+
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="lbl">Sectors</div>
+        <div class="val">23</div>
+        <div class="sub">L1 · GICS-compatible top tier</div>
+      </div>
+      <div class="stat">
+        <div class="lbl">Subsectors</div>
+        <div class="val">90</div>
+        <div class="sub">L2 · KR-relevant industries</div>
+      </div>
+      <div class="stat">
+        <div class="lbl">Categories</div>
+        <div class="val">43</div>
+        <div class="sub">L3 · product / channel level</div>
+      </div>
+      <div class="stat">
+        <div class="lbl">Subcategories</div>
+        <div class="val">57</div>
+        <div class="sub">L4 · canonical leaf node</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="eyebrow">Tag glossary · 23 investor-facing attributes</div>
+    <h2 class="title">Orthogonal axis · how each leaf is described.</h2>
+    <p class="sub">
+      Independent of the sector hierarchy, every leaf carries one or more tags
+      describing its business model, demand dynamics, mix, and themes ·
+      grouped here for scan-ability.
+    </p>
+    <div class="tag-groups">
+      
+    <div class="tag-group">
+      <h4>Business model</h4>
+      <div class="tag-defs">
+        
+          <div class="tag-def">
+            <span class="tag-chip">B2B</span>
+            <span class="tag-desc">Sells to other businesses</span>
+          </div>
+          <div class="tag-def">
+            <span class="tag-chip">B2C</span>
+            <span class="tag-desc">Sells to consumers</span>
+          </div>
+          <div class="tag-def">
+            <span class="tag-chip">B2G</span>
+            <span class="tag-desc">Sells to government / institutions</span>
+          </div>
+      </div>
+    </div>
+    <div class="tag-group">
+      <h4>Demand cyclicality</h4>
+      <div class="tag-defs">
+        
+          <div class="tag-def">
+            <span class="tag-chip">CYCLICAL</span>
+            <span class="tag-desc">Macro-cyclical earnings</span>
+          </div>
+          <div class="tag-def">
+            <span class="tag-chip">DEFENSIVE</span>
+            <span class="tag-desc">Macro-defensive earnings</span>
+          </div>
+      </div>
+    </div>
+    <div class="tag-group">
+      <h4>Pricing / mix</h4>
+      <div class="tag-defs">
+        
+          <div class="tag-def">
+            <span class="tag-chip">BRANDED</span>
+            <span class="tag-desc">Brand premium / pricing power</span>
+          </div>
+          <div class="tag-def">
+            <span class="tag-chip">PREMIUM</span>
+            <span class="tag-desc">Premium / luxury mix</span>
+          </div>
+          <div class="tag-def">
+            <span class="tag-chip">VALUE</span>
+            <span class="tag-desc">Value / discount mix</span>
+          </div>
+          <div class="tag-def">
+            <span class="tag-chip">PRIVATE-LABEL</span>
+            <span class="tag-desc">PB / store brand</span>
+          </div>
+      </div>
+    </div>
+    <div class="tag-group">
+      <h4>Supply chain</h4>
+      <div class="tag-defs">
+        
+          <div class="tag-def">
+            <span class="tag-chip">COMMODITY-LINKED</span>
+            <span class="tag-desc">Raw-material price sensitive</span>
+          </div>
+          <div class="tag-def">
+            <span class="tag-chip">COLD-CHAIN</span>
+            <span class="tag-desc">Requires refrigeration / freezing</span>
+          </div>
+          <div class="tag-def">
+            <span class="tag-chip">FRESH-PERISHABLE</span>
+            <span class="tag-desc">Fresh / perishable / spoilage</span>
+          </div>
+      </div>
+    </div>
+    <div class="tag-group">
+      <h4>Consumer theme</h4>
+      <div class="tag-defs">
+        
+          <div class="tag-def">
+            <span class="tag-chip">HEALTH-WELLNESS</span>
+            <span class="tag-desc">Health / functional / wellness</span>
+          </div>
+          <div class="tag-def">
+            <span class="tag-chip">CONVENIENCE</span>
+            <span class="tag-desc">Ready-to-eat / convenience</span>
+          </div>
+      </div>
+    </div>
+    <div class="tag-group">
+      <h4>Channel / occasion</h4>
+      <div class="tag-defs">
+        
+          <div class="tag-def">
+            <span class="tag-chip">ON-PREMISE</span>
+            <span class="tag-desc">Restaurant / bar / café consumption</span>
+          </div>
+          <div class="tag-def">
+            <span class="tag-chip">OFF-PREMISE</span>
+            <span class="tag-desc">Retail / e-com / take-home</span>
+          </div>
+          <div class="tag-def">
+            <span class="tag-chip">INBOUND-TOURISM</span>
+            <span class="tag-desc">KR inbound tourism flow</span>
+          </div>
+      </div>
+    </div>
+    <div class="tag-group">
+      <h4>Geo / export</h4>
+      <div class="tag-defs">
+        
+          <div class="tag-def">
+            <span class="tag-chip">EXPORT-KFOOD</span>
+            <span class="tag-desc">Korean food export theme</span>
+          </div>
+          <div class="tag-def">
+            <span class="tag-chip">EXPORT-KBEAUTY</span>
+            <span class="tag-desc">K-Beauty export / China DTC theme</span>
+          </div>
+          <div class="tag-def">
+            <span class="tag-chip">EXPORT-MEMORY</span>
+            <span class="tag-desc">Memory / semis export theme</span>
+          </div>
+          <div class="tag-def">
+            <span class="tag-chip">CHINA-DTC</span>
+            <span class="tag-desc">China DTC + duty-free exposure</span>
+          </div>
+      </div>
+    </div>
+    <div class="tag-group">
+      <h4>Regulation / IP</h4>
+      <div class="tag-defs">
+        
+          <div class="tag-def">
+            <span class="tag-chip">REGULATED</span>
+            <span class="tag-desc">Alcohol / tobacco / infant / claims</span>
+          </div>
+          <div class="tag-def">
+            <span class="tag-chip">IP-DRIVEN</span>
+            <span class="tag-desc">IP / catalog monetisation</span>
+          </div>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="eyebrow">Sector tree · drill from L1 down to L4</div>
+    <h2 class="title">23 sectors · click rows to expand.</h2>
+    <p class="sub">
+      Hover any code / ticker / tag for the full label. L1 codes are
+      GICS-compatible at the top tier; L2-L4 deepen into Korea-specific
+      revenue drivers and channels.
+    </p>
+    <div style="margin-top: 16px;">
+      
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">FB</code>
+          <h2 class="l1-name">Food &amp; Beverage<span class="korean"> · 식음료</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Consumer Staples · Food, Beverage &amp; Tobacco</div>
+          <div class="prims"><span class="prim-chip prim-card" title="Card panel">Card</span><span class="prim-chip prim-pos" title="Point-of-sale">POS</span><span class="prim-chip prim-customs" title="Customs HS-code">Customs</span><span class="prim-chip prim-footprint" title="Footprint">Foot</span><span class="prim-chip prim-text" title="Text · NLP">Text</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">Packaged + fresh + beverages + alcohol + bio ingredients. Excludes Restaurants (lives under HL) and Tobacco (TB).</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">FB-PKG</code>
+        <span class="name">Packaged Food</span>
+        <span class="gics">Packaged Foods &amp; Meats</span>
+      </summary>
+      
+      
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-PKG-NDL</code>
+        <span class="name">Noodles / Ramen</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-PKG-NDL-INR</code>
+        <span class="name">Instant Ramen (bag)</span>
+      </div>
+      <div class="anchors"><span class="ticker">004370 Nongshim (Shin)</span><span class="ticker">001800 Ottogi (Jin)</span><span class="ticker">248170 Samyang Foods (Buldak)</span></div>
+      <div class="tags"><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span><span class="tag-chip" title="Korean food export theme">EXPORT-KFOOD</span><span class="tag-chip" title="Value / discount mix">VALUE</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-PKG-NDL-CUP</code>
+        <span class="name">Cup Ramen</span>
+      </div>
+      <div class="anchors"><span class="ticker">004370 Nongshim</span><span class="ticker">001800 Ottogi</span><span class="ticker">248170 Samyang Foods</span></div>
+      <div class="tags"><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span><span class="tag-chip" title="Ready-to-eat / convenience">CONVENIENCE</span><span class="tag-chip" title="Korean food export theme">EXPORT-KFOOD</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-PKG-RIC</code>
+        <span class="name">Rice Products</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-PKG-RIC-IRB</code>
+        <span class="name">Instant Rice</span>
+      </div>
+      <div class="anchors"><span class="ticker">097950 CJ Cheiljedang (Hetbahn)</span><span class="ticker">001800 Ottogi</span></div>
+      <div class="tags"><span class="tag-chip" title="Ready-to-eat / convenience">CONVENIENCE</span><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-PKG-HMR</code>
+        <span class="name">Home Meal Replacement (HMR)</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-PKG-HMR-RTE</code>
+        <span class="name">Ready-to-Eat</span>
+      </div>
+      <div class="anchors"><span class="ticker">097950 CJ Cheiljedang (Bibigo)</span><span class="ticker">280360 Lotte Wellfood</span><span class="ticker">017810 Pulmuone</span></div>
+      <div class="tags"><span class="tag-chip" title="Ready-to-eat / convenience">CONVENIENCE</span><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span><span class="tag-chip" title="Requires refrigeration / freezing">COLD-CHAIN</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-PKG-HMR-RTC</code>
+        <span class="name">Ready-to-Cook</span>
+      </div>
+      <div class="anchors"><span class="ticker">097950 CJ Cheiljedang</span><span class="ticker">017810 Pulmuone</span></div>
+      <div class="tags"><span class="tag-chip" title="Ready-to-eat / convenience">CONVENIENCE</span><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-PKG-SNK</code>
+        <span class="name">Snacks · Confectionery</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-PKG-SNK-CHP</code>
+        <span class="name">Chips</span>
+      </div>
+      <div class="anchors"><span class="ticker">271560 Orion</span><span class="ticker">004370 Nongshim</span><span class="ticker">280360 Lotte Wellfood</span></div>
+      <div class="tags"><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span><span class="tag-chip" title="Korean food export theme">EXPORT-KFOOD</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-PKG-SNK-BIS</code>
+        <span class="name">Biscuits / cookies</span>
+      </div>
+      <div class="anchors"><span class="ticker">271560 Orion</span><span class="ticker">280360 Lotte Wellfood</span></div>
+      <div class="tags"><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-PKG-SNK-CDY</code>
+        <span class="name">Confectionery (candy/choc)</span>
+      </div>
+      <div class="anchors"><span class="ticker">271560 Orion</span><span class="ticker">280360 Lotte Wellfood</span></div>
+      <div class="tags"><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-PKG-SCE</code>
+        <span class="name">Sauces · Seasonings</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-PKG-SCE-JNG</code>
+        <span class="name">Jang-based sauces (gochujang · ssamjang)</span>
+      </div>
+      <div class="anchors"><span class="ticker">097950 CJ Cheiljedang (Haechandle)</span><span class="ticker">001680 Daesang (Chungjungone)</span><span class="ticker">001800 Ottogi</span></div>
+      <div class="tags"><span class="tag-chip" title="Korean food export theme">EXPORT-KFOOD</span><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-PKG-SCE-SOY</code>
+        <span class="name">Soy sauce · vinegar</span>
+      </div>
+      <div class="anchors"><span class="ticker">001680 Daesang</span><span class="ticker">097950 CJ Cheiljedang</span></div>
+      <div class="tags"><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-PKG-SCE-OIL</code>
+        <span class="name">Cooking oils</span>
+      </div>
+      <div class="anchors"><span class="ticker">001800 Ottogi</span><span class="ticker">002270 Lotte F&amp;B</span></div>
+      <div class="tags"><span class="tag-chip" title="Raw-material price sensitive">COMMODITY-LINKED</span><span class="tag-chip" title="Retail / e-com / take-home">OFF-PREMISE</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-PKG-FRZ</code>
+        <span class="name">Frozen Food</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-PKG-FRZ-DMP</code>
+        <span class="name">Frozen dumplings (mandu)</span>
+      </div>
+      <div class="anchors"><span class="ticker">097950 CJ Cheiljedang (Bibigo)</span><span class="ticker">280360 Lotte Wellfood</span></div>
+      <div class="tags"><span class="tag-chip" title="Ready-to-eat / convenience">CONVENIENCE</span><span class="tag-chip" title="Requires refrigeration / freezing">COLD-CHAIN</span><span class="tag-chip" title="Korean food export theme">EXPORT-KFOOD</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-PKG-FRZ-PZA</code>
+        <span class="name">Frozen pizza</span>
+      </div>
+      <div class="anchors"><span class="ticker">097950 CJ Cheiljedang</span><span class="ticker">001800 Ottogi</span></div>
+      <div class="tags"><span class="tag-chip" title="Ready-to-eat / convenience">CONVENIENCE</span><span class="tag-chip" title="Requires refrigeration / freezing">COLD-CHAIN</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-PKG-MEA</code>
+        <span class="name">Processed Meat</span>
+      </summary>
+      <div class="anchors"><span class="ticker">136490 Sunjin</span><span class="ticker">017810 Pulmuone</span><span class="ticker">027410 BGF (cold-chain partner)</span></div>
+      
+    </details>
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">FB-BEV</code>
+        <span class="name">Beverages (non-alcoholic)</span>
+        <span class="gics">Soft Drinks &amp; Non-alcoholic Beverages</span>
+      </summary>
+      
+      
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-BEV-SFT</code>
+        <span class="name">Soft drinks · sparkling</span>
+      </summary>
+      <div class="anchors"><span class="ticker">051900 LG H&amp;H (Coca-Cola Korea bottling)</span><span class="ticker">005300 Lotte Chilsung (Pepsi · Chilsung Cider)</span></div>
+      
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-BEV-COF</code>
+        <span class="name">Coffee</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-BEV-COF-RTD</code>
+        <span class="name">RTD coffee (canned · bottled)</span>
+      </div>
+      <div class="anchors"><span class="ticker">005300 Lotte Chilsung (Kanu RTD via JV)</span><span class="ticker">097950 CJ Cheiljedang</span><span class="ticker">271940 Hyundai Bioland</span></div>
+      <div class="tags"><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span><span class="tag-chip" title="Ready-to-eat / convenience">CONVENIENCE</span><span class="tag-chip" title="Premium / luxury mix">PREMIUM</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-BEV-COF-INS</code>
+        <span class="name">Instant coffee / sticks</span>
+      </div>
+      <div class="anchors"><span class="ticker">006040 Dongsuh (Maxim)</span></div>
+      <div class="tags"><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span><span class="tag-chip" title="Ready-to-eat / convenience">CONVENIENCE</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-BEV-TEA</code>
+        <span class="name">Tea · traditional drinks</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-BEV-TEA-BOT</code>
+        <span class="name">Bottled tea (green · barley · 17차)</span>
+      </div>
+      <div class="anchors"><span class="ticker">005300 Lotte Chilsung</span><span class="ticker">051900 LG H&amp;H</span><span class="ticker">097950 CJ Cheiljedang</span></div>
+      <div class="tags"><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span><span class="tag-chip" title="Health / functional / wellness">HEALTH-WELLNESS</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-BEV-ENG</code>
+        <span class="name">Energy · sports drinks</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-BEV-ENG-ENG</code>
+        <span class="name">Energy drinks (Hot6 · Bacchus)</span>
+      </div>
+      <div class="anchors"><span class="ticker">005300 Lotte Chilsung (Hot6)</span><span class="ticker">000100 Yuhan (Bacchus)</span></div>
+      <div class="tags"><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span><span class="tag-chip" title="Value / discount mix">VALUE</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-BEV-WAT</code>
+        <span class="name">Bottled water</span>
+      </summary>
+      <div class="anchors"><span class="ticker">051900 LG H&amp;H (Pyeongchangsoo)</span><span class="ticker">005300 Lotte Chilsung (Icis)</span></div>
+      
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-BEV-FNC</code>
+        <span class="name">Functional · wellness</span>
+      </summary>
+      <div class="anchors"><span class="ticker">271940 Hyundai Bioland</span><span class="ticker">001680 Daesang Wellife</span></div>
+      
+    </details>
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">FB-ALC</code>
+        <span class="name">Alcoholic Beverages</span>
+        <span class="gics">Brewers · Distillers &amp; Vintners</span>
+      </summary>
+      
+      
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-ALC-SOJ</code>
+        <span class="name">Soju · local spirit</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-ALC-SOJ-SOJ</code>
+        <span class="name">Soju</span>
+      </div>
+      <div class="anchors"><span class="ticker">000080 HiteJinro (Chamisul)</span><span class="ticker">005300 Lotte Chilsung (Saero · Chum-churum)</span></div>
+      <div class="tags"><span class="tag-chip" title="Alcohol / tobacco / infant / claims">REGULATED</span><span class="tag-chip" title="Restaurant / bar / café consumption">ON-PREMISE</span><span class="tag-chip" title="Korean food export theme">EXPORT-KFOOD</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-ALC-BER</code>
+        <span class="name">Beer</span>
+      </summary>
+      <div class="anchors"><span class="ticker">000080 HiteJinro (Terra · Kelly · Hite)</span><span class="ticker">005300 Lotte Chilsung (Kloud · Klaud)</span></div>
+      
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-ALC-RTD</code>
+        <span class="name">Alcohol RTD</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-ALC-RTD-HBL</code>
+        <span class="name">Highball · canned cocktails</span>
+      </div>
+      <div class="anchors"><span class="ticker">000080 HiteJinro</span><span class="ticker">005300 Lotte Chilsung</span></div>
+      <div class="tags"><span class="tag-chip" title="Alcohol / tobacco / infant / claims">REGULATED</span><span class="tag-chip" title="Premium / luxury mix">PREMIUM</span><span class="tag-chip" title="Ready-to-eat / convenience">CONVENIENCE</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-ALC-WSK</code>
+        <span class="name">Whisky · premium</span>
+      </summary>
+      <div class="anchors"><span class="ticker">005300 Lotte Chilsung (Scotch import)</span><span class="ticker">000080 HiteJinro (Jinro Whisky JV)</span></div>
+      
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-ALC-MAK</code>
+        <span class="name">Makgeolli · traditional</span>
+      </summary>
+      <div class="anchors"><span class="ticker">043710 Seoul Jangsu (Kooksoondang group)</span><span class="ticker">071050 Kooksoondang</span></div>
+      
+    </details>
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">FB-FRS</code>
+        <span class="name">Fresh &amp; Perishable</span>
+        <span class="gics">Agricultural Products &amp; Services</span>
+      </summary>
+      
+      
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-FRS-DRY</code>
+        <span class="name">Dairy</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-FRS-DRY-MLK</code>
+        <span class="name">Milk</span>
+      </div>
+      <div class="anchors"><span class="ticker">267980 Maeil Dairies</span><span class="ticker">003920 Namyang Dairy</span></div>
+      <div class="tags"><span class="tag-chip" title="Fresh / perishable / spoilage">FRESH-PERISHABLE</span><span class="tag-chip" title="Requires refrigeration / freezing">COLD-CHAIN</span><span class="tag-chip" title="Raw-material price sensitive">COMMODITY-LINKED</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-FRS-DRY-YOG</code>
+        <span class="name">Yoghurt · kefir</span>
+      </div>
+      <div class="anchors"><span class="ticker">267980 Maeil Dairies</span><span class="ticker">004990 Lotte Holdings (Lotte Foods)</span></div>
+      <div class="tags"><span class="tag-chip" title="Fresh / perishable / spoilage">FRESH-PERISHABLE</span><span class="tag-chip" title="Requires refrigeration / freezing">COLD-CHAIN</span><span class="tag-chip" title="Health / functional / wellness">HEALTH-WELLNESS</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-FRS-MTS</code>
+        <span class="name">Meat · Seafood</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-FRS-MTS-MTF</code>
+        <span class="name">Meat (fresh)</span>
+      </div>
+      <div class="anchors"><span class="ticker">136490 Sunjin</span><span class="ticker">017810 Pulmuone</span><span class="ticker">027410 BGF</span></div>
+      <div class="tags"><span class="tag-chip" title="Raw-material price sensitive">COMMODITY-LINKED</span><span class="tag-chip" title="Fresh / perishable / spoilage">FRESH-PERISHABLE</span><span class="tag-chip" title="Requires refrigeration / freezing">COLD-CHAIN</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-FRS-MTS-SEA</code>
+        <span class="name">Seafood (fresh)</span>
+      </div>
+      <div class="anchors"><span class="ticker">004410 Sajo Industries</span><span class="ticker">049770 Dongwon F&amp;B</span></div>
+      <div class="tags"><span class="tag-chip" title="Raw-material price sensitive">COMMODITY-LINKED</span><span class="tag-chip" title="Fresh / perishable / spoilage">FRESH-PERISHABLE</span><span class="tag-chip" title="Korean food export theme">EXPORT-KFOOD</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-FRS-FRT</code>
+        <span class="name">Fruit · Vegetables</span>
+      </summary>
+      <div class="anchors"><span class="ticker">004410 Sajo Industries</span><span class="ticker">017810 Pulmuone</span></div>
+      
+    </details>
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">FB-FRM</code>
+        <span class="name">Fermented · Traditional</span>
+        <span class="gics">Packaged Foods &amp; Meats (KR-local)</span>
+      </summary>
+      
+      
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-FRM-KIM</code>
+        <span class="name">Kimchi</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-FRM-KIM-PKG</code>
+        <span class="name">Packaged kimchi (retail)</span>
+      </div>
+      <div class="anchors"><span class="ticker">097950 CJ Cheiljedang (Bibigo)</span><span class="ticker">001680 Daesang (Jongga)</span><span class="ticker">017810 Pulmuone</span></div>
+      <div class="tags"><span class="tag-chip" title="Korean food export theme">EXPORT-KFOOD</span><span class="tag-chip" title="Retail / e-com / take-home">OFF-PREMISE</span><span class="tag-chip" title="Requires refrigeration / freezing">COLD-CHAIN</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-FRM-KIM-FSV</code>
+        <span class="name">Foodservice kimchi (B2B)</span>
+      </div>
+      <div class="anchors"><span class="ticker">001680 Daesang</span><span class="ticker">097950 CJ Cheiljedang</span></div>
+      <div class="tags"><span class="tag-chip" title="Sells to other businesses">B2B</span><span class="tag-chip" title="Retail / e-com / take-home">OFF-PREMISE</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-FRM-SEA</code>
+        <span class="name">Seaweed · Dried Traditional</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-FRM-SEA-GIM</code>
+        <span class="name">Gim · roasted seaweed</span>
+      </div>
+      <div class="anchors"><span class="ticker">049770 Dongwon F&amp;B</span><span class="ticker">097950 CJ Cheiljedang</span><span class="ticker">238490 Humax (CJ Seafood)</span></div>
+      <div class="tags"><span class="tag-chip" title="Korean food export theme">EXPORT-KFOOD</span><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span><span class="tag-chip" title="Health / functional / wellness">HEALTH-WELLNESS</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-FRM-JNG</code>
+        <span class="name">Jang · traditional sauces (aggregate)</span>
+      </summary>
+      <div class="anchors"><span class="ticker">001680 Daesang (Chungjungone)</span><span class="ticker">097950 CJ Cheiljedang (Haechandle)</span><span class="ticker">001800 Ottogi</span></div>
+      
+    </details>
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">FB-BIO</code>
+        <span class="name">Bio · Ingredients (B2B)</span>
+        <span class="gics">Agricultural Products &amp; Services (B2B segment)</span>
+      </summary>
+      
+      
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-BIO-AMN</code>
+        <span class="name">Amino Acids (feed · pharma)</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-BIO-AMN-LYS</code>
+        <span class="name">Lysine</span>
+      </div>
+      <div class="anchors"><span class="ticker">097950 CJ Cheiljedang (Bio)</span></div>
+      <div class="tags"><span class="tag-chip" title="Sells to other businesses">B2B</span><span class="tag-chip" title="Raw-material price sensitive">COMMODITY-LINKED</span><span class="tag-chip" title="Macro-cyclical earnings">CYCLICAL</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-BIO-AMN-MET</code>
+        <span class="name">Methionine</span>
+      </div>
+      <div class="anchors"><span class="ticker">097950 CJ Cheiljedang (Bio)</span></div>
+      <div class="tags"><span class="tag-chip" title="Sells to other businesses">B2B</span><span class="tag-chip" title="Raw-material price sensitive">COMMODITY-LINKED</span><span class="tag-chip" title="Macro-cyclical earnings">CYCLICAL</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">FB-BIO-ADD</code>
+        <span class="name">Food Additives</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">FB-BIO-ADD-SWT</code>
+        <span class="name">Sweeteners (allulose · stevia)</span>
+      </div>
+      <div class="anchors"><span class="ticker">271940 Hyundai Bioland</span><span class="ticker">097950 CJ Cheiljedang</span></div>
+      <div class="tags"><span class="tag-chip" title="Sells to other businesses">B2B</span><span class="tag-chip" title="Health / functional / wellness">HEALTH-WELLNESS</span></div>
+    </div></div>
+    </details>
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">TB</code>
+          <h2 class="l1-name">Tobacco<span class="korean"> · 담배·KT&amp;G</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Consumer Staples · Food, Beverage &amp; Tobacco</div>
+          <div class="prims"><span class="prim-chip prim-customs" title="Customs HS-code">Customs</span><span class="prim-chip prim-text" title="Text · NLP">Text</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">Dominated by KT&amp;G. Carries a parallel health/ginseng line (KGC · 정관장) plus growing next-gen heated-tobacco exports. Single-ticker, multi-segment · needs revenue-mix vector in v0.3.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">TB-CIG</code>
+        <span class="name">Cigarettes</span>
+        <span class="gics">Tobacco</span>
+      </summary>
+      
+      
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">TB-CIG-TRD</code>
+        <span class="name">Traditional Combustible</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">TB-CIG-TRD-DOM</code>
+        <span class="name">Domestic combustible</span>
+      </div>
+      <div class="anchors"><span class="ticker">033780 KT&amp;G</span></div>
+      <div class="tags"><span class="tag-chip" title="Alcohol / tobacco / infant / claims">REGULATED</span><span class="tag-chip" title="Macro-defensive earnings">DEFENSIVE</span><span class="tag-chip" title="Sells to consumers">B2C</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">TB-CIG-NGN</code>
+        <span class="name">Next-gen · Heat-not-burn</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">TB-CIG-NGN-LIL</code>
+        <span class="name">Heat sticks (lil)</span>
+      </div>
+      <div class="anchors"><span class="ticker">033780 KT&amp;G</span></div>
+      <div class="tags"><span class="tag-chip" title="Alcohol / tobacco / infant / claims">REGULATED</span><span class="tag-chip" title="Premium / luxury mix">PREMIUM</span><span class="tag-chip" title="Sells to consumers">B2C</span></div>
+    </div></div>
+    </details>
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">TB-EXP</code>
+        <span class="name">Tobacco Exports</span>
+        <span class="gics">Tobacco (export segment)</span>
+      </summary>
+      <div class="anchors"><span class="ticker">033780 KT&amp;G (Middle East · SEA volumes)</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">TB-GIN</code>
+        <span class="name">Ginseng · Health (KGC)</span>
+        <span class="gics">Personal Care Products (KR-local)</span>
+      </summary>
+      
+      
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">TB-GIN-RHP</code>
+        <span class="name">Red ginseng products (정관장)</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">TB-GIN-RHP-EXT</code>
+        <span class="name">Red ginseng extract / concentrate</span>
+      </div>
+      <div class="anchors"><span class="ticker">033780 KT&amp;G (KGC)</span></div>
+      <div class="tags"><span class="tag-chip" title="Health / functional / wellness">HEALTH-WELLNESS</span><span class="tag-chip" title="Premium / luxury mix">PREMIUM</span><span class="tag-chip" title="Korean food export theme">EXPORT-KFOOD</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">TB-GIN-RHP-DRK</code>
+        <span class="name">Red ginseng drinks</span>
+      </div>
+      <div class="anchors"><span class="ticker">033780 KT&amp;G (KGC)</span></div>
+      <div class="tags"><span class="tag-chip" title="Health / functional / wellness">HEALTH-WELLNESS</span><span class="tag-chip" title="Ready-to-eat / convenience">CONVENIENCE</span></div>
+    </div></div>
+    </details>
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">CB</code>
+          <h2 class="l1-name">Cosmetics &amp; Beauty<span class="korean"> · 화장품</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Consumer Staples · Household &amp; Personal Products</div>
+          <div class="prims"><span class="prim-chip prim-card" title="Card panel">Card</span><span class="prim-chip prim-pos" title="Point-of-sale">POS</span><span class="prim-chip prim-footprint" title="Footprint">Foot</span><span class="prim-chip prim-customs" title="Customs HS-code">Customs</span><span class="prim-chip prim-text" title="Text · NLP">Text</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">K-Beauty universe. Heavy China DTC + duty-free exposure; channel mix drives margin. CB-MED covers the medical-aesthetic crossover (botox · filler).</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">CB-SKN</code>
+        <span class="name">Skincare</span>
+        <span class="gics">Personal Care Products</span>
+      </summary>
+      
+      
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">CB-SKN-LUX</code>
+        <span class="name">Luxury · Prestige</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">CB-SKN-LUX-CRM</code>
+        <span class="name">Luxury cream</span>
+      </div>
+      <div class="anchors"><span class="ticker">090430 Amorepacific (Sulwhasoo)</span><span class="ticker">051900 LG H&amp;H (Whoo)</span></div>
+      <div class="tags"><span class="tag-chip" title="Premium / luxury mix">PREMIUM</span><span class="tag-chip" title="China DTC + duty-free exposure">CHINA-DTC</span><span class="tag-chip" title="K-Beauty export / China DTC theme">EXPORT-KBEAUTY</span><span class="tag-chip" title="KR inbound tourism flow">INBOUND-TOURISM</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">CB-SKN-LUX-SRM</code>
+        <span class="name">Luxury serum / essence</span>
+      </div>
+      <div class="anchors"><span class="ticker">090430 Amorepacific (Sulwhasoo)</span><span class="ticker">051900 LG H&amp;H (Whoo)</span></div>
+      <div class="tags"><span class="tag-chip" title="Premium / luxury mix">PREMIUM</span><span class="tag-chip" title="China DTC + duty-free exposure">CHINA-DTC</span><span class="tag-chip" title="K-Beauty export / China DTC theme">EXPORT-KBEAUTY</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">CB-SKN-LUX-MSK</code>
+        <span class="name">Luxury mask / cushion</span>
+      </div>
+      <div class="anchors"><span class="ticker">090430 Amorepacific (Sulwhasoo · Hera)</span><span class="ticker">051900 LG H&amp;H (Whoo)</span></div>
+      <div class="tags"><span class="tag-chip" title="Premium / luxury mix">PREMIUM</span><span class="tag-chip" title="China DTC + duty-free exposure">CHINA-DTC</span><span class="tag-chip" title="K-Beauty export / China DTC theme">EXPORT-KBEAUTY</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">CB-SKN-MAS</code>
+        <span class="name">Masstige</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">CB-SKN-MAS-CRM</code>
+        <span class="name">Masstige cream</span>
+      </div>
+      <div class="anchors"><span class="ticker">090430 Amorepacific (Laneige · Innisfree)</span><span class="ticker">051900 LG H&amp;H (Belief)</span></div>
+      <div class="tags"><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span><span class="tag-chip" title="K-Beauty export / China DTC theme">EXPORT-KBEAUTY</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">CB-SKN-MAS-SLP</code>
+        <span class="name">Masstige sleeping mask</span>
+      </div>
+      <div class="anchors"><span class="ticker">090430 Amorepacific (Laneige)</span></div>
+      <div class="tags"><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span><span class="tag-chip" title="K-Beauty export / China DTC theme">EXPORT-KBEAUTY</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">CB-SKN-DRM</code>
+        <span class="name">Derma · Dermatologist</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">CB-SKN-DRM-CRM</code>
+        <span class="name">Derma cream</span>
+      </div>
+      <div class="anchors"><span class="ticker">214450 Pharmaresearch (Rejuran)</span><span class="ticker">192820 Cosmax (Dr. Jart manufactured)</span></div>
+      <div class="tags"><span class="tag-chip" title="Health / functional / wellness">HEALTH-WELLNESS</span><span class="tag-chip" title="Premium / luxury mix">PREMIUM</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">CB-SKN-DRM-SUN</code>
+        <span class="name">Derma sunscreen</span>
+      </div>
+      <div class="anchors"><span class="ticker">090430 Amorepacific (Etude · Aestura)</span><span class="ticker">214450 Pharmaresearch</span></div>
+      <div class="tags"><span class="tag-chip" title="Health / functional / wellness">HEALTH-WELLNESS</span><span class="tag-chip" title="K-Beauty export / China DTC theme">EXPORT-KBEAUTY</span></div>
+    </div></div>
+    </details>
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">CB-MKP</code>
+        <span class="name">Makeup · Color</span>
+        <span class="gics">Personal Care Products</span>
+      </summary>
+      
+      
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">CB-MKP-COL</code>
+        <span class="name">Color Cosmetics</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">CB-MKP-COL-FND</code>
+        <span class="name">Foundation · base</span>
+      </div>
+      <div class="anchors"><span class="ticker">090430 Amorepacific (Hera · Etude)</span><span class="ticker">192820 Cosmax</span></div>
+      <div class="tags"><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span><span class="tag-chip" title="K-Beauty export / China DTC theme">EXPORT-KBEAUTY</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">CB-MKP-COL-LIP</code>
+        <span class="name">Lip products</span>
+      </div>
+      <div class="anchors"><span class="ticker">192820 Cosmax</span><span class="ticker">214390 Cosmecca Korea</span><span class="ticker">090430 Amorepacific</span></div>
+      <div class="tags"><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span><span class="tag-chip" title="K-Beauty export / China DTC theme">EXPORT-KBEAUTY</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">CB-MKP-COL-EYE</code>
+        <span class="name">Eye / brow</span>
+      </div>
+      <div class="anchors"><span class="ticker">192820 Cosmax</span><span class="ticker">214390 Cosmecca Korea</span></div>
+      <div class="tags"><span class="tag-chip" title="Brand premium / pricing power">BRANDED</span><span class="tag-chip" title="K-Beauty export / China DTC theme">EXPORT-KBEAUTY</span></div>
+    </div></div>
+    </details>
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">CB-OEM</code>
+        <span class="name">ODM · OEM (manufacturer)</span>
+        <span class="gics">Personal Care Products (manufacturer)</span>
+      </summary>
+      
+      
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">CB-OEM-SKN</code>
+        <span class="name">Skincare ODM / OEM</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">CB-OEM-SKN-ODM</code>
+        <span class="name">Skincare ODM</span>
+      </div>
+      <div class="anchors"><span class="ticker">192820 Cosmax</span><span class="ticker">214450 Pharmaresearch</span><span class="ticker">214390 Cosmecca</span></div>
+      <div class="tags"><span class="tag-chip" title="Sells to other businesses">B2B</span><span class="tag-chip" title="K-Beauty export / China DTC theme">EXPORT-KBEAUTY</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">CB-OEM-MKP</code>
+        <span class="name">Makeup ODM / OEM</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">CB-OEM-MKP-ODM</code>
+        <span class="name">Makeup ODM</span>
+      </div>
+      <div class="anchors"><span class="ticker">192820 Cosmax</span><span class="ticker">214390 Cosmecca</span></div>
+      <div class="tags"><span class="tag-chip" title="Sells to other businesses">B2B</span><span class="tag-chip" title="K-Beauty export / China DTC theme">EXPORT-KBEAUTY</span></div>
+    </div></div>
+    </details>
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">CB-MED</code>
+        <span class="name">Beauty Medical · Aesthetics</span>
+        <span class="gics">Health Care Equipment (KR aesthetic crossover)</span>
+      </summary>
+      
+      
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">CB-MED-TOX</code>
+        <span class="name">Botulinum toxin</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">CB-MED-TOX-INJ</code>
+        <span class="name">Toxin injectables</span>
+      </div>
+      <div class="anchors"><span class="ticker">145020 Hugel</span><span class="ticker">086900 Medytox</span><span class="ticker">950160 Daewoong Pharm (Jeuveau)</span></div>
+      <div class="tags"><span class="tag-chip" title="Alcohol / tobacco / infant / claims">REGULATED</span><span class="tag-chip" title="K-Beauty export / China DTC theme">EXPORT-KBEAUTY</span><span class="tag-chip" title="Premium / luxury mix">PREMIUM</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">CB-MED-FIL</code>
+        <span class="name">Dermal fillers</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">CB-MED-FIL-HA</code>
+        <span class="name">HA fillers</span>
+      </div>
+      <div class="anchors"><span class="ticker">145020 Hugel</span><span class="ticker">086900 Medytox</span><span class="ticker">214450 Pharmaresearch</span></div>
+      <div class="tags"><span class="tag-chip" title="Alcohol / tobacco / infant / claims">REGULATED</span><span class="tag-chip" title="K-Beauty export / China DTC theme">EXPORT-KBEAUTY</span><span class="tag-chip" title="Premium / luxury mix">PREMIUM</span></div>
+    </div></div>
+    </details>
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">CB-MEN</code>
+        <span class="name">Men&#39;s grooming</span>
+        <span class="gics">Personal Care Products</span>
+      </summary>
+      <div class="anchors"><span class="ticker">090430 Amorepacific (men&#39;s lines)</span><span class="ticker">051900 LG H&amp;H (men&#39;s lines)</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">HP</code>
+          <h2 class="l1-name">Household &amp; Personal Goods<span class="korean"> · 생활용품</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Consumer Staples · Household Products</div>
+          <div class="prims"><span class="prim-chip prim-card" title="Card panel">Card</span><span class="prim-chip prim-pos" title="Point-of-sale">POS</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">Detergents, toiletries, paper products · defensive consumer staples.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">HP-DET</code>
+        <span class="name">Detergents · Cleaners</span>
+        <span class="gics">Household Products</span>
+      </summary>
+      <div class="anchors"><span class="ticker">051900 LG H&amp;H</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">HP-PAP</code>
+        <span class="name">Tissue · Paper hygiene</span>
+        <span class="gics">Household Products</span>
+      </summary>
+      <div class="anchors"><span class="ticker">004080 SoluM (private peer)</span><span class="ticker">002460 Hwaseung Enterprise</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">HP-ORL</code>
+        <span class="name">Oral · Personal care</span>
+        <span class="gics">Personal Care Products</span>
+      </summary>
+      <div class="anchors"><span class="ticker">051900 LG H&amp;H</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">AP</code>
+          <h2 class="l1-name">Apparel &amp; Luxury<span class="korean"> · 패션</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Consumer Discretionary · Textiles, Apparel &amp; Luxury Goods</div>
+          <div class="prims"><span class="prim-chip prim-card" title="Card panel">Card</span><span class="prim-chip prim-pos" title="Point-of-sale">POS</span><span class="prim-chip prim-footprint" title="Footprint">Foot</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">KR fashion increasingly export-driven (F&amp;F MLB · Discovery).</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">AP-PRE</code>
+        <span class="name">Premium · Contemporary</span>
+        <span class="gics">Apparel, Accessories &amp; Luxury Goods</span>
+      </summary>
+      <div class="anchors"><span class="ticker">007700 F&amp;F (MLB · Discovery)</span><span class="ticker">081660 Fila Holdings</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">AP-CAS</code>
+        <span class="name">Casual · Streetwear</span>
+        <span class="gics">Apparel, Accessories &amp; Luxury Goods</span>
+      </summary>
+      <div class="anchors"><span class="ticker">007700 F&amp;F</span><span class="ticker">081660 Fila Holdings</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">AP-ATH</code>
+        <span class="name">Athleisure · Sportswear</span>
+        <span class="gics">Apparel, Accessories &amp; Luxury Goods</span>
+      </summary>
+      <div class="anchors"><span class="ticker">081660 Fila Holdings</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">AP-OEM</code>
+        <span class="name">Apparel OEM · ODM</span>
+        <span class="gics">Apparel, Accessories &amp; Luxury Goods</span>
+      </summary>
+      <div class="anchors"><span class="ticker">105630 Hansae</span><span class="ticker">001530 Dongil Industries</span><span class="ticker">111110 Hosung</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">HL</code>
+          <h2 class="l1-name">Hotels · Restaurants · Leisure<span class="korean"> · 여행·외식·레저</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Consumer Discretionary · Hotels, Restaurants &amp; Leisure</div>
+          <div class="prims"><span class="prim-chip prim-card" title="Card panel">Card</span><span class="prim-chip prim-footprint" title="Footprint">Foot</span><span class="prim-chip prim-telecom" title="Telecom · mobility">Telco</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">Includes duty-free-deep cosmetics exposure. v0.2 NOTE: HL-DTF will move to the Channel Axis once v0.3 ships.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">HL-DTF</code>
+        <span class="name">Duty-free</span>
+        <span class="gics">Hotels, Resorts &amp; Cruise Lines (KR-channel-deep)</span>
+      </summary>
+      <div class="anchors"><span class="ticker">008770 Hotel Shilla</span><span class="ticker">023590 Lotte Tour</span><span class="ticker">069960 Hyundai Dept (DF)</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">HL-HTL</code>
+        <span class="name">Hotels · Resorts</span>
+        <span class="gics">Hotels, Resorts &amp; Cruise Lines</span>
+      </summary>
+      <div class="anchors"><span class="ticker">008770 Hotel Shilla</span><span class="ticker">069640 Hansol Hotel</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">HL-CSN</code>
+        <span class="name">Casinos · IR</span>
+        <span class="gics">Casinos &amp; Gaming</span>
+      </summary>
+      <div class="anchors"><span class="ticker">034230 Paradise</span><span class="ticker">035250 Kangwon Land</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">HL-RES</code>
+        <span class="name">Restaurants · QSR</span>
+        <span class="gics">Restaurants</span>
+      </summary>
+      <div class="anchors"><span class="ticker">CJ Foodville (private)</span><span class="ticker">BHC (private)</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">HL-CAF</code>
+        <span class="name">Cafés · F&amp;B chains</span>
+        <span class="gics">Restaurants</span>
+      </summary>
+      <div class="anchors"><span class="ticker">247540 Ediya Coffee (delisted)</span><span class="ticker">Starbucks Korea (private)</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">TR</code>
+          <h2 class="l1-name">Travel &amp; OTA<span class="korean"> · 여행·OTA</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Consumer Discretionary · Hotels, Restaurants &amp; Leisure</div>
+          <div class="prims"><span class="prim-chip prim-card" title="Card panel">Card</span><span class="prim-chip prim-footprint" title="Footprint">Foot</span><span class="prim-chip prim-text" title="Text · NLP">Text</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">Outbound + inbound travel agencies + online travel platforms. Recovery-cycle play; inbound geo overlap with HL-DTF.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">TR-AGY</code>
+        <span class="name">Travel agencies</span>
+        <span class="gics">Hotels, Resorts &amp; Cruise Lines</span>
+      </summary>
+      <div class="anchors"><span class="ticker">039130 Hana Tour</span><span class="ticker">080160 Mode Tour</span><span class="ticker">032350 Lotte Tour</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">TR-OTA</code>
+        <span class="name">Online Travel (OTA)</span>
+        <span class="gics">Internet &amp; Direct Marketing Retail</span>
+      </summary>
+      <div class="anchors"><span class="ticker">Yanolja (private)</span><span class="ticker">Interpark (private)</span><span class="ticker">035720 Kakao (Travel)</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">TR-AIR</code>
+        <span class="name">Airlines</span>
+        <span class="gics">Airlines</span>
+      </summary>
+      <div class="anchors"><span class="ticker">003490 Korean Air</span><span class="ticker">020560 Jin Air</span><span class="ticker">089590 Jeju Air</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">RT</code>
+          <h2 class="l1-name">Retail · Distribution<span class="korean"> · 유통</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Consumer Staples · Distribution &amp; Retail</div>
+          <div class="prims"><span class="prim-chip prim-card" title="Card panel">Card</span><span class="prim-chip prim-pos" title="Point-of-sale">POS</span><span class="prim-chip prim-footprint" title="Footprint">Foot</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">Channels where consumer transactions happen. v0.2 NOTE: this whole sector will become the Channel Axis in v0.3 · kept here for now transitional sector.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">RT-DEP</code>
+        <span class="name">Department stores</span>
+        <span class="gics">Multiline Retail</span>
+      </summary>
+      <div class="anchors"><span class="ticker">069960 Hyundai Dept</span><span class="ticker">004170 Shinsegae</span><span class="ticker">023530 Lotte Shopping</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">RT-CVS</code>
+        <span class="name">Convenience stores</span>
+        <span class="gics">Food Retail</span>
+      </summary>
+      <div class="anchors"><span class="ticker">282330 BGF Retail</span><span class="ticker">007070 GS Retail</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">RT-MRT</code>
+        <span class="name">Hypermarket · Super</span>
+        <span class="gics">Food Retail</span>
+      </summary>
+      <div class="anchors"><span class="ticker">139480 Emart</span><span class="ticker">023530 Lotte Shopping (Lotte Mart)</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">RT-HBR</code>
+        <span class="name">H&amp;B specialty</span>
+        <span class="gics">Specialty Stores</span>
+      </summary>
+      <div class="anchors"><span class="ticker">CJ Olive Young (private)</span><span class="ticker">161890 ABLE C&amp;C</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">RT-FUR</code>
+        <span class="name">Home furnishing</span>
+        <span class="gics">Homefurnishing Retail</span>
+      </summary>
+      <div class="anchors"><span class="ticker">009290 Hanssem</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">IT</code>
+          <h2 class="l1-name">Internet · Platform<span class="korean"> · 인터넷·플랫폼</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Communication Services · Interactive Media &amp; Services</div>
+          <div class="prims"><span class="prim-chip prim-card" title="Card panel">Card</span><span class="prim-chip prim-text" title="Text · NLP">Text</span><span class="prim-chip prim-footprint" title="Footprint">Foot</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">E-commerce platforms, search, fintech rails, ad networks. DTC layer of consumer.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">IT-ECM</code>
+        <span class="name">E-commerce platforms</span>
+        <span class="gics">Internet &amp; Direct Marketing Retail</span>
+      </summary>
+      <div class="anchors"><span class="ticker">035420 NAVER (Smart Store)</span><span class="ticker">CPNG Coupang (US-listed)</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">IT-SCH</code>
+        <span class="name">Search · ad networks</span>
+        <span class="gics">Interactive Media &amp; Services</span>
+      </summary>
+      <div class="anchors"><span class="ticker">035420 NAVER</span><span class="ticker">035720 Kakao</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">IT-FIN</code>
+        <span class="name">Fintech · payments</span>
+        <span class="gics">Data Processing &amp; Outsourced Services</span>
+      </summary>
+      <div class="anchors"><span class="ticker">377300 KakaoPay</span><span class="ticker">035720 Kakao (KakaoBank holding)</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">IT-DEL</code>
+        <span class="name">Delivery · Quick-commerce</span>
+        <span class="gics">Internet &amp; Direct Marketing Retail</span>
+      </summary>
+      <div class="anchors"><span class="ticker">Coupang Eats (CPNG)</span><span class="ticker">Baemin (private)</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">MC</code>
+          <h2 class="l1-name">Media · K-Content<span class="korean"> · 미디어·콘텐츠</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Communication Services · Entertainment</div>
+          <div class="prims"><span class="prim-chip prim-card" title="Card panel">Card</span><span class="prim-chip prim-text" title="Text · NLP">Text</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">K-Pop / K-Drama / IP licensing / gaming. Tour cycles + IP catalog monetisation drive the print.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">MC-MUS</code>
+        <span class="name">K-Pop labels</span>
+        <span class="gics">Movies &amp; Entertainment</span>
+      </summary>
+      <div class="anchors"><span class="ticker">352820 HYBE</span><span class="ticker">041510 SM</span><span class="ticker">035900 JYP</span><span class="ticker">122870 YG</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">MC-DRA</code>
+        <span class="name">K-Drama · TV</span>
+        <span class="gics">Movies &amp; Entertainment</span>
+      </summary>
+      <div class="anchors"><span class="ticker">079160 CJ ENM</span><span class="ticker">067160 AfreecaTV</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">MC-FLM</code>
+        <span class="name">Film · cinema</span>
+        <span class="gics">Movies &amp; Entertainment</span>
+      </summary>
+      <div class="anchors"><span class="ticker">079160 CJ ENM</span><span class="ticker">079160 CJ CGV</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">MC-PUB</code>
+        <span class="name">Publishing · webtoon</span>
+        <span class="gics">Publishing</span>
+      </summary>
+      <div class="anchors"><span class="ticker">035420 NAVER (Webtoon)</span><span class="ticker">035720 Kakao (Picoma)</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">MC-GAM</code>
+        <span class="name">Gaming</span>
+        <span class="gics">Interactive Home Entertainment</span>
+      </summary>
+      
+      
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">MC-GAM-MOB</code>
+        <span class="name">Mobile games</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">MC-GAM-MOB-MMO</code>
+        <span class="name">Mobile MMO / RPG</span>
+      </div>
+      <div class="anchors"><span class="ticker">036570 NCsoft</span><span class="ticker">251270 Netmarble</span><span class="ticker">263750 Pearl Abyss</span></div>
+      <div class="tags"><span class="tag-chip" title="IP / catalog monetisation">IP-DRIVEN</span><span class="tag-chip" title="Sells to consumers">B2C</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">MC-GAM-MOB-CAS</code>
+        <span class="name">Mobile casual / puzzle</span>
+      </div>
+      <div class="anchors"><span class="ticker">293490 Kakao Games</span><span class="ticker">251270 Netmarble</span></div>
+      <div class="tags"><span class="tag-chip" title="Sells to consumers">B2C</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">MC-GAM-PC</code>
+        <span class="name">PC games</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">MC-GAM-PC-MMO</code>
+        <span class="name">PC MMO / RPG</span>
+      </div>
+      <div class="anchors"><span class="ticker">036570 NCsoft (Lineage)</span><span class="ticker">263750 Pearl Abyss (Black Desert)</span></div>
+      <div class="tags"><span class="tag-chip" title="IP / catalog monetisation">IP-DRIVEN</span><span class="tag-chip" title="Sells to consumers">B2C</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">MC-GAM-PC-BR</code>
+        <span class="name">PC battle royale</span>
+      </div>
+      <div class="anchors"><span class="ticker">112040 Krafton (PUBG)</span></div>
+      <div class="tags"><span class="tag-chip" title="IP / catalog monetisation">IP-DRIVEN</span><span class="tag-chip" title="Sells to consumers">B2C</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">MC-GAM-LIV</code>
+        <span class="name">Live-service · console</span>
+      </summary>
+      <div class="anchors"><span class="ticker">112040 Krafton</span><span class="ticker">194480 NEXON</span></div>
+      
+    </details>
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">TC</code>
+          <h2 class="l1-name">Telecom Services<span class="korean"> · 통신</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Communication Services · Telecommunication Services</div>
+          <div class="prims"><span class="prim-chip prim-telecom" title="Telecom · mobility">Telco</span><span class="prim-chip prim-footprint" title="Footprint">Foot</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">5G + fixed line + datacentre. KR carriers also publish mobility / payment data feeds.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">TC-MOB</code>
+        <span class="name">Mobile carriers</span>
+        <span class="gics">Wireless Telecom Services</span>
+      </summary>
+      <div class="anchors"><span class="ticker">030200 KT</span><span class="ticker">017670 SK Telecom</span><span class="ticker">032640 LG U+</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">TC-FIX</code>
+        <span class="name">Fixed line · IPTV</span>
+        <span class="gics">Integrated Telecom Services</span>
+      </summary>
+      <div class="anchors"><span class="ticker">030200 KT</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">SM</code>
+          <h2 class="l1-name">Semiconductor<span class="korean"> · 반도체</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Information Technology · Semiconductors &amp; Semi Equipment</div>
+          <div class="prims"><span class="prim-chip prim-customs" title="Customs HS-code">Customs</span><span class="prim-chip prim-text" title="Text · NLP">Text</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">KR&#39;s biggest export sector. Memory + HBM is the cycle; logic foundry + equipment + materials are the support cast.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">SM-MEM</code>
+        <span class="name">Memory</span>
+        <span class="gics">Semiconductors</span>
+      </summary>
+      
+      
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">SM-MEM-DRM</code>
+        <span class="name">DRAM</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">SM-MEM-DRM-LEG</code>
+        <span class="name">Legacy DRAM (DDR4)</span>
+      </div>
+      <div class="anchors"><span class="ticker">005930 Samsung</span><span class="ticker">000660 SK Hynix</span></div>
+      <div class="tags"><span class="tag-chip" title="Macro-cyclical earnings">CYCLICAL</span><span class="tag-chip" title="Memory / semis export theme">EXPORT-MEMORY</span><span class="tag-chip" title="Sells to other businesses">B2B</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">SM-MEM-DRM-ADV</code>
+        <span class="name">Advanced DRAM (DDR5)</span>
+      </div>
+      <div class="anchors"><span class="ticker">005930 Samsung</span><span class="ticker">000660 SK Hynix</span></div>
+      <div class="tags"><span class="tag-chip" title="Macro-cyclical earnings">CYCLICAL</span><span class="tag-chip" title="Memory / semis export theme">EXPORT-MEMORY</span><span class="tag-chip" title="Sells to other businesses">B2B</span><span class="tag-chip" title="Premium / luxury mix">PREMIUM</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">SM-MEM-NND</code>
+        <span class="name">NAND</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">SM-MEM-NND-CST</code>
+        <span class="name">Consumer NAND (mobile · SSD)</span>
+      </div>
+      <div class="anchors"><span class="ticker">005930 Samsung</span><span class="ticker">000660 SK Hynix</span></div>
+      <div class="tags"><span class="tag-chip" title="Macro-cyclical earnings">CYCLICAL</span><span class="tag-chip" title="Memory / semis export theme">EXPORT-MEMORY</span><span class="tag-chip" title="Sells to other businesses">B2B</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">SM-MEM-NND-ENT</code>
+        <span class="name">Enterprise NAND (datacentre)</span>
+      </div>
+      <div class="anchors"><span class="ticker">005930 Samsung</span><span class="ticker">000660 SK Hynix</span></div>
+      <div class="tags"><span class="tag-chip" title="Macro-cyclical earnings">CYCLICAL</span><span class="tag-chip" title="Memory / semis export theme">EXPORT-MEMORY</span><span class="tag-chip" title="Sells to other businesses">B2B</span><span class="tag-chip" title="Premium / luxury mix">PREMIUM</span></div>
+    </div></div>
+    </details>
+    <details class="l3" open>
+      <summary>
+        <code class="code l3-code">SM-MEM-HBM</code>
+        <span class="name">HBM</span>
+      </summary>
+      
+      <div class="l4-grid">
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">SM-MEM-HBM-3E</code>
+        <span class="name">HBM3 / HBM3E</span>
+      </div>
+      <div class="anchors"><span class="ticker">000660 SK Hynix</span><span class="ticker">005930 Samsung</span></div>
+      <div class="tags"><span class="tag-chip" title="Macro-cyclical earnings">CYCLICAL</span><span class="tag-chip" title="Memory / semis export theme">EXPORT-MEMORY</span><span class="tag-chip" title="Sells to other businesses">B2B</span><span class="tag-chip" title="Premium / luxury mix">PREMIUM</span></div>
+    </div>
+    <div class="l4">
+      <div class="l4-head">
+        <code class="code l4-code">SM-MEM-HBM-4</code>
+        <span class="name">HBM4 (roadmap)</span>
+      </div>
+      <div class="anchors"><span class="ticker">000660 SK Hynix</span><span class="ticker">005930 Samsung</span></div>
+      <div class="tags"><span class="tag-chip" title="Macro-cyclical earnings">CYCLICAL</span><span class="tag-chip" title="Memory / semis export theme">EXPORT-MEMORY</span><span class="tag-chip" title="Sells to other businesses">B2B</span><span class="tag-chip" title="Premium / luxury mix">PREMIUM</span></div>
+    </div></div>
+    </details>
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">SM-LGC</code>
+        <span class="name">Logic · foundry</span>
+        <span class="gics">Semiconductors</span>
+      </summary>
+      <div class="anchors"><span class="ticker">005930 Samsung (Foundry)</span><span class="ticker">000990 DB HiTek</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">SM-EQP</code>
+        <span class="name">Semi equipment</span>
+        <span class="gics">Semiconductor Equipment</span>
+      </summary>
+      <div class="anchors"><span class="ticker">042700 Hanmi Semi</span><span class="ticker">240810 Wonik IPS</span><span class="ticker">108320 LX Semicon</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">SM-MAT</code>
+        <span class="name">Semi materials</span>
+        <span class="gics">Semiconductor Equipment (materials)</span>
+      </summary>
+      <div class="anchors"><span class="ticker">036490 SK Materials (SKC)</span><span class="ticker">278280 Cheil Industrial Tech</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">SM-PKG</code>
+        <span class="name">Packaging · OSAT</span>
+        <span class="gics">Semiconductors</span>
+      </summary>
+      <div class="anchors"><span class="ticker">005935 Samsung Pref</span><span class="ticker">067160 Tessera</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">BT</code>
+          <h2 class="l1-name">Battery · EV materials<span class="korean"> · 이차전지·소재</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Industrials / IT · Electrical Components</div>
+          <div class="prims"><span class="prim-chip prim-customs" title="Customs HS-code">Customs</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">Cells + cathodes/anodes + separators. Cycle driven by EV demand + cathode pricing.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">BT-CEL</code>
+        <span class="name">Cell makers</span>
+        <span class="gics">Industrial Conglomerates</span>
+      </summary>
+      <div class="anchors"><span class="ticker">373220 LG Energy Solution</span><span class="ticker">006400 Samsung SDI</span><span class="ticker">096770 SK Innovation</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">BT-CTH</code>
+        <span class="name">Cathodes</span>
+        <span class="gics">Specialty Chemicals</span>
+      </summary>
+      <div class="anchors"><span class="ticker">003670 Posco Future M</span><span class="ticker">247540 EcoPro BM</span><span class="ticker">086520 Ecopro</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">BT-ANO</code>
+        <span class="name">Anodes · Graphite</span>
+        <span class="gics">Specialty Chemicals</span>
+      </summary>
+      <div class="anchors"><span class="ticker">003670 Posco Future M</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">BT-SEP</code>
+        <span class="name">Separators</span>
+        <span class="gics">Specialty Chemicals</span>
+      </summary>
+      <div class="anchors"><span class="ticker">298050 SK ie Technology</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">BT-EQP</code>
+        <span class="name">Battery equipment</span>
+        <span class="gics">Industrial Machinery</span>
+      </summary>
+      <div class="anchors"><span class="ticker">278280 Cheil Eng.</span><span class="ticker">108860 Cosmos Y</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">AM</code>
+          <h2 class="l1-name">Auto &amp; Mobility<span class="korean"> · 자동차·모빌리티</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Consumer Discretionary · Automobiles &amp; Components</div>
+          <div class="prims"><span class="prim-chip prim-customs" title="Customs HS-code">Customs</span><span class="prim-chip prim-text" title="Text · NLP">Text</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">OEMs + suppliers. EV transition + chip-equipped car parts increasingly export-tied.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">AM-OEM</code>
+        <span class="name">Auto OEM</span>
+        <span class="gics">Automobile Manufacturers</span>
+      </summary>
+      <div class="anchors"><span class="ticker">005380 Hyundai Motor</span><span class="ticker">000270 Kia</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">AM-SUP</code>
+        <span class="name">Auto parts</span>
+        <span class="gics">Auto Parts &amp; Equipment</span>
+      </summary>
+      <div class="anchors"><span class="ticker">012330 Hyundai Mobis</span><span class="ticker">204320 HL Mando</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">AM-TIR</code>
+        <span class="name">Tires</span>
+        <span class="gics">Tires &amp; Rubber</span>
+      </summary>
+      <div class="anchors"><span class="ticker">161390 Hankook Tire &amp; Tech</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">AM-EVC</code>
+        <span class="name">EV components</span>
+        <span class="gics">Auto Parts &amp; Equipment</span>
+      </summary>
+      <div class="anchors"><span class="ticker">012450 Hanwha Aerospace</span><span class="ticker">267260 Hyundai Electric</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">HC</code>
+          <h2 class="l1-name">Health Care<span class="korean"> · 헬스케어</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Health Care · Pharmaceuticals · Biotech · Devices</div>
+          <div class="prims"><span class="prim-chip prim-text" title="Text · NLP">Text</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">KR bio biased toward biosimilars + CDMO; classical pharma is small relative to global.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">HC-CDM</code>
+        <span class="name">Bio · CDMO</span>
+        <span class="gics">Biotechnology</span>
+      </summary>
+      <div class="anchors"><span class="ticker">207940 Samsung Biologics</span><span class="ticker">302440 SK Bioscience</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">HC-BSM</code>
+        <span class="name">Biosimilars</span>
+        <span class="gics">Biotechnology</span>
+      </summary>
+      <div class="anchors"><span class="ticker">068270 Celltrion</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">HC-PHM</code>
+        <span class="name">Pharma (small mol)</span>
+        <span class="gics">Pharmaceuticals</span>
+      </summary>
+      <div class="anchors"><span class="ticker">000100 Yuhan</span><span class="ticker">271940 Hyundai Bioland</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">HC-MED</code>
+        <span class="name">Medical devices</span>
+        <span class="gics">Health Care Equipment</span>
+      </summary>
+      <div class="anchors"><span class="ticker">091990 Celltrion Healthcare</span><span class="ticker">266470 Inbody</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">IN</code>
+          <h2 class="l1-name">Industrials<span class="korean"> · 산업재</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Industrials · Capital Goods · Transportation</div>
+          <div class="prims"><span class="prim-chip prim-customs" title="Customs HS-code">Customs</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">Shipbuilding orderbook + construction backlog drive most of the cyclical signal.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">IN-SHP</code>
+        <span class="name">Shipbuilding · marine</span>
+        <span class="gics">Construction &amp; Engineering</span>
+      </summary>
+      <div class="anchors"><span class="ticker">009540 HD Korea Shipbuilding</span><span class="ticker">010140 Samsung Heavy</span><span class="ticker">042660 Hanwha Ocean</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">IN-CON</code>
+        <span class="name">Construction · E&amp;C</span>
+        <span class="gics">Construction &amp; Engineering</span>
+      </summary>
+      <div class="anchors"><span class="ticker">028050 Samsung E&amp;A</span><span class="ticker">000720 Hyundai E&amp;C</span><span class="ticker">047040 Daewoo E&amp;C</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">IN-MCH</code>
+        <span class="name">Industrial machinery</span>
+        <span class="gics">Industrial Machinery</span>
+      </summary>
+      <div class="anchors"><span class="ticker">267250 HD Hyundai</span><span class="ticker">079550 LIG Nex1</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">IN-DEF</code>
+        <span class="name">Defence · aerospace</span>
+        <span class="gics">Aerospace &amp; Defense</span>
+      </summary>
+      <div class="anchors"><span class="ticker">012450 Hanwha Aerospace</span><span class="ticker">047810 Korea Aerospace</span><span class="ticker">272210 Hanwha Systems</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">IN-LOG</code>
+        <span class="name">Logistics · transport</span>
+        <span class="gics">Air Freight &amp; Logistics</span>
+      </summary>
+      <div class="anchors"><span class="ticker">011200 HMM</span><span class="ticker">044820 Cosmo Chemical</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">MT</code>
+          <h2 class="l1-name">Materials<span class="korean"> · 소재</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Materials · Chemicals · Metals &amp; Mining</div>
+          <div class="prims"><span class="prim-chip prim-customs" title="Customs HS-code">Customs</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">Chemicals + steel + paper. Cyclical, often export-bound.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">MT-CHM</code>
+        <span class="name">Chemicals · petrochem</span>
+        <span class="gics">Commodity Chemicals</span>
+      </summary>
+      <div class="anchors"><span class="ticker">051910 LG Chem</span><span class="ticker">011170 Lotte Chemical</span><span class="ticker">298020 HD Hyundai Chemical</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">MT-STL</code>
+        <span class="name">Steel · metals</span>
+        <span class="gics">Steel</span>
+      </summary>
+      <div class="anchors"><span class="ticker">005490 POSCO Holdings</span><span class="ticker">004020 Hyundai Steel</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">MT-PAP</code>
+        <span class="name">Paper · packaging</span>
+        <span class="gics">Paper Packaging</span>
+      </summary>
+      <div class="anchors"><span class="ticker">004540 Daehan Steel</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">FN</code>
+          <h2 class="l1-name">Financials<span class="korean"> · 금융</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Financials · Banks · Insurance · Securities</div>
+          <div class="prims"></div>
+        </div>
+      </header>
+      <p class="l1-intro">KR financial holdings + insurance + brokers. Driven by NIM, lending, capital-markets cycles.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">FN-BNK</code>
+        <span class="name">Banks · Financial holdings</span>
+        <span class="gics">Banks</span>
+      </summary>
+      <div class="anchors"><span class="ticker">105560 KB Financial</span><span class="ticker">055550 Shinhan</span><span class="ticker">086790 Hana</span><span class="ticker">316140 Woori</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">FN-INS</code>
+        <span class="name">Insurance</span>
+        <span class="gics">Insurance</span>
+      </summary>
+      <div class="anchors"><span class="ticker">032830 Samsung Life</span><span class="ticker">001450 Hyundai Marine &amp; Fire</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">FN-SEC</code>
+        <span class="name">Securities · Brokerage</span>
+        <span class="gics">Capital Markets</span>
+      </summary>
+      <div class="anchors"><span class="ticker">005940 NH Investment</span><span class="ticker">008560 Mirae Asset</span><span class="ticker">030610 Kyobo</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">EU</code>
+          <h2 class="l1-name">Energy · Utilities<span class="korean"> · 에너지·유틸리티</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Energy · Utilities</div>
+          <div class="prims"><span class="prim-chip prim-customs" title="Customs HS-code">Customs</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">Refiners + power + gas. KR power is regulated (KEPCO), refiners are export-cyclical.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">EU-REF</code>
+        <span class="name">Refining · Oil &amp; gas</span>
+        <span class="gics">Oil, Gas &amp; Consumable Fuels</span>
+      </summary>
+      <div class="anchors"><span class="ticker">010950 S-Oil</span><span class="ticker">096770 SK Innovation</span><span class="ticker">078930 GS Holdings</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">EU-PWR</code>
+        <span class="name">Power · Utilities</span>
+        <span class="gics">Electric Utilities</span>
+      </summary>
+      <div class="anchors"><span class="ticker">015760 KEPCO</span><span class="ticker">036460 KOGAS</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">EU-RNW</code>
+        <span class="name">Renewables · Solar/wind</span>
+        <span class="gics">Independent Power Producers</span>
+      </summary>
+      <div class="anchors"><span class="ticker">009830 Hanwha Solutions</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">ED</code>
+          <h2 class="l1-name">Education<span class="korean"> · 교육</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Consumer Discretionary · Diversified Consumer Services (Education)</div>
+          <div class="prims"><span class="prim-chip prim-card" title="Card panel">Card</span><span class="prim-chip prim-text" title="Text · NLP">Text</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">Korea&#39;s private education spend is one of the world&#39;s highest per household. Hagwon chains + EdTech + university test prep.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">ED-HAG</code>
+        <span class="name">Hagwon · academic prep</span>
+        <span class="gics">Education Services</span>
+      </summary>
+      <div class="anchors"><span class="ticker">215200 Megastudy Education</span><span class="ticker">100120 Visang Education</span><span class="ticker">068930 Digital Daesung</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">ED-EDT</code>
+        <span class="name">EdTech · online learning</span>
+        <span class="gics">Education Services</span>
+      </summary>
+      <div class="anchors"><span class="ticker">215200 Megastudy Education</span><span class="ticker">094800 Maps1 (Mathpresso)</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">ED-PUB</code>
+        <span class="name">Educational publishing</span>
+        <span class="gics">Publishing</span>
+      </summary>
+      <div class="anchors"><span class="ticker">100220 Visang Education (publishing)</span><span class="ticker">036120 SCI Evaluation</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">ED-LNG</code>
+        <span class="name">Language · adult learning</span>
+        <span class="gics">Education Services</span>
+      </summary>
+      <div class="anchors"><span class="ticker">096240 Chungdahm Learning</span><span class="ticker">111870 Hoban Construction (BizCorp)</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">PT</code>
+          <h2 class="l1-name">Pets<span class="korean"> · 반려동물</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Consumer Staples · Household Products (Pet segment)</div>
+          <div class="prims"><span class="prim-chip prim-card" title="Card panel">Card</span><span class="prim-chip prim-pos" title="Point-of-sale">POS</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">Growing KR consumer category. Pet food + pet care + vet-tech. Most KR pet exposure is embedded in F&amp;B or specialty retailers · pure-play listings are thin.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">PT-FOD</code>
+        <span class="name">Pet food</span>
+        <span class="gics">Packaged Foods &amp; Meats (pet segment)</span>
+      </summary>
+      <div class="anchors"><span class="ticker">049770 Dongwon F&amp;B (Tema)</span><span class="ticker">017810 Pulmuone</span><span class="ticker">271940 Hyundai Bioland (pet div)</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">PT-CAR</code>
+        <span class="name">Pet care · hygiene</span>
+        <span class="gics">Personal Care Products (pet segment)</span>
+      </summary>
+      <div class="anchors"><span class="ticker">051900 LG H&amp;H (pet line)</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">PT-VET</code>
+        <span class="name">Veterinary · pet-tech</span>
+        <span class="gics">Health Care Equipment</span>
+      </summary>
+      <div class="anchors"><span class="ticker">263720 Daewoong Pharm (animal)</span><span class="ticker">Pet-friends (private)</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">BK</code>
+          <h2 class="l1-name">Baby &amp; Kids<span class="korean"> · 유아·아동</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Consumer Staples · Personal Products (Infant)</div>
+          <div class="prims"><span class="prim-chip prim-card" title="Card panel">Card</span><span class="prim-chip prim-pos" title="Point-of-sale">POS</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">Low birthrate but premium spend per child rising sharply. Infant formula + kid-fashion + toys + after-school services.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">BK-INF</code>
+        <span class="name">Infant formula</span>
+        <span class="gics">Personal Products (Infant Nutrition)</span>
+      </summary>
+      <div class="anchors"><span class="ticker">267980 Maeil Dairies (Absolute)</span><span class="ticker">003920 Namyang Dairy (Imperial XO)</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">BK-FSH</code>
+        <span class="name">Kids fashion</span>
+        <span class="gics">Apparel, Accessories &amp; Luxury Goods</span>
+      </summary>
+      <div class="anchors"><span class="ticker">003620 Daewoo Architects (private peer)</span><span class="ticker">Agabang &amp; Co. (private)</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">BK-TOY</code>
+        <span class="name">Toys · learning</span>
+        <span class="gics">Leisure Products</span>
+      </summary>
+      <div class="anchors"><span class="ticker">051300 Samjon Pulp (peer adj.)</span><span class="ticker">Sonokong (private)</span></div>
+      
+    </details></div>
+    </section>
+    <section class="l1">
+      <header class="l1-head">
+        <div>
+          <code class="code l1-code">RN</code>
+          <h2 class="l1-name">Rental &amp; Subscription<span class="korean"> · 렌탈·구독</span></h2>
+        </div>
+        <div class="l1-meta">
+          <div class="gics-top">Consumer Discretionary · Diversified Consumer Services</div>
+          <div class="prims"><span class="prim-chip prim-card" title="Card panel">Card</span></div>
+        </div>
+      </header>
+      <p class="l1-intro">KR is a global leader in consumer rental (water purifiers, air purifiers, mattresses, massage chairs). Recurring subscription revenue model.</p>
+      <div class="l2-list">
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">RN-APL</code>
+        <span class="name">Appliance rental</span>
+        <span class="gics">Specialty Stores</span>
+      </summary>
+      <div class="anchors"><span class="ticker">021240 Coway</span><span class="ticker">079160 SK Magic (SK Networks)</span><span class="ticker">017960 Cuckoo Holdings</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">RN-MAT</code>
+        <span class="name">Mattress / wellness rental</span>
+        <span class="gics">Specialty Stores</span>
+      </summary>
+      <div class="anchors"><span class="ticker">079430 Hyundai Livart</span><span class="ticker">021240 Coway (mattress line)</span></div>
+      
+    </details>
+    <details class="l2" open>
+      <summary>
+        <code class="code l2-code">RN-SUB</code>
+        <span class="name">Subscription services</span>
+        <span class="gics">Consumer Services</span>
+      </summary>
+      <div class="anchors"><span class="ticker">021240 Coway (recurring service)</span><span class="ticker">017960 Cuckoo Holdings</span></div>
+      
+    </details></div>
+    </section>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <span>MTC v0.2 · exported 2026-06-11 · for design review.</span>
+    <span><strong style="color: var(--ink-200);">Mandata</strong> · Korea Market Data AI · <a href="mailto:yonghan@mandata.kr">yonghan@mandata.kr</a></span>
+  </footer>
+</main>
+
+</body>
+</html>
