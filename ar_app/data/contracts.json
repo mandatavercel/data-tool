@@ -1,1 +1,38 @@
-[]
+[
+  {
+    "id": "CT001",
+    "customer_id": "C001",
+    "title": "Order Forn No. 1 (쿠팡)",
+    "contract_type": "annual",
+    "start_date": "2024-02-05",
+    "end_date": "2030-02-04",
+    "total_amount": 10000.0,
+    "currency": "USD",
+    "billing_frequency": "quarterly",
+    "billing_day_of_month": 1,
+    "payment_terms_days": 30,
+    "revenue_shares": [],
+    "status": "active",
+    "order_form_url": "",
+    "notes": "",
+    "created_at": "2026-06-22"
+  },
+  {
+    "id": "CT002",
+    "customer_id": "C001",
+    "title": "Order Form No. 1 (Agreement 2)",
+    "contract_type": "annual",
+    "start_date": "2024-08-29",
+    "end_date": "2026-08-28",
+    "total_amount": 10000.0,
+    "currency": "USD",
+    "billing_frequency": "quarterly",
+    "billing_day_of_month": 1,
+    "payment_terms_days": 30,
+    "revenue_shares": [],
+    "status": "active",
+    "order_form_url": "",
+    "notes": "",
+    "created_at": "2026-06-22"
+  }
+]

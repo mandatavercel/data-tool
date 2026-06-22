@@ -1,1 +1,79 @@
-[]
+[
+  {
+    "id": "C001",
+    "name": "Oxford Data Plan LTD",
+    "biz_no": "",
+    "contact_name": "",
+    "contact_email": "",
+    "ar_manager_id": "",
+    "accounting_id": "",
+    "created_at": "2026-06-22",
+    "notes": ""
+  },
+  {
+    "id": "C002",
+    "name": "Aspex Management",
+    "biz_no": "",
+    "contact_name": "",
+    "contact_email": "",
+    "ar_manager_id": "",
+    "accounting_id": "",
+    "created_at": "2026-06-22",
+    "notes": ""
+  },
+  {
+    "id": "C003",
+    "name": "YipitData",
+    "biz_no": "",
+    "contact_name": "",
+    "contact_email": "",
+    "ar_manager_id": "",
+    "accounting_id": "",
+    "created_at": "2026-06-22",
+    "notes": ""
+  },
+  {
+    "id": "C004",
+    "name": "Quadrature",
+    "biz_no": "",
+    "contact_name": "",
+    "contact_email": "",
+    "ar_manager_id": "",
+    "accounting_id": "",
+    "created_at": "2026-06-22",
+    "notes": ""
+  },
+  {
+    "id": "C005",
+    "name": "WorldQuant",
+    "biz_no": "",
+    "contact_name": "",
+    "contact_email": "",
+    "ar_manager_id": "",
+    "accounting_id": "",
+    "created_at": "2026-06-22",
+    "notes": ""
+  },
+  {
+    "id": "C006",
+    "name": "Dragoneer",
+    "biz_no": "",
+    "contact_name": "",
+    "contact_email": "",
+    "ar_manager_id": "",
+    "accounting_id": "",
+    "created_at": "2026-06-22",
+    "notes": ""
+  },
+  {
+    "id": "C007",
+    "name": "Marshall wace",
+    "biz_no": "",
+    "contact_name": "",
+    "contact_email": "",
+    "ar_manager_id": "",
+    "accounting_id": "",
+    "created_at": "2026-06-22",
+    "notes": ""
+  }
+]

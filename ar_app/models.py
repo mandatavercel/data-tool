@@ -30,6 +30,12 @@ CUSTOMERS_PATH = DATA_DIR / "customers.json"
 CONTRACTS_PATH = DATA_DIR / "contracts.json"
 INVOICES_PATH = DATA_DIR / "invoices.json"
 STAFF_PATH = DATA_DIR / "staff.json"
+SETTINGS_PATH = DATA_DIR / "settings.json"
+
+# 통화 기본값
+BASE_CURRENCY = "KRW"
+DEFAULT_USD_KRW = 1380.0
+DEFAULT_SETTINGS = {"usd_krw": DEFAULT_USD_KRW}
 
 
 # ─────────────────────────────────────────────────────────────
@@ -180,6 +186,37 @@ def load_invoices() -> list[Invoice]:
 def save_invoices(invoices: list[Invoice]) -> None:
     data = [asdict(i) for i in invoices]
     INVOICES_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+# ─────────────────────────────────────────────────────────────
+# 설정 (환율 등)
+# ─────────────────────────────────────────────────────────────
+def load_settings() -> dict:
+    """앱 설정 로드. 키가 없으면 기본값으로 보정."""
+    if not SETTINGS_PATH.exists():
+        return dict(DEFAULT_SETTINGS)
+    try:
+        raw = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, ValueError):
+        return dict(DEFAULT_SETTINGS)
+    merged = dict(DEFAULT_SETTINGS)
+    if isinstance(raw, dict):
+        merged.update({k: v for k, v in raw.items() if k in DEFAULT_SETTINGS})
+    return merged
+
+
+def save_settings(settings: dict) -> None:
+    SETTINGS_PATH.write_text(
+        json.dumps(settings, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
+def to_base(amount: float, currency: str, usd_krw: float = DEFAULT_USD_KRW) -> float:
+    """금액을 기준통화(KRW)로 환산. USD만 환율 적용, 그 외는 그대로."""
+    cur = (currency or BASE_CURRENCY).upper()
+    if cur == "USD":
+        return float(amount) * float(usd_krw)
+    return float(amount)
 
 
 # ─────────────────────────────────────────────────────────────

@@ -1,18 +1,17 @@
 """
-AR Management — 메인 페이지 (v2).
+AR Management — 메인 페이지 (v3).
 
 UI 원칙:
   - ID는 내부 키로만 사용, 화면에서 숨김
   - 추가/수정은 모달(st.dialog)로
   - 담당자는 별도 풀(Staff)에서 드롭다운 선택
   - 인보이스 자동 생성 없음 — 계약 등록 시 수동, 수금 일정은 명시적 액션
-  - ARR 기준 KPI
+  - ARR 기준 KPI, 모든 합계는 KRW 환산(USD는 설정 환율 적용)
 """
 from __future__ import annotations
 
 import sys
-from dataclasses import asdict
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 # 패키지 import
@@ -39,15 +38,95 @@ except ImportError:
 
 
 # ─────────────────────────────────────────────────────────────
+# 디자인 토큰 + 공통 헬퍼
+# ─────────────────────────────────────────────────────────────
+C_TEXT = "#F1F5F9"
+C_MUTED = "rgba(241,245,249,0.62)"
+C_LABEL = "rgba(241,245,249,0.5)"
+C_AMBER = "#F59E0B"
+C_RED = "#EF4444"
+C_GREEN = "#22C55E"
+C_BLUE = "#3B82F6"
+MONO = "'JetBrains Mono','SF Mono',monospace"
+
+# 상태 → (한글 라벨, 색)
+INV_STATUS = {
+    "pending": ("발행대기", "#94A3B8"),
+    "issued": ("발행됨", C_BLUE),
+    "paid": ("수금완료", C_GREEN),
+    "overdue": ("연체", C_RED),
+    "void": ("취소", "#71717A"),
+}
+CT_STATUS = {
+    "active": ("진행중", C_GREEN),
+    "paused": ("일시중지", C_AMBER),
+    "ended": ("종료", "#94A3B8"),
+}
+
+
+def label_block(label: str, value: str, *, color: str = C_TEXT,
+                mono: bool = False, weight: int = 600, top: int = 0) -> str:
+    """작은 라벨 + 값 한 쌍을 HTML 문자열로."""
+    fam = f"font-family:{MONO};" if mono else ""
+    mt = f"margin-top:{top}px;" if top else ""
+    return (
+        f"<div style='font-size:0.74rem;color:{C_LABEL};{mt}'>{label}</div>"
+        f"<div style='color:{color};{fam}font-weight:{weight};font-size:0.9rem;'>{value}</div>"
+    )
+
+
+def badge(text: str, color: str) -> str:
+    return (
+        f"<span style='display:inline-block;padding:3px 11px;border-radius:999px;"
+        f"background:{color}22;color:{color};font-weight:600;font-size:0.78rem;"
+        f"line-height:1.5;'>{text}</span>"
+    )
+
+
+def inv_badge(status: str) -> str:
+    txt, col = INV_STATUS.get(status, (status, "#94A3B8"))
+    return badge(txt, col)
+
+
+def ct_badge(status: str) -> str:
+    txt, col = CT_STATUS.get(status, (status, "#94A3B8"))
+    return badge(txt, col)
+
+
+# 통화 설정
+settings = ar_models.load_settings()
+USD_KRW = float(settings.get("usd_krw") or ar_models.DEFAULT_USD_KRW)
+
+
+def to_krw(amount: float, currency: str) -> float:
+    return ar_models.to_base(amount, currency, USD_KRW)
+
+
+def fmt_amount(amount: float, currency: str) -> str:
+    """통화별 표기. USD는 $앞붙임, KRW는 원."""
+    cur = (currency or "KRW").upper()
+    if cur == "USD":
+        return f"${amount:,.0f}"
+    return f"{amount:,.0f}원"
+
+
+def fmt_krw_short(v: float) -> str:
+    """KRW 큰 금액을 억/백만 단위로 짧게."""
+    if abs(v) >= 1e8:
+        return f"{v/1e8:,.2f}억원"
+    return f"{v/1e6:,.1f}M원"
+
+
+# ─────────────────────────────────────────────────────────────
 # 헤더
 # ─────────────────────────────────────────────────────────────
 st.markdown(
     """
-    <div style="margin:6px 0 18px 0;">
-      <div style="font-size:1.6rem; font-weight:700; color:#F1F5F9; letter-spacing:-0.02em;">
+    <div style="margin:6px 0 14px 0;">
+      <div style="font-size:1.55rem; font-weight:700; color:#F1F5F9; letter-spacing:-0.02em;">
         💰 AR Management
       </div>
-      <div style="font-size:0.85rem; color:rgba(241,245,249,0.65); margin-top:4px;">
+      <div style="font-size:0.85rem; color:rgba(241,245,249,0.6); margin-top:3px;">
         고객사 · 계약 · 수금 · 데이터 오너 배분 통합 관리.
       </div>
     </div>
@@ -95,10 +174,10 @@ def staff_label(s_id: str) -> str:
 
 
 # ─────────────────────────────────────────────────────────────
-# ARR + KPI
+# ARR + KPI (모두 KRW 환산)
 # ─────────────────────────────────────────────────────────────
 def annualize_contract(ct: ar_models.Contract) -> float:
-    """active 계약의 ARR 환산. one-time은 0."""
+    """active 계약의 ARR 환산(KRW). one-time은 0."""
     if ct.status != "active":
         return 0.0
     if ct.billing_frequency == "one-time":
@@ -108,7 +187,8 @@ def annualize_contract(ct: ar_models.Contract) -> float:
     if not s or not e:
         return 0.0
     months = max(1, (e.year - s.year) * 12 + (e.month - s.month) + 1)
-    return ct.total_amount * 12.0 / months
+    annual = ct.total_amount * 12.0 / months
+    return to_krw(annual, ct.currency)
 
 
 arr = sum(annualize_contract(c) for c in contracts)
@@ -122,37 +202,67 @@ def _in_month(d_str: str, y: int, m: int) -> bool:
 
 now_y, now_m = today.year, today.month
 this_month_pending_amt = sum(
-    i.amount for i in invoices
+    to_krw(i.amount, i.currency) for i in invoices
     if _in_month(i.issue_date, now_y, now_m) and i.status == "pending"
 )
 this_month_pending_cnt = sum(
     1 for i in invoices
     if _in_month(i.issue_date, now_y, now_m) and i.status == "pending"
 )
-overdue_amt = sum(i.amount - i.paid_amount for i in invoices if i.status == "overdue")
+overdue_amt = sum(
+    to_krw(i.amount - i.paid_amount, i.currency)
+    for i in invoices if i.status == "overdue"
+)
 overdue_cnt = sum(1 for i in invoices if i.status == "overdue")
 upcoming_7d_amt = sum(
-    i.amount for i in invoices
+    to_krw(i.amount, i.currency) for i in invoices
     if i.status in ("issued", "pending")
-    and (ar_models.parse_iso(i.due_date) or today) <= today + timedelta(days=7)
-    and (ar_models.parse_iso(i.due_date) or today) >= today
+    and today <= (ar_models.parse_iso(i.due_date) or today) <= today + timedelta(days=7)
 )
+
+# 발행 필요(과거~오늘까지 발행일이 도래했으나 아직 pending)
+to_issue = [
+    i for i in invoices
+    if i.status == "pending"
+    and (ar_models.parse_iso(i.issue_date) or today) <= today
+]
+to_issue.sort(key=lambda i: ar_models.parse_iso(i.issue_date) or date.max)
+to_issue_amt = sum(to_krw(i.amount, i.currency) for i in to_issue)
 
 kpi_cols = st.columns(4)
 with kpi_cols[0]:
-    st.metric("📈 ARR", f"{arr/1e6:,.1f}M원",
+    st.metric("📈 ARR", fmt_krw_short(arr),
               f"{active_count}개 active 계약", delta_color="off",
-              help="active 계약의 연환산 매출. 일회성 계약은 제외.")
+              help="active 계약의 연환산 매출(KRW 환산). 일회성 계약 제외.")
 with kpi_cols[1]:
-    st.metric("🧾 이번 달 발행 예정", f"{this_month_pending_amt/1e6:,.1f}M원",
-              f"{this_month_pending_cnt}건", delta_color="off")
+    st.metric("🧾 발행 필요", fmt_krw_short(to_issue_amt),
+              f"{len(to_issue)}건 (발행일 도래)",
+              delta_color="inverse" if to_issue else "off",
+              help="발행 예정일이 지났는데 아직 발행 안 된 대기 항목.")
 with kpi_cols[2]:
-    st.metric("🔥 연체 미수금", f"{overdue_amt/1e6:,.1f}M원",
+    st.metric("🔥 연체 미수금", fmt_krw_short(overdue_amt),
               f"{overdue_cnt}건",
               delta_color="inverse" if overdue_amt > 0 else "off")
 with kpi_cols[3]:
-    st.metric("⏰ 7일 내 만기", f"{upcoming_7d_amt/1e6:,.1f}M원",
+    st.metric("⏰ 7일 내 만기", fmt_krw_short(upcoming_7d_amt),
               "곧 수금/연체", delta_color="off")
+
+with st.expander(f"⚙️ 환율 설정 · 현재 USD 1 = {USD_KRW:,.0f}원  (모든 합계는 KRW 환산)"):
+    ec = st.columns([2, 1, 3])
+    with ec[0]:
+        new_rate = st.number_input("USD → KRW 환율", min_value=1.0, max_value=100000.0,
+                                    value=float(USD_KRW), step=10.0)
+    with ec[1]:
+        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+        if st.button("저장", type="primary", use_container_width=True):
+            settings["usd_krw"] = float(new_rate)
+            ar_models.save_settings(settings)
+            st.rerun()
+    with ec[2]:
+        st.caption(
+            "USD 계약·인보이스 금액은 위 환율로 KRW 환산해 KPI/합계에 반영합니다. "
+            "목록의 금액은 원래 통화로 표기됩니다."
+        )
 
 st.markdown("")
 
@@ -412,7 +522,8 @@ def dialog_edit_contract(contract_id: str):
         title = st.text_input("계약 제목", value=ct.title)
         status = st.selectbox("상태", ["active", "paused", "ended"],
                                index=["active", "paused", "ended"].index(ct.status)
-                               if ct.status in ("active", "paused", "ended") else 0)
+                               if ct.status in ("active", "paused", "ended") else 0,
+                               format_func=lambda x: CT_STATUS.get(x, (x, ""))[0])
         dcols = st.columns(2)
         with dcols[0]:
             start = st.date_input("시작일",
@@ -482,18 +593,20 @@ def dialog_generate_schedule(contract_id: str):
     existing = [i for i in invoices if i.contract_id == contract_id]
     if existing:
         st.warning(f"이 계약에 이미 수금 항목이 {len(existing)}건 있습니다.")
+    cust_nm = customer_by_id.get(ct.customer_id, ar_models.Customer(id='', name='?')).name
     st.markdown(
-        f"**{ct.title}** · {customer_by_id.get(ct.customer_id, ar_models.Customer(id='', name='')).name} · "
-        f"{ct.billing_frequency} · {ct.total_amount:,.0f} {ct.currency}"
+        f"**{ct.title}** · {cust_nm} · "
+        f"{ct.billing_frequency} · {fmt_amount(ct.total_amount, ct.currency)}"
     )
 
     preview = ar_schedule.generate_invoice_schedule(ct, invoices)
-    st.caption(f"미리보기: {len(preview)}건 자동 생성됩니다. 회당 약 {preview[0].amount if preview else 0:,.0f} {ct.currency}.")
+    per = fmt_amount(preview[0].amount, ct.currency) if preview else fmt_amount(0, ct.currency)
+    st.caption(f"미리보기: {len(preview)}건 자동 생성됩니다. 회당 약 {per}.")
 
     if preview:
         df_preview = pd.DataFrame([{
             "발행일": p.issue_date, "만기일": p.due_date,
-            "금액": f"{p.amount:,.0f}",
+            "금액": fmt_amount(p.amount, ct.currency),
         } for p in preview[:6]])
         st.dataframe(df_preview, hide_index=True, use_container_width=True)
         if len(preview) > 6:
@@ -545,6 +658,34 @@ def dialog_add_invoice():
             st.rerun()
 
 
+# 인보이스 상태 변경 액션 (공통)
+def _issue_invoice(inv_id: str):
+    for i in invoices:
+        if i.id == inv_id:
+            i.status = "issued"
+            i.issued_at = today.isoformat()
+    ar_models.save_invoices(invoices)
+    st.rerun()
+
+
+def _pay_invoice(inv_id: str):
+    for i in invoices:
+        if i.id == inv_id:
+            i.status = "paid"
+            i.paid_at = today.isoformat()
+            i.paid_amount = i.amount
+    ar_models.save_invoices(invoices)
+    st.rerun()
+
+
+def _void_invoice(inv_id: str):
+    for i in invoices:
+        if i.id == inv_id:
+            i.status = "void"
+    ar_models.save_invoices(invoices)
+    st.rerun()
+
+
 # ═══════════════════════════════════════════════════════════
 # 탭
 # ═══════════════════════════════════════════════════════════
@@ -561,6 +702,43 @@ with tab_dash:
             "**📊 수금 일정 생성** 또는 **수금 탭에서 수동 추가**를 진행하세요."
         )
     else:
+        # 발행 필요 (발행일 도래했는데 미발행)
+        st.markdown("##### 🧾 발행 필요  ·  발행일이 지났는데 아직 미발행")
+        if not to_issue:
+            st.caption("없음 👍")
+        else:
+            st.caption(f"{len(to_issue)}건 · 합계 {fmt_krw_short(to_issue_amt)} (KRW 환산)")
+            for inv in to_issue[:12]:
+                cust = customer_by_id.get(inv.customer_id)
+                cust_name = cust.name if cust else "?"
+                issue_d = ar_models.parse_iso(inv.issue_date)
+                days_late = (today - issue_d).days if issue_d else 0
+                with st.container(border=True):
+                    cols = st.columns([3, 2, 2, 1.3])
+                    with cols[0]:
+                        st.markdown(
+                            f"<div style='font-weight:600;color:{C_TEXT};'>{cust_name}</div>"
+                            f"<div style='font-size:0.76rem;color:{C_MUTED};'>발행 예정 {inv.issue_date}</div>",
+                            unsafe_allow_html=True,
+                        )
+                    with cols[1]:
+                        late_col = C_RED if days_late > 0 else C_LABEL
+                        late_txt = f"{days_late}일 경과" if days_late > 0 else "오늘"
+                        st.markdown(label_block("지연", late_txt, color=late_col),
+                                    unsafe_allow_html=True)
+                    with cols[2]:
+                        st.markdown(
+                            label_block("금액", fmt_amount(inv.amount, inv.currency), mono=True),
+                            unsafe_allow_html=True,
+                        )
+                    with cols[3]:
+                        if st.button("📤 발행", key=f"dash_iss_{inv.id}", use_container_width=True):
+                            _issue_invoice(inv.id)
+            if len(to_issue) > 12:
+                st.caption(f"...외 {len(to_issue) - 12}건 (수금 탭에서 전체 확인)")
+
+        st.markdown("")
+
         # 7일 내 만기
         st.markdown("##### ⏰ 7일 내 만기")
         soon = []
@@ -577,7 +755,7 @@ with tab_dash:
             for d_left, inv in soon:
                 cust = customer_by_id.get(inv.customer_id)
                 cust_name = cust.name if cust else "?"
-                color = "#EF4444" if d_left <= 1 else ("#F59E0B" if d_left <= 3 else "#94A3B8")
+                color = C_RED if d_left <= 1 else (C_AMBER if d_left <= 3 else "#94A3B8")
                 day_str = "오늘" if d_left == 0 else ("내일" if d_left == 1 else f"D-{d_left}")
                 st.markdown(
                     f"""
@@ -585,20 +763,22 @@ with tab_dash:
                                 background:rgba(255,255,255,0.02); border-radius:4px;
                                 display:flex; justify-content:space-between; align-items:center;">
                       <div>
-                        <b style="color:#F1F5F9;">{cust_name}</b>
-                        <div style="font-size:0.78rem; color:rgba(241,245,249,0.55); margin-top:2px;">
-                          만기 {inv.due_date} · 상태 <b>{inv.status}</b>
+                        <b style="color:{C_TEXT};">{cust_name}</b>
+                        <div style="font-size:0.78rem; color:{C_MUTED}; margin-top:2px;">
+                          만기 {inv.due_date} · {INV_STATUS.get(inv.status, (inv.status, ''))[0]}
                         </div>
                       </div>
                       <div style="text-align:right;">
                         <div style="color:{color}; font-weight:700;">{day_str}</div>
-                        <div style="color:#F1F5F9; font-family:'JetBrains Mono',monospace;">
-                          {inv.amount:,.0f} {inv.currency}
+                        <div style="color:{C_TEXT}; font-family:{MONO};">
+                          {fmt_amount(inv.amount, inv.currency)}
                         </div>
                       </div>
                     </div>
                     """, unsafe_allow_html=True,
                 )
+
+        st.markdown("")
 
         # 연체
         st.markdown("##### 🔥 연체")
@@ -616,7 +796,7 @@ with tab_dash:
                     "담당자": ar_s.name if ar_s else "—",
                     "만기일": i.due_date,
                     "경과": f"D+{(today - due).days}" if due else "—",
-                    "금액": f"{i.amount:,.0f} {i.currency}",
+                    "금액": fmt_amount(i.amount, i.currency),
                 })
             st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
 
@@ -633,44 +813,52 @@ with tab_cust:
     if not customers:
         st.caption("등록된 고객사가 없습니다. 위 버튼으로 추가하세요.")
     else:
-        # 카드형 목록
+        q = st.text_input("🔍 고객사 검색", placeholder="고객사명 / 담당자명",
+                          label_visibility="collapsed", key="cust_search").strip().lower()
+        shown = 0
         for c in customers:
             ar_s = staff_by_id.get(c.ar_manager_id)
             acc_s = staff_by_id.get(c.accounting_id)
+            if q:
+                hay = " ".join([
+                    c.name, c.biz_no, c.contact_name,
+                    ar_s.name if ar_s else "", acc_s.name if acc_s else "",
+                ]).lower()
+                if q not in hay:
+                    continue
+            shown += 1
             n_ct = sum(1 for ct in contracts if ct.customer_id == c.id)
             outstanding = sum(
-                i.amount - i.paid_amount for i in invoices
+                to_krw(i.amount - i.paid_amount, i.currency) for i in invoices
                 if i.customer_id == c.id and i.status in ("issued", "overdue")
             )
             with st.container(border=True):
-                cols = st.columns([3, 2, 2, 1, 1])
+                cols = st.columns([3, 2, 2, 1])
                 with cols[0]:
                     st.markdown(
-                        f"<div style='font-weight:600; color:#F1F5F9; font-size:1.0rem;'>{c.name}</div>"
-                        f"<div style='font-size:0.78rem; color:rgba(241,245,249,0.6);'>"
+                        f"<div style='font-weight:600; color:{C_TEXT}; font-size:1.0rem;'>{c.name}</div>"
+                        f"<div style='font-size:0.78rem; color:{C_MUTED};'>"
                         f"{c.biz_no or '사업자번호 없음'} · {c.contact_name or '담당자 미지정'}</div>",
                         unsafe_allow_html=True,
                     )
                 with cols[1]:
                     st.markdown(
-                        f"<div style='font-size:0.78rem; color:rgba(241,245,249,0.55);'>AR 담당</div>"
-                        f"<div style='color:#F1F5F9; font-size:0.88rem;'>{ar_s.name if ar_s else '—'}</div>"
-                        f"<div style='font-size:0.78rem; color:rgba(241,245,249,0.55); margin-top:4px;'>회계</div>"
-                        f"<div style='color:#F1F5F9; font-size:0.88rem;'>{acc_s.name if acc_s else '—'}</div>",
+                        label_block("AR 담당", ar_s.name if ar_s else "—")
+                        + label_block("회계", acc_s.name if acc_s else "—", top=4),
                         unsafe_allow_html=True,
                     )
                 with cols[2]:
                     st.markdown(
-                        f"<div style='font-size:0.78rem; color:rgba(241,245,249,0.55);'>계약</div>"
-                        f"<div style='color:#F1F5F9; font-weight:600;'>{n_ct}건</div>"
-                        f"<div style='font-size:0.78rem; color:rgba(241,245,249,0.55); margin-top:4px;'>미수금</div>"
-                        f"<div style='color:#F59E0B; font-weight:600; font-family:\"JetBrains Mono\",monospace;'>"
-                        f"{outstanding:,.0f}</div>",
+                        label_block("계약", f"{n_ct}건")
+                        + label_block("미수금(KRW 환산)", fmt_krw_short(outstanding),
+                                      color=C_AMBER, mono=True, top=4),
                         unsafe_allow_html=True,
                     )
                 with cols[3]:
                     if st.button("✏️ 수정", key=f"edit_cust_{c.id}", use_container_width=True):
                         dialog_edit_customer(c.id)
+        if q and shown == 0:
+            st.caption("검색 결과가 없습니다.")
 
 
 # ────────────────── 📋 계약 ──────────────────
@@ -692,40 +880,29 @@ with tab_ct:
             cust = customer_by_id.get(ct.customer_id)
             n_inv = sum(1 for i in invoices if i.contract_id == ct.id)
             n_paid = sum(1 for i in invoices if i.contract_id == ct.id and i.status == "paid")
-            status_color = {"active": "#22C55E", "paused": "#F59E0B", "ended": "#94A3B8"}.get(ct.status, "#94A3B8")
             with st.container(border=True):
                 cols = st.columns([3, 2, 2, 1.2, 1])
                 with cols[0]:
                     st.markdown(
-                        f"<div style='font-weight:600; color:#F1F5F9; font-size:1.0rem;'>{ct.title}</div>"
-                        f"<div style='font-size:0.78rem; color:rgba(241,245,249,0.6);'>"
+                        f"<div style='font-weight:600; color:{C_TEXT}; font-size:1.0rem;'>{ct.title}</div>"
+                        f"<div style='font-size:0.78rem; color:{C_MUTED};'>"
                         f"{cust.name if cust else '?'} · {ct.contract_type}</div>",
                         unsafe_allow_html=True,
                     )
                 with cols[1]:
                     st.markdown(
-                        f"<div style='font-size:0.78rem; color:rgba(241,245,249,0.55);'>기간</div>"
-                        f"<div style='color:#F1F5F9; font-size:0.88rem;'>{ct.start_date} ~ {ct.end_date or '—'}</div>"
-                        f"<div style='font-size:0.78rem; color:rgba(241,245,249,0.55); margin-top:4px;'>빈도</div>"
-                        f"<div style='color:#F1F5F9; font-size:0.88rem;'>{ct.billing_frequency} · 매월 {ct.billing_day_of_month}일</div>",
+                        label_block("기간", f"{ct.start_date} ~ {ct.end_date or '—'}")
+                        + label_block("빈도", f"{ct.billing_frequency} · 매월 {ct.billing_day_of_month}일", top=4),
                         unsafe_allow_html=True,
                     )
                 with cols[2]:
                     st.markdown(
-                        f"<div style='font-size:0.78rem; color:rgba(241,245,249,0.55);'>금액</div>"
-                        f"<div style='color:#F1F5F9; font-weight:600; font-family:\"JetBrains Mono\",monospace;'>"
-                        f"{ct.total_amount:,.0f} {ct.currency}</div>"
-                        f"<div style='font-size:0.78rem; color:rgba(241,245,249,0.55); margin-top:4px;'>수금</div>"
-                        f"<div style='color:#F1F5F9; font-size:0.88rem;'>{n_paid}/{n_inv}건 완료</div>",
+                        label_block("금액", fmt_amount(ct.total_amount, ct.currency), mono=True)
+                        + label_block("수금", f"{n_paid}/{n_inv}건 완료", top=4),
                         unsafe_allow_html=True,
                     )
                 with cols[3]:
-                    st.markdown(
-                        f"<div style='display:inline-block; padding:3px 10px; border-radius:10px; "
-                        f"background:{status_color}25; color:{status_color}; font-weight:600; font-size:0.8rem;'>"
-                        f"{ct.status}</div>",
-                        unsafe_allow_html=True,
-                    )
+                    st.markdown(ct_badge(ct.status), unsafe_allow_html=True)
                     if st.button("📊 수금 일정", key=f"gen_sched_{ct.id}", use_container_width=True):
                         dialog_generate_schedule(ct.id)
                 with cols[4]:
@@ -755,6 +932,7 @@ with tab_inv:
             status_filter = st.multiselect(
                 "상태", ["pending", "issued", "paid", "overdue", "void"],
                 default=["pending", "issued", "overdue"],
+                format_func=lambda x: INV_STATUS.get(x, (x, ""))[0],
             )
         with f_cols[1]:
             cust_filter = st.selectbox(
@@ -788,24 +966,20 @@ with tab_inv:
         elif sort_key == "발행일 빠른 순":
             filtered.sort(key=lambda i: ar_models.parse_iso(i.issue_date) or date.max)
         else:
-            filtered.sort(key=lambda i: -i.amount)
+            filtered.sort(key=lambda i: -to_krw(i.amount, i.currency))
 
-        st.caption(f"{len(filtered)}건 / 전체 {len(invoices)}건")
+        filt_total = sum(to_krw(i.amount, i.currency) for i in filtered)
+        st.caption(f"{len(filtered)}건 / 전체 {len(invoices)}건 · 합계 {fmt_krw_short(filt_total)} (KRW 환산)")
 
-        color_map = {
-            "pending": "#94A3B8", "issued": "#3B82F6", "paid": "#22C55E",
-            "overdue": "#EF4444", "void": "#71717A",
-        }
         for inv in filtered[:50]:
             cust = customer_by_id.get(inv.customer_id)
             ct = contract_by_id.get(inv.contract_id)
-            sc = color_map.get(inv.status, "#94A3B8")
             with st.container(border=True):
                 cols = st.columns([3, 2, 1.5, 2])
                 with cols[0]:
                     st.markdown(
-                        f"<div style='font-weight:600; color:#F1F5F9;'>{cust.name if cust else '?'}</div>"
-                        f"<div style='font-size:0.78rem; color:rgba(241,245,249,0.6);'>"
+                        f"<div style='font-weight:600; color:{C_TEXT};'>{cust.name if cust else '?'}</div>"
+                        f"<div style='font-size:0.78rem; color:{C_MUTED};'>"
                         f"{ct.title if ct else '?'}</div>",
                         unsafe_allow_html=True,
                     )
@@ -817,47 +991,29 @@ with tab_inv:
                     )
                 with cols[2]:
                     st.markdown(
-                        f"<div style='font-family:\"JetBrains Mono\",monospace; font-weight:700; "
-                        f"color:#F1F5F9; text-align:right;'>{inv.amount:,.0f}"
-                        f"<br><span style='font-size:0.78rem; font-weight:400; color:rgba(241,245,249,0.6);'>{inv.currency}</span></div>",
+                        f"<div style='font-family:{MONO}; font-weight:700; "
+                        f"color:{C_TEXT}; text-align:right;'>{fmt_amount(inv.amount, inv.currency)}</div>",
                         unsafe_allow_html=True,
                     )
                 with cols[3]:
                     st.markdown(
-                        f"<div style='display:inline-block; padding:3px 10px; border-radius:10px; "
-                        f"background:{sc}25; color:{sc}; font-weight:600; font-size:0.8rem; margin-bottom:6px;'>"
-                        f"{inv.status}</div>",
+                        f"<div style='margin-bottom:6px;'>{inv_badge(inv.status)}</div>",
                         unsafe_allow_html=True,
                     )
                     if inv.status == "pending":
                         if st.button("📤 발행", key=f"act_iss_{inv.id}", use_container_width=True):
-                            for i in invoices:
-                                if i.id == inv.id:
-                                    i.status = "issued"
-                                    i.issued_at = today.isoformat()
-                            ar_models.save_invoices(invoices)
-                            st.rerun()
+                            _issue_invoice(inv.id)
                     elif inv.status in ("issued", "overdue"):
                         sub_cols = st.columns([1, 1])
                         with sub_cols[0]:
                             if st.button("✅ 수금", key=f"act_paid_{inv.id}", use_container_width=True):
-                                for i in invoices:
-                                    if i.id == inv.id:
-                                        i.status = "paid"
-                                        i.paid_at = today.isoformat()
-                                        i.paid_amount = i.amount
-                                ar_models.save_invoices(invoices)
-                                st.rerun()
+                                _pay_invoice(inv.id)
                         with sub_cols[1]:
-                            if st.button("❌ void", key=f"act_void_{inv.id}", use_container_width=True):
-                                for i in invoices:
-                                    if i.id == inv.id:
-                                        i.status = "void"
-                                ar_models.save_invoices(invoices)
-                                st.rerun()
+                            if st.button("❌ 취소", key=f"act_void_{inv.id}", use_container_width=True):
+                                _void_invoice(inv.id)
 
         if len(filtered) > 50:
-            st.caption(f"⚠️ 표시 한계 50건. 더 보려면 필터를 좁혀주세요.")
+            st.caption("⚠️ 표시 한계 50건. 더 보려면 필터를 좁혀주세요.")
 
 
 # ────────────────── 👥 담당자 ──────────────────
@@ -878,22 +1034,14 @@ with tab_staff:
                 cols = st.columns([2, 2, 2, 1])
                 with cols[0]:
                     st.markdown(
-                        f"<div style='font-weight:600; color:#F1F5F9;'>{s.name}</div>"
-                        f"<div style='font-size:0.78rem; color:rgba(241,245,249,0.6);'>{s.email}</div>",
+                        f"<div style='font-weight:600; color:{C_TEXT};'>{s.name}</div>"
+                        f"<div style='font-size:0.78rem; color:{C_MUTED};'>{s.email}</div>",
                         unsafe_allow_html=True,
                     )
                 with cols[1]:
-                    st.markdown(
-                        f"<div style='font-size:0.78rem; color:rgba(241,245,249,0.55);'>역할</div>"
-                        f"<div style='color:#F1F5F9; font-size:0.9rem;'>{s.role or '—'}</div>",
-                        unsafe_allow_html=True,
-                    )
+                    st.markdown(label_block("역할", s.role or "—"), unsafe_allow_html=True)
                 with cols[2]:
-                    st.markdown(
-                        f"<div style='font-size:0.78rem; color:rgba(241,245,249,0.55);'>담당 고객사</div>"
-                        f"<div style='color:#F1F5F9; font-weight:600;'>{n_cust}개</div>",
-                        unsafe_allow_html=True,
-                    )
+                    st.markdown(label_block("담당 고객사", f"{n_cust}개"), unsafe_allow_html=True)
                 with cols[3]:
                     if st.button("✏️ 수정", key=f"edit_staff_{s.id}", use_container_width=True):
                         dialog_edit_staff(s.id)
@@ -904,7 +1052,7 @@ with tab_staff:
 # ─────────────────────────────────────────────────────────────
 st.divider()
 st.caption(
-    "📂 데이터: `ar_app/data/{customers,contracts,invoices,staff}.json` · "
+    "📂 데이터: `ar_app/data/{customers,contracts,invoices,staff,settings}.json` · "
     "Streamlit Cloud는 재배포 시 파일이 사라지는 ephemeral fs라, "
     "변경사항은 로컬에서 git commit & push 로 영구 보존하세요."
 )
