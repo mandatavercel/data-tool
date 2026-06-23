@@ -317,53 +317,24 @@ with tab_matrix:
             f"자동 접근하는 사용자는 위 표에 안 나와요."
         )
 
-# ─── Tab 6: 저장 / Export ────────────────────────────────────
+# ─── Tab 6: 저장 (단순화 — DB 자동 저장) ───────────────────
 with tab_save:
-    st.subheader("저장 및 Export")
-
-    # ── 두 파일의 dirty 상태 계산 ─────────────────────────
+    # 현재 변경사항 계산 (다른 탭에서 변경한 session_state vs DB/디스크 저장본)
     disk_acl = auth.get_acl()
     acl_dirty = (
         disk_acl.get("admins") != acl["admins"]
         or disk_acl.get("default_access") != acl["default_access"]
         or disk_acl.get("page_access") != acl["page_access"]
     )
-
     disk_overrides = pages_registry.load_overrides()
     overrides_dirty = (
         disk_overrides.get("category_overrides", {})
         != overrides_draft.get("category_overrides", {})
     )
-
     any_dirty = acl_dirty or overrides_dirty
 
-    # ── 상태 표시 ──────────────────────────────────────────
-    s1, s2 = st.columns(2)
-    with s1:
-        if acl_dirty:
-            st.info("⚪ `acl.json` — 변경사항 있음")
-        else:
-            st.success("✅ `acl.json` — 변경 없음")
-    with s2:
-        if overrides_dirty:
-            st.info("⚪ `page_overrides.json` — 변경사항 있음")
-        else:
-            st.success("✅ `page_overrides.json` — 변경 없음")
-
-    if _on_cloud and any_dirty:
-        st.warning(
-            "⚠️ Cloud 환경은 파일이 reboot 시 사라져요. 변경 후 반드시 아래에서 "
-            "**Export → GitHub commit** 까지 해주세요."
-        )
-
-    st.divider()
-
-    # ── 저장 / Export 액션 ─────────────────────────────────
-    st.markdown("### 💾 디스크 저장 (로컬 + Cloud 임시)")
-    save_c1, save_c2, save_c3 = st.columns(3)
-
     def _build_acl_to_save():
-        to_save = {**disk_acl}  # _schema/_notes 메타 보존
+        to_save = {**disk_acl}
         to_save["admins"] = acl["admins"]
         to_save["default_access"] = acl["default_access"]
         to_save["page_access"] = acl["page_access"]
@@ -374,79 +345,95 @@ with tab_save:
         to_save["category_overrides"] = overrides_draft.get("category_overrides", {})
         return to_save
 
-    with save_c1:
+    # DB 활성 여부
+    db_enabled = False
+    try:
+        from ar_app import db_store as _ds
+        db_enabled = _ds.enabled()
+    except Exception:
+        pass
+
+    # ── 1) 저장 상태 안내 (한 줄) ─────────────────────────
+    if db_enabled:
+        st.success(
+            "✅ **자동 영구 저장 활성** — 다른 탭에서 변경 후 아래 **[💾 적용]** 한 번만 누르면 "
+            "Neon DB에 영구 저장됩니다. 컨테이너 재시작이나 재배포에도 유지돼요."
+        )
+    else:
+        st.warning(
+            "⚠️ **DB 연결 없음** — JSON 파일에만 저장됩니다. Cloud 환경은 재배포 시 사라지니, "
+            "변경 후 백업 JSON을 받아 GitHub commit 해주세요."
+        )
+
+    st.markdown("")
+
+    # ── 2) 변경사항 요약 + 적용 버튼 (단일 액션) ──────────
+    if not any_dirty:
+        st.info("🟢 현재 변경사항 없음 — 모두 저장된 상태입니다.")
+    else:
+        st.markdown("##### 변경사항 요약")
+        bullets = []
+        if acl_dirty:
+            bullets.append("- 권한 (admin·기본·앱별)")
+        if overrides_dirty:
+            bullets.append("- 카테고리 매핑")
+        st.markdown("\n".join(bullets))
+
         if st.button(
-            "💾 acl.json 저장",
+            "💾 변경사항 적용 (한 번에 저장)",
             type="primary",
             use_container_width=True,
-            disabled=(not acl_dirty),
-        ):
-            auth.save_acl(_build_acl_to_save())
-            st.success("✅ acl.json 저장됨")
-    with save_c2:
-        if st.button(
-            "💾 page_overrides.json 저장",
-            type="primary",
-            use_container_width=True,
-            disabled=(not overrides_dirty),
-        ):
-            pages_registry.save_overrides(_build_overrides_to_save())
-            st.success("✅ page_overrides.json 저장됨 (사이드바·카테고리 변경은 새로고침 후 반영)")
-    with save_c3:
-        if st.button(
-            "💾 모두 저장",
-            use_container_width=True,
-            disabled=(not any_dirty),
         ):
             if acl_dirty:
                 auth.save_acl(_build_acl_to_save())
             if overrides_dirty:
                 pages_registry.save_overrides(_build_overrides_to_save())
-            st.success("✅ 모두 저장됨")
+            st.success(
+                "✅ 저장 완료" + (" (Neon DB)" if db_enabled else " (JSON 파일)")
+                + " — 새로고침하면 사이드바·카테고리에 반영됩니다."
+            )
+            st.rerun()
 
-    st.markdown("### 📥 Export (GitHub commit용)")
-    exp_c1, exp_c2 = st.columns(2)
-
-    with exp_c1:
-        st.download_button(
-            "📥 acl.json 다운로드",
-            data=_json.dumps(_build_acl_to_save(), ensure_ascii=False, indent=2).encode("utf-8"),
-            file_name="acl.json",
-            mime="application/json",
-            use_container_width=True,
+    # ── 3) 백업 (필요할 때만 — expander) ──────────────────
+    with st.expander("📦 백업 JSON 다운로드 (GitHub commit · 디버깅용)", expanded=False):
+        st.caption(
+            "Neon DB가 truth라 평소엔 받지 않아도 됩니다. 백업 보관 / "
+            "GitHub 커밋용으로 가져가실 때만."
         )
-    with exp_c2:
-        st.download_button(
-            "📥 page_overrides.json 다운로드",
-            data=_json.dumps(_build_overrides_to_save(), ensure_ascii=False, indent=2).encode("utf-8"),
-            file_name="page_overrides.json",
-            mime="application/json",
-            use_container_width=True,
-        )
+        c1, c2 = st.columns(2)
+        with c1:
+            st.download_button(
+                "📥 acl.json",
+                data=_json.dumps(_build_acl_to_save(), ensure_ascii=False, indent=2).encode("utf-8"),
+                file_name="acl.json",
+                mime="application/json",
+                use_container_width=True,
+            )
+        with c2:
+            st.download_button(
+                "📥 page_overrides.json",
+                data=_json.dumps(_build_overrides_to_save(), ensure_ascii=False, indent=2).encode("utf-8"),
+                file_name="page_overrides.json",
+                mime="application/json",
+                use_container_width=True,
+            )
 
-    st.divider()
-    prev_c1, prev_c2 = st.columns(2)
-    with prev_c1:
-        st.markdown("**acl.json (미리보기)**")
+    # ── 4) 현재 데이터 미리보기 (expander) ───────────────
+    with st.expander("👀 현재 데이터 확인 (JSON 미리보기)", expanded=False):
+        st.markdown("**권한 (acl)**")
         st.code(
-            _json.dumps(
-                {
-                    "admins": acl["admins"],
-                    "default_access": acl["default_access"],
-                    "page_access": acl["page_access"],
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
+            _json.dumps({
+                "admins": acl["admins"],
+                "default_access": acl["default_access"],
+                "page_access": acl["page_access"],
+            }, ensure_ascii=False, indent=2),
             language="json",
         )
-    with prev_c2:
-        st.markdown("**page_overrides.json (미리보기)**")
+        st.markdown("**카테고리 매핑**")
         st.code(
             _json.dumps(
                 {"category_overrides": overrides_draft.get("category_overrides", {})},
-                ensure_ascii=False,
-                indent=2,
+                ensure_ascii=False, indent=2,
             ),
             language="json",
         )
