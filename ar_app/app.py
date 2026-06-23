@@ -805,8 +805,8 @@ def dialog_edit_contract(contract_id: str):
 # ═══════════════════════════════════════════════════════════
 # 탭
 # ═══════════════════════════════════════════════════════════
-tab_dash, tab_cust, tab_ct, tab_collect, tab_payout, tab_staff = st.tabs([
-    "🏠 대시보드", "🏢 고객사", "📋 계약", "📊 수금 확인", "💸 배분 확인", "👥 담당자",
+tab_dash, tab_cust, tab_ct, tab_collect, tab_payout, tab_settle, tab_staff = st.tabs([
+    "🏠 대시보드", "🏢 고객사", "📋 계약", "📊 수금 확인", "💸 배분 확인", "📑 정산 현황표", "👥 담당자",
 ])
 
 
@@ -1644,6 +1644,110 @@ with tab_payout:
                     prev_done = prev_done and bool(steps.get(step))
         if len(rows) > 60:
             st.caption("⚠️ 표시 한계 60건. 파트너/상태 필터로 좁혀주세요.")
+
+
+# ────────────────── 📑 정산 현황표 ──────────────────
+with tab_settle:
+    st.markdown("##### 📑 정산 현황표  ·  배분사 × 계약별 분기 정산")
+    st.caption("정산액 = 해당 분기 수금분 × 배분율 (진행중 계약·배분율 기반 예상치). 금액은 원화(₩) 기준.")
+
+    # 연도 옵션 (진행중 계약의 수금 예정 연도)
+    _years = sorted({_due(p).year
+                     for ct in running_contracts
+                     for p in periods_by_contract.get(ct.id, [])})
+    if not _years:
+        st.info("진행중 계약의 정산 예정 내역이 없습니다.")
+    else:
+        _yidx = _years.index(today.year) if today.year in _years else len(_years) - 1
+        sel_year = st.selectbox("연도", _years, index=_yidx, key="settle_year",
+                                format_func=lambda y: f"{y}년")
+
+        # owner -> {"q":[4], "contracts": {ct_id: {"ratio","label","q":[4]}}}
+        sdata: dict = {}
+        for ct in running_contracts:
+            cust = customer_by_id.get(ct.customer_id)
+            label = f"{cust.name if cust else '?'} · {ct.order_form_name or '(제목 없음)'}"
+            for rs in ct.revenue_shares:
+                if rs.ratio <= 0:
+                    continue
+                for p in periods_by_contract.get(ct.id, []):
+                    due = _due(p)
+                    if due.year != sel_year:
+                        continue
+                    qi2 = (due.month - 1) // 3
+                    amt = to_krw(p.amount * rs.ratio, p.currency)
+                    o = sdata.setdefault(rs.owner, {"q": [0.0, 0.0, 0.0, 0.0], "contracts": {}})
+                    o["q"][qi2] += amt
+                    c = o["contracts"].setdefault(
+                        ct.id, {"ratio": rs.ratio, "label": label, "q": [0.0, 0.0, 0.0, 0.0]})
+                    c["q"][qi2] += amt
+
+        if not sdata:
+            st.info(f"{sel_year}년 정산 예정 내역이 없습니다. (계약에 파트너 배분율이 있어야 표시됩니다)")
+        else:
+            owners = sorted(sdata, key=lambda o: -sum(sdata[o]["q"]))
+            totals = [sum(sdata[o]["q"][qi2] for o in owners) for qi2 in range(4)]
+            cur_q = (today.month - 1) // 3 if sel_year == today.year else -1
+            _bd = "rgba(241,245,249,0.12)"
+            qh = ["1/4분기", "2/4분기", "3/4분기", "4/4분기"]
+
+            def _kw(v: float) -> str:
+                return f"₩{v:,.0f}"
+
+            h = "<table style='width:100%;border-collapse:collapse;font-size:0.9rem;'>"
+            h += "<tr>"
+            h += (f"<th style='text-align:left;padding:10px 12px;border-bottom:2px solid {_bd};"
+                  f"color:{C_MUTED};font-weight:700;'>{sel_year}년</th>")
+            for qi2 in range(4):
+                tag = " <span style='color:#60A5FA;'>(진행 중)</span>" if qi2 == cur_q else ""
+                bg = "background:rgba(59,130,246,0.16);" if qi2 == cur_q else ""
+                h += (f"<th style='text-align:right;padding:10px 12px;border-bottom:2px solid {_bd};"
+                      f"color:{C_TEXT};font-weight:700;{bg}'>{qh[qi2]}{tag}</th>")
+            h += (f"<th style='text-align:right;padding:10px 12px;border-bottom:2px solid {_bd};"
+                  f"color:{C_MUTED};font-weight:700;'>연 합계</th>")
+            h += "</tr>"
+            # 전체 총계 (강조)
+            h += "<tr style='background:#FDE047;color:#111827;font-weight:800;'>"
+            h += "<td style='text-align:left;padding:10px 12px;'>전체 총계</td>"
+            for qi2 in range(4):
+                h += f"<td style='text-align:right;padding:10px 12px;'>{_kw(totals[qi2])}</td>"
+            h += f"<td style='text-align:right;padding:10px 12px;'>{_kw(sum(totals))}</td>"
+            h += "</tr>"
+            # 배분사별
+            for o in owners:
+                q = sdata[o]["q"]
+                h += "<tr>"
+                h += (f"<td style='text-align:left;padding:9px 12px;border-bottom:1px solid {_bd};"
+                      f"color:{C_TEXT};font-weight:600;'>{o}</td>")
+                for qi2 in range(4):
+                    cbg = "background:rgba(59,130,246,0.06);" if qi2 == cur_q else ""
+                    h += (f"<td style='text-align:right;padding:9px 12px;border-bottom:1px solid {_bd};"
+                          f"color:{C_TEXT};{cbg}'>{_kw(q[qi2])}</td>")
+                h += (f"<td style='text-align:right;padding:9px 12px;border-bottom:1px solid {_bd};"
+                      f"color:{C_MUTED};'>{_kw(sum(q))}</td>")
+                h += "</tr>"
+            h += "</table>"
+            st.markdown(h, unsafe_allow_html=True)
+
+            st.markdown("")
+            st.markdown("**배분사별 · 계약 상세**")
+            st.caption("각 배분사를 펼치면 어떤 계약에서 배분율 몇 %로 분기별 얼마를 정산하는지 표시됩니다.")
+            for o in owners:
+                od = sdata[o]
+                with st.expander(f"💳 **{o}**  —  연 {_kw(sum(od['q']))}", expanded=False):
+                    rows = []
+                    for cid, c in sorted(od["contracts"].items(), key=lambda x: -sum(x[1]["q"])):
+                        cq = c["q"]
+                        rows.append({
+                            "고객사 · 계약": c["label"],
+                            "배분율": f"{c['ratio']*100:.0f}%",
+                            "1/4": _kw(cq[0]) if cq[0] else "—",
+                            "2/4": _kw(cq[1]) if cq[1] else "—",
+                            "3/4": _kw(cq[2]) if cq[2] else "—",
+                            "4/4": _kw(cq[3]) if cq[3] else "—",
+                            "연 합계": _kw(sum(cq)),
+                        })
+                    st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
 
 
 # ────────────────── 👥 담당자 ──────────────────
