@@ -318,7 +318,7 @@ def apply_overrides(base: list[PageEntry], overrides: dict | None = None) -> lis
     return result
 
 
-# 최종 PAGES — overrides 적용된 리스트 (모듈 import 시 한 번 평가)
+# 최종 PAGES — overrides 적용된 리스트 (모듈 import 시 한 번 평가, reload()로 갱신)
 PAGES: list[PageEntry] = apply_overrides(_BASE_PAGES)
 
 
@@ -326,6 +326,19 @@ PAGES: list[PageEntry] = apply_overrides(_BASE_PAGES)
 # 빠른 lookup
 # ─────────────────────────────────────────────────────────────
 PAGES_BY_KEY: dict[str, PageEntry] = {p.key: p for p in PAGES}
+
+
+def reload() -> None:
+    """
+    PAGES / PAGES_BY_KEY 를 최신 overrides 로 재계산.
+
+    모듈 import 시점에 한 번만 평가된 PAGES 는 admin 페이지에서 카테고리를 바꿔도
+    바로 안 보임. streamlit_app.py / pages/launcher.py 의 매 rerun 시작부에서
+    호출해야 최신 상태로 사이드바·대시보드가 그려진다.
+    """
+    global PAGES, PAGES_BY_KEY
+    PAGES = apply_overrides(_BASE_PAGES)
+    PAGES_BY_KEY = {p.key: p for p in PAGES}
 
 
 def all_categories_in_use() -> list[str]:

@@ -47,6 +47,11 @@ st.set_page_config = _safe_set_page_config
 # ─────────────────────────────────────────────────────────────
 import auth  # noqa: E402
 import app_utils  # noqa: E402
+import pages_registry  # noqa: E402
+
+# 매 rerun 시 최신 overrides(카테고리 변경 등)를 PAGES에 반영
+pages_registry.reload()
+
 from pages_registry import (  # noqa: E402
     PAGES,
     PAGES_BY_KEY,
