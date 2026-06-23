@@ -1648,8 +1648,26 @@ with tab_payout:
 
 # ────────────────── 📑 정산 현황표 ──────────────────
 with tab_settle:
-    st.markdown("##### 📑 정산 현황표  ·  배분사 × 계약별 분기 정산")
-    st.caption("정산액 = 해당 분기 수금분 × 배분율 (진행중 계약·배분율 기반 예상치). 금액은 원화(₩) 기준.")
+    _sh = st.columns([3, 1.4])
+    with _sh[0]:
+        st.markdown("##### 📑 정산 현황표  ·  배분사 × 계약별 분기 정산")
+        st.caption("정산액 = 해당 분기 수금분 × 배분율 (진행중 계약·배분율 기반 예상치). 금액은 원화(₩) 기준.")
+    with _sh[1]:
+        try:
+            from ar_app import notion_sync as _nsync
+        except Exception:
+            import notion_sync as _nsync  # type: ignore
+        if _nsync.enabled():
+            if st.button("🔄 노션으로 내보내기", use_container_width=True, key="btn_notion_sync"):
+                with st.spinner("노션 동기화 중…"):
+                    try:
+                        res = _nsync.sync(today)
+                        st.success(f"노션 동기화 완료 · 신규 {res['created']} · 갱신 {res['updated']} · "
+                                   f"보관 {res['archived']} (총 {res['total']}건)")
+                    except Exception as e:
+                        st.error(f"동기화 실패: {e}")
+        else:
+            st.caption("🔗 노션 연동하려면 secrets에 `NOTION_TOKEN` 설정")
 
     # 연도 옵션 (진행중 계약의 수금 예정 연도)
     _years = sorted({_due(p).year
