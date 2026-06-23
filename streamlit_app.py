@@ -203,11 +203,12 @@ def _category_label(cat: str) -> str:
 groups: dict[str, list] = {}
 
 # Home (대시보드)은 항상 맨 위
+# 사이드바 페이지 항목엔 icon 생략 — 카테고리(대분류)에만 이모지 표시해서 깔끔
 home_pages = [p for p in visible_entries if p.category == "Home"]
 if home_pages:
     home_group_label = _category_label("Home")
     groups[home_group_label] = [
-        st.Page(str(p.absolute_entry), title=p.name, icon=p.icon, default=(p.key == "launcher"))
+        st.Page(str(p.absolute_entry), title=p.name, default=(p.key == "launcher"))
         for p in home_pages
     ]
 
@@ -220,7 +221,7 @@ for cat in all_categories_in_use():
         continue
     label = _category_label(cat)
     groups[label] = [
-        st.Page(str(p.absolute_entry), title=p.name, icon=p.icon)
+        st.Page(str(p.absolute_entry), title=p.name)
         for p in cat_pages
     ]
 
@@ -229,7 +230,7 @@ admin_pages = [p for p in visible_entries if p.category == "Admin"]
 if admin_pages:
     admin_group_label = _category_label("Admin")
     groups[admin_group_label] = [
-        st.Page(str(p.absolute_entry), title=p.name, icon=p.icon)
+        st.Page(str(p.absolute_entry), title=p.name)
         for p in admin_pages
     ]
 
@@ -240,7 +241,7 @@ if not groups:
     if launcher_entry:
         groups["🏠 Home"] = [
             st.Page(str(launcher_entry.absolute_entry), title=launcher_entry.name,
-                    icon=launcher_entry.icon, default=True)
+                    default=True)
         ]
 
 
