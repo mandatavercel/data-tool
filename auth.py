@@ -48,8 +48,38 @@ def _empty_acl() -> dict:
     }
 
 
+# Neon Postgres (db_store) 우선 → JSON 파일 fallback. AR 패턴 동일.
+def _db_read(name: str):
+    try:
+        from ar_app import db_store
+        if db_store.enabled():
+            return db_store.read(name)
+    except Exception:
+        pass
+    return None
+
+
+def _db_write(name: str, data) -> bool:
+    try:
+        from ar_app import db_store
+        if db_store.enabled():
+            db_store.write(name, data)
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def get_acl() -> dict:
-    """acl.json을 로드. 파일 없거나 파싱 실패면 빈 ACL 반환."""
+    """ACL 로드. 우선순위: Neon DB → JSON 파일 → 빈 ACL."""
+    # 1) Neon DB
+    db_data = _db_read("acl")
+    if isinstance(db_data, dict):
+        db_data.setdefault("admins", [])
+        db_data.setdefault("default_access", [])
+        db_data.setdefault("page_access", {})
+        return db_data
+    # 2) JSON 파일 fallback
     if not _ACL_PATH.exists():
         return _empty_acl()
     try:
@@ -64,13 +94,19 @@ def get_acl() -> dict:
 
 
 def save_acl(data: dict) -> None:
-    """ACL을 파일에 저장. Streamlit Cloud는 ephemeral fs라 보존 보장 안 됨 (admin 페이지에서 export 권장)."""
-    # 내부 키 정리 (_schema, _notes는 보존)
+    """ACL 저장. Neon DB 우선, JSON 파일에도 best-effort 동기화."""
     out = {k: v for k, v in data.items()}
-    _ACL_PATH.write_text(
-        json.dumps(out, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    # 1) Neon DB (영구 저장)
+    db_ok = _db_write("acl", out)
+    # 2) JSON 파일 (로컬 / 백업 / DB 비활성 시 단일 source)
+    try:
+        _ACL_PATH.write_text(
+            json.dumps(out, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except Exception:
+        if not db_ok:
+            raise
 
 
 # ─────────────────────────────────────────────────────────────

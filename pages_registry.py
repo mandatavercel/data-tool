@@ -245,8 +245,37 @@ def _empty_overrides() -> dict:
     return {"category_overrides": {}}
 
 
+# Neon Postgres (db_store)을 시도하고, 실패/비활성 시 JSON 파일 fallback.
+# AR 앱의 데이터 저장 패턴과 동일.
+def _db_read(name: str):
+    try:
+        from ar_app import db_store
+        if db_store.enabled():
+            return db_store.read(name)
+    except Exception:
+        pass
+    return None
+
+
+def _db_write(name: str, data) -> bool:
+    try:
+        from ar_app import db_store
+        if db_store.enabled():
+            db_store.write(name, data)
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def load_overrides() -> dict:
-    """page_overrides.json 로드. 없거나 손상되면 빈 overrides."""
+    """page_overrides 로드. 우선순위: Neon DB → JSON 파일 → 빈 overrides."""
+    # 1) Neon DB
+    db_data = _db_read("page_overrides")
+    if isinstance(db_data, dict):
+        db_data.setdefault("category_overrides", {})
+        return db_data
+    # 2) JSON 파일 fallback
     if not _OVERRIDES_PATH.exists():
         return _empty_overrides()
     try:
@@ -258,12 +287,19 @@ def load_overrides() -> dict:
 
 
 def save_overrides(data: dict) -> None:
-    """page_overrides.json 저장 (Cloud는 ephemeral fs라 Export 권장)."""
+    """page_overrides 저장. Neon DB에 우선 저장, JSON 파일에도 best-effort 동기화."""
     out = {k: v for k, v in data.items()}
-    _OVERRIDES_PATH.write_text(
-        json.dumps(out, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    # 1) Neon DB (영구 저장)
+    db_ok = _db_write("page_overrides", out)
+    # 2) JSON 파일 (로컬 / 백업 / DB 비활성 시 단일 source)
+    try:
+        _OVERRIDES_PATH.write_text(
+            json.dumps(out, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except Exception:
+        if not db_ok:
+            raise
 
 
 def apply_overrides(base: list[PageEntry], overrides: dict | None = None) -> list[PageEntry]:
