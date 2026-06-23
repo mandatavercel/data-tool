@@ -642,7 +642,7 @@ def contract_form_fields(prefix: str, ct: "ar_models.Contract | None" = None) ->
     order_form_name = st.text_input("주문서명 *", value=ct.order_form_name if ct else "",
                                     placeholder="Order Form No.1 (쿠팡)", key=f"{prefix}_ofn")
     provided_data = st.text_area("제공 데이터", value=ct.provided_data if ct else "",
-                                 placeholder="예: K-F&B 표준화 데이터셋", height=60, key=f"{prefix}_pd")
+                                 placeholder="예: K-F&B 표준화 데이터셋", height=68, key=f"{prefix}_pd")
 
     r1 = st.columns(2)
     with r1[0]:
@@ -703,7 +703,7 @@ def contract_form_fields(prefix: str, ct: "ar_models.Contract | None" = None) ->
                               format_func=lambda x: CT_STATUS[x][0], key=f"{prefix}_status")
 
     url = st.text_input("계약서/오더폼 URL", value=ct.order_form_url if ct else "", key=f"{prefix}_url")
-    notes = st.text_area("메모", value=ct.notes if ct else "", height=60, key=f"{prefix}_notes")
+    notes = st.text_area("메모", value=ct.notes if ct else "", height=68, key=f"{prefix}_notes")
 
     st.markdown("**💼 파트너사 배분율 (옵션)**  ·  합계 1.0 이하, 최대 4명")
     existing = ct.revenue_shares if ct else []
