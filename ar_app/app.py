@@ -1029,60 +1029,6 @@ with tab_dash:
                         })
                     st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
 
-        st.markdown("")
-        # 7) 월별 입출 현황 (예상) — 진행중 계약 + 배분율 기반 캐시플로우 프로젝션
-        st.markdown("##### 📅 월별 입출 현황 (예상)")
-        st.caption("진행중 계약의 수금 예정 = 입금, 그 수금분의 다음 분기 첫 달 파트너 배분 = 지출. "
-                   "계약·배분율 기반 예상치(실제 수금/배분 상태와 무관).")
-
-        def _add_m(d: dict, key, usd: float, krw: float) -> None:
-            e = d.setdefault(key, [0.0, 0.0])
-            e[0] += usd
-            e[1] += krw
-
-        in_by_m: dict = {}    # (y,m) -> [usd, krw] 수금(입금)
-        out_by_m: dict = {}   # (y,m) -> [usd, krw] 파트너 배분(지출)
-        for ct in running_contracts:
-            ratio_sum = sum(rs.ratio for rs in ct.revenue_shares if rs.ratio > 0)
-            for p in periods_by_contract.get(ct.id, []):
-                due = _due(p)
-                _add_m(in_by_m, (due.year, due.month),
-                       to_usd(p.amount, p.currency), to_krw(p.amount, p.currency))
-                if ratio_sum > 0:
-                    nstart, _, _ = quarter_range(quarter_index(due) + 1)
-                    _add_m(out_by_m, (nstart.year, nstart.month),
-                           to_usd(p.amount * ratio_sum, p.currency),
-                           to_krw(p.amount * ratio_sum, p.currency))
-
-        cur_key = (today.year, today.month)
-        keys = sorted(k for k in (set(in_by_m) | set(out_by_m)) if k >= cur_key)[:24]
-        if not keys:
-            st.caption("예상 입출 내역이 없습니다.")
-        else:
-            def _signed(v: float) -> str:
-                return ("-" + fmt_usd(-v)) if v < 0 else fmt_usd(v)
-            mrows = []
-            cum = 0.0
-            for (y, m) in keys:
-                iu = in_by_m.get((y, m), [0.0, 0.0])[0]
-                ou = out_by_m.get((y, m), [0.0, 0.0])[0]
-                net = iu - ou
-                cum += net
-                mrows.append({
-                    "월": f"{y}-{m:02d}",
-                    "입금(수금)": fmt_usd(iu) if iu else "—",
-                    "지출(배분)": "-" + fmt_usd(ou) if ou else "—",
-                    "순현금": _signed(net),
-                    "누적 순현금": _signed(cum),
-                })
-            st.dataframe(pd.DataFrame(mrows), hide_index=True, use_container_width=True)
-            tin = sum(in_by_m.get(k, [0, 0])[0] for k in keys)
-            tout = sum(out_by_m.get(k, [0, 0])[0] for k in keys)
-            tin_k = sum(in_by_m.get(k, [0, 0])[1] for k in keys)
-            tout_k = sum(out_by_m.get(k, [0, 0])[1] for k in keys)
-            st.caption(f"향후 {len(keys)}개월 합계 · 입금 {fmt_usd(tin)} · 지출 {fmt_usd(tout)} · "
-                       f"순 {fmt_usd(tin - tout)}  ({fmt_krw(tin_k - tout_k)})")
-
         st.divider()
 
         # 7) Alert — 현재 처리 필요한 것들 (분기와 무관, 실시간 상태)
@@ -1193,6 +1139,91 @@ with tab_dash:
                         render_proc_row(p, date_label="정산기한", ref_date=payout_due_date(p), stage="배분진행")
         elif not expiring:
             st.success("처리할 알림이 없습니다 👍")
+
+        # 8) 월별 입출 현황 (예상) — 맨 아래 토글 (월별 + 분기별 + 연도별 요약)
+        st.divider()
+        with st.expander("📅 월별 입출 현황 (예상)  ·  월별 / 분기별 / 연도별", expanded=False):
+            st.caption("진행중 계약의 수금 예정 = 입금, 그 수금분의 다음 분기 첫 달 파트너 배분 = 지출. "
+                       "계약·배분율 기반 예상치(실제 수금/배분 상태와 무관).")
+
+            def _add_b(d: dict, key, usd: float, krw: float) -> None:
+                e = d.setdefault(key, [0.0, 0.0])
+                e[0] += usd
+                e[1] += krw
+
+            in_by_m: dict = {}    # (y,m) -> [usd, krw] 수금(입금)
+            out_by_m: dict = {}   # (y,m) -> [usd, krw] 파트너 배분(지출)
+            for ct in running_contracts:
+                ratio_sum = sum(rs.ratio for rs in ct.revenue_shares if rs.ratio > 0)
+                for p in periods_by_contract.get(ct.id, []):
+                    due = _due(p)
+                    _add_b(in_by_m, (due.year, due.month),
+                           to_usd(p.amount, p.currency), to_krw(p.amount, p.currency))
+                    if ratio_sum > 0:
+                        nstart, _, _ = quarter_range(quarter_index(due) + 1)
+                        _add_b(out_by_m, (nstart.year, nstart.month),
+                               to_usd(p.amount * ratio_sum, p.currency),
+                               to_krw(p.amount * ratio_sum, p.currency))
+
+            def _signed(v: float) -> str:
+                return ("-" + fmt_usd(-v)) if v < 0 else fmt_usd(v)
+
+            # (y,m) 데이터를 임의 버킷으로 굴려서 입금/지출/순/누적 표 생성
+            def _roll(bucket_of, label_of, keys_filter=None):
+                bin_in: dict = {}
+                bin_out: dict = {}
+                for (y, m), (u, w) in in_by_m.items():
+                    bin_in[bucket_of(y, m)] = bin_in.get(bucket_of(y, m), 0.0) + u
+                for (y, m), (u, w) in out_by_m.items():
+                    bin_out[bucket_of(y, m)] = bin_out.get(bucket_of(y, m), 0.0) + u
+                bkeys = sorted(set(bin_in) | set(bin_out))
+                if keys_filter is not None:
+                    bkeys = [b for b in bkeys if keys_filter(b)]
+                rows, cum = [], 0.0
+                for b in bkeys:
+                    iu, ou = bin_in.get(b, 0.0), bin_out.get(b, 0.0)
+                    net = iu - ou
+                    cum += net
+                    rows.append({
+                        label_of[0]: label_of[1](b),
+                        "입금(수금)": fmt_usd(iu) if iu else "—",
+                        "지출(배분)": "-" + fmt_usd(ou) if ou else "—",
+                        "순현금": _signed(net),
+                        "누적 순현금": _signed(cum),
+                    })
+                return rows
+
+            cur_my = (today.year, today.month)
+            v_month, v_quarter, v_year = st.tabs(["월별", "분기별", "연도별"])
+
+            with v_month:
+                rows = _roll(lambda y, m: (y, m),
+                             ("월", lambda b: f"{b[0]}-{b[1]:02d}"),
+                             keys_filter=lambda b: b >= cur_my)
+                rows = rows[:24]
+                if rows:
+                    st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+                    st.caption(f"현재 월부터 향후 {len(rows)}개월")
+                else:
+                    st.caption("예상 입출 내역이 없습니다.")
+
+            with v_quarter:
+                rows = _roll(lambda y, m: (y, (m - 1) // 3 + 1),
+                             ("분기", lambda b: f"{b[0]} Q{b[1]}"),
+                             keys_filter=lambda b: b >= (today.year, (today.month - 1) // 3 + 1))
+                if rows:
+                    st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+                else:
+                    st.caption("예상 입출 내역이 없습니다.")
+
+            with v_year:
+                rows = _roll(lambda y, m: y,
+                             ("연도", lambda b: f"{b}년"),
+                             keys_filter=lambda b: b >= today.year)
+                if rows:
+                    st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+                else:
+                    st.caption("예상 입출 내역이 없습니다.")
 
 
 # ────────────────── 🏢 고객사 ──────────────────
