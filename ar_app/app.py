@@ -768,8 +768,9 @@ def _validate_contract(v: dict) -> "str | None":
         return "Yearly Fee(계약금액)는 0보다 커야 함"
     if v["billing_frequency"] != "one-time" and not v["subscription_end_date"]:
         return "Subscription End Date 가 필요합니다 (일회성 제외)"
-    if sum(rs.effective_ratio(v["yearly_fee"]) for rs in v["revenue_shares"]) > 1.0001:
-        return "파트너 배분 합계가 계약금액을 초과 (효과 비율 1.0 초과)"
+    # 배분율(%) 모드만 합계 1.0 이하 제약. 금액 모드는 절대 금액이라 제약 없음.
+    if sum(rs.ratio for rs in v["revenue_shares"] if rs.mode != "amount") > 1.0001:
+        return "파트너 배분율(%) 합계가 1.0을 초과 (금액 모드는 제약 없음)"
     return None
 
 
