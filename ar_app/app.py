@@ -216,6 +216,35 @@ def kpi_card(label: str, usd_val: float, krw_val: float, sub: str,
     )
 
 
+def kpi_card2(label: str, done_usd: float, done_krw: float,
+              todo_usd: float, todo_krw: float, *,
+              done_lbl: str = "완료", todo_lbl: str = "해야 할",
+              accent: str = C_GREEN, sub: str = "") -> str:
+    """실제 완료액(크게) + 이번 분기 해야 할 액(작게) 동시 표시 카드."""
+    sub_html = (f"<div style='font-size:0.74rem;color:{C_LABEL};margin-top:6px;'>{sub}</div>"
+                if sub else "")
+    return (
+        f"<div style='border:1px solid rgba(255,255,255,0.08);border-radius:12px;"
+        f"padding:14px 16px;background:rgba(255,255,255,0.02);'>"
+        f"<div style='font-size:0.82rem;color:{C_MUTED};'>{label}</div>"
+        # 실제 완료
+        f"<div style='display:flex;align-items:baseline;gap:6px;margin-top:3px;'>"
+        f"<span style='font-size:0.66rem;color:{C_MUTED};'>{done_lbl}</span>"
+        f"<span style='font-size:1.6rem;font-weight:700;color:{accent};"
+        f"font-family:{MONO};letter-spacing:-0.01em;'>{fmt_usd(done_usd)}</span></div>"
+        f"<div style='font-size:0.72rem;color:{C_MUTED};font-family:{MONO};'>≈ {fmt_krw(done_krw)}</div>"
+        # 해야 할
+        f"<div style='display:flex;align-items:baseline;gap:6px;margin-top:7px;"
+        f"padding-top:7px;border-top:1px dashed rgba(255,255,255,0.10);'>"
+        f"<span style='font-size:0.66rem;color:{C_MUTED};'>{todo_lbl}</span>"
+        f"<span style='font-size:1.12rem;font-weight:700;color:{C_TEXT};"
+        f"font-family:{MONO};'>{fmt_usd(todo_usd)}</span>"
+        f"<span style='font-size:0.68rem;color:{C_MUTED};font-family:{MONO};'>≈{fmt_krw(todo_krw)}</span></div>"
+        f"{sub_html}"
+        f"</div>"
+    )
+
+
 def alert_card(icon: str, label: str, count: int, usd: float, krw: float, color: str) -> str:
     on = count > 0
     c = color if on else "#6B7280"
@@ -914,17 +943,28 @@ with tab_dash:
         prev_collect_usd, prev_collect_krw = _sum_usd(coll_prev), _sum_krw(coll_prev)
 
         # 이번 분기 파트너 배분 = 직전 분기 수금분 × 배분율
+        #  · payout_*      = 이번 분기 '해야 할' 배분 총액
+        #  · payout_done_* = 그 중 '실제 배분 완료'된 금액
         pq_amt = []  # (native_amount, currency)
+        payout_done_usd = payout_done_krw = 0.0
         for p in coll_prev:
             ct = contract_by_id.get(p.contract_id)
             if not ct:
                 continue
+            rec = collections.get(p.key)
             for rs in ct.revenue_shares:
-                if rs.is_active():
-                    pq_amt.append((p.amount * rs_ratio(rs, ct), p.currency))
+                if not rs.is_active():
+                    continue
+                amt = p.amount * rs_ratio(rs, ct)
+                pq_amt.append((amt, p.currency))
+                if ar_models.is_owner_paid_out(rec, rs.owner):
+                    payout_done_usd += to_usd(amt, p.currency)
+                    payout_done_krw += to_krw(amt, p.currency)
         payout_usd = sum(to_usd(a, c) for a, c in pq_amt)
         payout_krw = sum(to_krw(a, c) for a, c in pq_amt)
-        net_usd, net_krw = collect_usd - payout_usd, collect_krw - payout_krw
+        # 실제 순수익 = 실제 수금 − 실제 배분 / 예상 순수익 = 청구 − 해야 할 배분
+        net_done_usd, net_done_krw = collect_usd - payout_done_usd, collect_krw - payout_done_krw
+        net_todo_usd, net_todo_krw = q_billed_usd - payout_usd, q_billed_krw - payout_krw
 
         st.markdown("")
         # 1~4) 핵심 지표
@@ -935,16 +975,26 @@ with tab_dash:
                 arr_sub += f" · 만료 {len(expired_active)}개 제외"
             st.markdown(kpi_card("📈 총 ARR", arr_usd, arr_krw, arr_sub), unsafe_allow_html=True)
         with m[1]:
-            st.markdown(kpi_card(f"💰 {qlabel} 총 수금", collect_usd, collect_krw,
-                                 f"청구 {fmt_usd(q_billed_usd)} 중 · {len(coll_q)}/{len(q_periods)}건",
-                                 accent=C_GREEN if coll_q else C_TEXT), unsafe_allow_html=True)
+            st.markdown(kpi_card2(
+                f"💰 {qlabel} 수금", collect_usd, collect_krw, q_billed_usd, q_billed_krw,
+                done_lbl="수금 완료", todo_lbl="해야 할(청구)",
+                accent=C_GREEN if coll_q else C_TEXT,
+                sub=f"{len(coll_q)}/{len(q_periods)}건 수금 완료"), unsafe_allow_html=True)
         with m[2]:
-            st.markdown(kpi_card(f"💸 {qlabel} 파트너 배분", payout_usd, payout_krw,
-                                 f"직전분기({plabel}) 수금 × 배분율", accent=C_BLUE if pq_amt else C_TEXT),
-                        unsafe_allow_html=True)
+            _pdone_cnt = sum(1 for p in coll_prev for rs in (contract_by_id.get(p.contract_id).revenue_shares
+                              if contract_by_id.get(p.contract_id) else [])
+                             if rs.is_active() and ar_models.is_owner_paid_out(collections.get(p.key), rs.owner))
+            st.markdown(kpi_card2(
+                f"💸 {qlabel} 파트너 배분", payout_done_usd, payout_done_krw, payout_usd, payout_krw,
+                done_lbl="배분 완료", todo_lbl="해야 할 배분",
+                accent=C_BLUE if payout_done_usd else C_TEXT,
+                sub=f"직전분기({plabel}) 수금분 기준"), unsafe_allow_html=True)
         with m[3]:
-            st.markdown(kpi_card(f"✅ {qlabel} 총 순수익", net_usd, net_krw,
-                                 "총 수금 − 파트너 배분", accent=C_GREEN), unsafe_allow_html=True)
+            st.markdown(kpi_card2(
+                f"✅ {qlabel} 순수익", net_done_usd, net_done_krw, net_todo_usd, net_todo_krw,
+                done_lbl="실현(실제)", todo_lbl="예상",
+                accent=C_GREEN,
+                sub="실현 = 실제수금 − 실제배분 · 예상 = 청구 − 해야할배분"), unsafe_allow_html=True)
 
         st.divider()
 
