@@ -711,35 +711,35 @@ def contract_form_fields(prefix: str, ct: "ar_models.Contract | None" = None) ->
     notes = st.text_area("메모", value=ct.notes if ct else "", height=68, key=f"{prefix}_notes")
 
     _cur_sym = "₩" if currency == "KRW" else "$"
-    st.markdown("**💼 파트너사 배분 (옵션)**  ·  배분율(%) 또는 금액 중 선택 · 최대 4명")
-    st.caption(f"금액 선택 시: 그 파트너가 **계약금액(연 {_cur_sym}{float(yearly_fee):,.0f}) 중 가져갈 고정액**({_cur_sym}). "
-               "내부적으로 계약금액 대비 비율로 환산해 매 수금분에 적용됩니다. (효과 비율 합계 1.0 이하)")
+    st.markdown("**💼 파트너사 배분 (옵션)**  ·  파트너별로 배분율(%) 또는 금액 선택 · 최대 4명")
+    st.caption(f"· **배분율**: 0~1 사이 값(예: 0.2 = 20%). 합계 1.0 이하.\n"
+               f"· **금액**: 그 파트너가 가져갈 절대 금액({_cur_sym}), 배분율과 무관하게 그 금액으로 정산.")
     existing = ct.revenue_shares if ct else []
     rs_rows = []
+    _modes = ["배분율 %", f"금액 {_cur_sym}"]
     for k in range(4):
         ex = existing[k] if k < len(existing) else None
-        cc = st.columns([2.2, 1.1, 1.4])
+        cc = st.columns([2.2, 1.2, 1.4])
         with cc[0]:
             owner = st.text_input(f"파트너 #{k+1}", value=ex.owner if ex else "",
                                   label_visibility="collapsed", placeholder=f"파트너 #{k+1} 이름",
                                   key=f"{prefix}_rs_o_{k}")
         with cc[1]:
-            _modes = ["배분율 %", f"금액 {_cur_sym}"]
             _midx = 1 if (ex and ex.mode == "amount") else 0
             mode_sel = st.selectbox(f"방식 #{k+1}", _modes, index=_midx,
                                     label_visibility="collapsed", key=f"{prefix}_rs_m_{k}")
         is_amount = mode_sel.startswith("금액")
         with cc[2]:
-            if is_amount:
-                amt = st.number_input(f"금액 #{k+1}", min_value=0.0, step=1000.0,
-                                      value=float(ex.amount) if (ex and ex.mode == "amount") else 0.0,
-                                      label_visibility="collapsed", key=f"{prefix}_rs_a_{k}")
-                ratio = 0.0
-            else:
-                ratio = st.number_input(f"비율 #{k+1}", min_value=0.0, max_value=1.0, step=0.05,
-                                        value=float(ex.ratio) if (ex and ex.mode != "amount") else 0.0,
-                                        label_visibility="collapsed", key=f"{prefix}_rs_r_{k}")
-                amt = 0.0
+            # 단일 입력칸(폼 안에서 위젯이 바뀌면 갱신이 안 되므로 모드별로 칸을 바꾸지 않는다)
+            _default = 0.0
+            if ex:
+                _default = float(ex.amount) if ex.mode == "amount" else float(ex.ratio)
+            val = st.number_input(
+                f"값 #{k+1}", min_value=0.0, value=_default,
+                label_visibility="collapsed", key=f"{prefix}_rs_v_{k}",
+                help="배분율 모드: 0~1 (예 0.2).  금액 모드: 절대 금액 (예 2000000).")
+        amt = float(val) if is_amount else 0.0
+        ratio = 0.0 if is_amount else float(val)
         _active = (amt > 0) if is_amount else (ratio > 0)
         if owner.strip() and _active:
             rs_rows.append(ar_models.RevenueShare(
