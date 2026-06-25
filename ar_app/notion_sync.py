@@ -106,8 +106,10 @@ def build_rows(today: Optional[date] = None) -> list[dict]:
             by_year: dict[int, list] = {}
             for p in expected_collections(ct, today):
                 due = ar_models.parse_iso(p.due_date) or today
-                qi = (due.month - 1) // 3
-                q = by_year.setdefault(due.year, [0.0, 0.0, 0.0, 0.0])
+                # 정산(지급) 분기 = 수금 분기의 다음 분기 (연말 → 다음 해 Q1 롤오버)
+                pidx = (due.year * 4 + (due.month - 1) // 3) + 1
+                py, qi = divmod(pidx, 4)
+                q = by_year.setdefault(py, [0.0, 0.0, 0.0, 0.0])
                 q[qi] += to_krw(p.amount * eff, p.currency)
             for y, q in by_year.items():
                 rows.append({

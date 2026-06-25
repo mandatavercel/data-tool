@@ -776,6 +776,12 @@ def contract_form_fields(prefix: str, ct: "ar_models.Contract | None" = None) ->
                 mode="amount" if is_amount else "ratio",
                 contact_email=ex.contact_email if ex else ""))
 
+    # 비차단 경고: 배분 합계(효과 비율)가 계약금액(100%)을 넘으면 순수익이 음수가 될 수 있음
+    _eff_total = sum(rs.effective_ratio(float(yearly_fee or 0.0)) for rs in rs_rows)
+    if _eff_total > 1.0001:
+        st.warning(f"⚠️ 파트너 배분 합계가 계약금액의 {_eff_total*100:.0f}% — 100%를 초과합니다. "
+                   "순수익이 음수가 될 수 있어요 (저장은 가능).")
+
     return dict(
         customer_id=cust_id, order_form_name=order_form_name.strip(),
         provided_data=provided_data.strip(), contract_type=contract_type, am=am.strip(),
@@ -932,7 +938,11 @@ with tab_dash:
         pstart, pend, plabel = quarter_range(qi - 1)
 
         # 이번 분기 청구/수금 (수금 예정일이 이 분기)
-        q_periods = [p for p in periods_all if qstart <= _due(p) <= qend]
+        q_in_quarter = [p for p in periods_all if qstart <= _due(p) <= qend]
+        # 현재 분기를 볼 때는 '이전 분기에서 넘어온 미수금(연체)'도 수금해야 할 대상에 포함
+        q_carry = ([p for p in periods_all if _due(p) < qstart and not period_paid(p)]
+                   if qi == cur_qi else [])
+        q_periods = q_in_quarter + q_carry
         coll_q = [p for p in q_periods if period_paid(p)]
         q_billed_usd, q_billed_krw = _sum_usd(q_periods), _sum_krw(q_periods)
         collect_usd, collect_krw = _sum_usd(coll_q), _sum_krw(coll_q)
@@ -979,7 +989,9 @@ with tab_dash:
                 f"💰 {qlabel} 수금", collect_usd, collect_krw, q_billed_usd, q_billed_krw,
                 done_lbl="수금 완료", todo_lbl="해야 할(청구)",
                 accent=C_GREEN if coll_q else C_TEXT,
-                sub=f"{len(coll_q)}/{len(q_periods)}건 수금 완료"), unsafe_allow_html=True)
+                sub=(f"{len(coll_q)}/{len(q_periods)}건 수금 완료"
+                     + (f" · 연체 이월 {len(q_carry)}건 포함" if q_carry else ""))),
+                unsafe_allow_html=True)
         with m[2]:
             _pdone_cnt = sum(1 for p in coll_prev for rs in (contract_by_id.get(p.contract_id).revenue_shares
                               if contract_by_id.get(p.contract_id) else [])
@@ -1000,7 +1012,8 @@ with tab_dash:
 
         # 5) 고객사별 수금 — 이번 분기 (먼저)
         st.markdown(f"##### 🏢 고객사별 수금 · 이번 분기 {qlabel}")
-        st.caption("계약상 분기 청구액 대비 실제 수금")
+        st.caption("계약상 분기 청구액 대비 실제 수금"
+                   + ("  ·  이전 분기에서 넘어온 미수금(연체) 포함" if q_carry else ""))
         cagg: dict[str, list] = {}  # cid -> [billed, collected]
         for p in q_periods:
             g = cagg.setdefault(p.customer_id, [0.0, 0.0])
@@ -1071,7 +1084,8 @@ with tab_dash:
                 g = owner_agg.setdefault(rs.owner, {"total": 0.0, "done": 0.0, "items": {}})
                 g["total"] += payout
                 g["done"] += done
-                key = (cust.name if cust else "?", ct.order_form_name or ct.id, rs_ratio(rs, ct))
+                key = (cust.name if cust else "?", ct.order_form_name or ct.id,
+                       rs.label(ct.yearly_fee, ct.currency))
                 e = g["items"].setdefault(key, [0.0, 0.0])
                 e[0] += payout
                 e[1] += done
@@ -1090,13 +1104,13 @@ with tab_dash:
                     summary = f"배분 {fmt_usd(total)} · 🟠 전액 미완료"
                 with st.expander(f"💳 **{owner}** — {summary}", expanded=False):
                     rows = []
-                    for (cust_nm, ct_nm, ratio), (pay, dn) in sorted(g["items"].items(), key=lambda x: -x[1][0]):
+                    for (cust_nm, ct_nm, rlabel), (pay, dn) in sorted(g["items"].items(), key=lambda x: -x[1][0]):
                         pend = pay - dn
                         stt = "🟢 완료" if pend <= 1 else ("🟠 일부완료" if dn > 1 else "🔴 미완료")
                         rows.append({
                             "고객사": cust_nm,
                             "계약(주문서)": ct_nm,
-                            "배분율": f"{ratio*100:.0f}%",
+                            "배분": rlabel,
                             "배분액": fmt_usd(pay),
                             "완료": fmt_usd(dn) if dn > 1 else "—",
                             "미완료": fmt_usd(pend) if pend > 1 else "—",
@@ -1148,7 +1162,7 @@ with tab_dash:
             st.markdown(alert_card("💰", "미수금", len(unpaid_due), udue_usd, udue_krw, C_AMBER),
                         unsafe_allow_html=True)
         with a[1]:
-            st.markdown(alert_card("💸", "미배분", len(payouts), pay_usd, pay_krw, C_BLUE),
+            st.markdown(alert_card("💸", "미배분(전체 잔량)", len(payouts), pay_usd, pay_krw, C_BLUE),
                         unsafe_allow_html=True)
         with a[2]:
             st.markdown(alert_card("🧾", "발행 필요", len(need_invoice), ni_usd, ni_krw, C_AMBER),
@@ -1726,7 +1740,8 @@ with tab_settle:
     _sh = st.columns([3, 1.4])
     with _sh[0]:
         st.markdown("##### 📑 정산 현황표  ·  배분사 × 계약별 분기 정산")
-        st.caption("정산액 = 해당 분기 수금분 × 배분율 (진행중 계약·배분율 기반 예상치). 금액은 원화(₩) 기준.")
+        st.caption("정산(지급) 분기 = 수금 분기의 **다음 분기** 기준. 정산액 = 직전분기 수금분 × 배분율 "
+                   "(진행중 계약 기반 예상치). 금액은 원화(₩) 기준.")
     with _sh[1]:
         try:
             from ar_app import notion_sync as _nsync
@@ -1745,7 +1760,12 @@ with tab_settle:
             st.caption("🔗 노션 연동하려면 secrets에 `NOTION_TOKEN` 설정")
 
     # 연도 옵션 (진행중 계약의 수금 예정 연도)
-    _years = sorted({_due(p).year
+    # 정산(지급) 분기 = 수금 분기의 '다음 분기'. 연도/분기 모두 지급 시점 기준.
+    def _payout_yq(due):
+        pidx = quarter_index(due) + 1
+        py, pq = divmod(pidx, 4)
+        return py, pq
+    _years = sorted({_payout_yq(_due(p))[0]
                      for ct in running_contracts
                      for p in periods_by_contract.get(ct.id, [])})
     if not _years:
@@ -1765,9 +1785,9 @@ with tab_settle:
                     continue
                 for p in periods_by_contract.get(ct.id, []):
                     due = _due(p)
-                    if due.year != sel_year:
+                    py, qi2 = _payout_yq(due)  # 지급 연도/분기 = 수금 다음 분기
+                    if py != sel_year:
                         continue
-                    qi2 = (due.month - 1) // 3
                     amt = to_krw(p.amount * rs_ratio(rs, ct), p.currency)
                     o = sdata.setdefault(rs.owner, {"q": [0.0, 0.0, 0.0, 0.0], "contracts": {}})
                     o["q"][qi2] += amt
