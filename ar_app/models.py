@@ -78,11 +78,37 @@ class Customer:
 
 @dataclass
 class RevenueShare:
-    """계약별 데이터 오너 배분 — 합계가 1.0 이하여야 함 (나머지는 회사 몫)."""
+    """
+    계약별 데이터 오너 배분.
+    입력 방식 2가지 (mode):
+      - "ratio"  : 배분율(0.0~1.0). 매 수금분 × ratio 를 배분.
+      - "amount" : 계약금액(연간, 계약 통화) 중 가져갈 고정 금액.
+                   내부적으로 ratio = amount / yearly_fee 로 환산해 동일하게 적용.
+    효과 비율(effective ratio) 합계는 1.0 이하여야 함 (나머지는 회사 몫).
+    """
     owner: str          # 데이터 오너 이름
-    ratio: float        # 0.0 ~ 1.0
+    ratio: float = 0.0  # 0.0 ~ 1.0 (mode="ratio"일 때 사용)
+    amount: float = 0.0 # 고정 배분액 (mode="amount"일 때 사용, 계약 통화)
+    mode: str = "ratio" # "ratio" | "amount"
     contact_email: str = ""   # 배분 송금 대상 이메일
     note: str = ""
+
+    def effective_ratio(self, yearly_fee: float) -> float:
+        """계약금액(연간) 대비 실제 적용 비율."""
+        if self.mode == "amount":
+            return (float(self.amount) / float(yearly_fee)) if yearly_fee else 0.0
+        return float(self.ratio or 0.0)
+
+    def is_active(self) -> bool:
+        return (self.amount > 0) if self.mode == "amount" else (self.ratio > 0)
+
+    def label(self, yearly_fee: float, currency: str = "USD") -> str:
+        """표시용: '30%' 또는 '₩500,000 고정(≈20%)'."""
+        eff = self.effective_ratio(yearly_fee)
+        if self.mode == "amount":
+            sym = "₩" if (currency or "USD").upper() == "KRW" else "$"
+            return f"{sym}{self.amount:,.0f} 고정 (≈{eff*100:.0f}%)"
+        return f"{eff*100:.0f}%"
 
 
 @dataclass

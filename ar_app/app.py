@@ -185,6 +185,11 @@ def fmt_krw(v: float) -> str:
     return f"₩{v:,.0f}"
 
 
+def rs_ratio(rs, ct) -> float:
+    """파트너 배분 효과 비율 (배분율 또는 계약금액 대비 고정액 환산)."""
+    return rs.effective_ratio(ct.yearly_fee if ct else 0.0)
+
+
 def money_dual(amount: float, currency: str, *, align: str = "right",
                big: str = "1.0rem") -> str:
     usd = to_usd(amount, currency)
@@ -374,7 +379,7 @@ def payout_due_label(p) -> str:
 
 def share_owners(p) -> list:
     ct = contract_by_id.get(p.contract_id)
-    return [rs.owner for rs in ct.revenue_shares if rs.ratio > 0] if ct else []
+    return [rs.owner for rs in ct.revenue_shares if rs.is_active()] if ct else []
 
 
 def has_shares(p) -> bool:
@@ -420,8 +425,8 @@ payouts = []  # (period, contract, revenue_share, payout_native)
 for p in payout_inprogress:
     ct = contract_by_id.get(p.contract_id)
     for rs in ct.revenue_shares:
-        if rs.ratio > 0:
-            payouts.append((p, ct, rs, p.amount * rs.ratio))
+        if rs.is_active():
+            payouts.append((p, ct, rs, p.amount * rs_ratio(rs, ct)))
 
 
 # ─────────────────────────────────────────────────────────────
@@ -705,23 +710,42 @@ def contract_form_fields(prefix: str, ct: "ar_models.Contract | None" = None) ->
     url = st.text_input("계약서/오더폼 URL", value=ct.order_form_url if ct else "", key=f"{prefix}_url")
     notes = st.text_area("메모", value=ct.notes if ct else "", height=68, key=f"{prefix}_notes")
 
-    st.markdown("**💼 파트너사 배분율 (옵션)**  ·  합계 1.0 이하, 최대 4명")
+    _cur_sym = "₩" if currency == "KRW" else "$"
+    st.markdown("**💼 파트너사 배분 (옵션)**  ·  배분율(%) 또는 금액 중 선택 · 최대 4명")
+    st.caption(f"금액 선택 시: 그 파트너가 **계약금액(연 {_cur_sym}{float(yearly_fee):,.0f}) 중 가져갈 고정액**({_cur_sym}). "
+               "내부적으로 계약금액 대비 비율로 환산해 매 수금분에 적용됩니다. (효과 비율 합계 1.0 이하)")
     existing = ct.revenue_shares if ct else []
     rs_rows = []
     for k in range(4):
         ex = existing[k] if k < len(existing) else None
-        cc = st.columns([3, 1])
+        cc = st.columns([2.2, 1.1, 1.4])
         with cc[0]:
             owner = st.text_input(f"파트너 #{k+1}", value=ex.owner if ex else "",
                                   label_visibility="collapsed", placeholder=f"파트너 #{k+1} 이름",
                                   key=f"{prefix}_rs_o_{k}")
         with cc[1]:
-            ratio = st.number_input(f"비율 #{k+1}", min_value=0.0, max_value=1.0, step=0.05,
-                                    value=float(ex.ratio) if ex else 0.0,
-                                    label_visibility="collapsed", key=f"{prefix}_rs_r_{k}")
-        if owner.strip() and ratio > 0:
-            rs_rows.append(ar_models.RevenueShare(owner=owner.strip(), ratio=float(ratio),
-                                                  contact_email=ex.contact_email if ex else ""))
+            _modes = ["배분율 %", f"금액 {_cur_sym}"]
+            _midx = 1 if (ex and ex.mode == "amount") else 0
+            mode_sel = st.selectbox(f"방식 #{k+1}", _modes, index=_midx,
+                                    label_visibility="collapsed", key=f"{prefix}_rs_m_{k}")
+        is_amount = mode_sel.startswith("금액")
+        with cc[2]:
+            if is_amount:
+                amt = st.number_input(f"금액 #{k+1}", min_value=0.0, step=1000.0,
+                                      value=float(ex.amount) if (ex and ex.mode == "amount") else 0.0,
+                                      label_visibility="collapsed", key=f"{prefix}_rs_a_{k}")
+                ratio = 0.0
+            else:
+                ratio = st.number_input(f"비율 #{k+1}", min_value=0.0, max_value=1.0, step=0.05,
+                                        value=float(ex.ratio) if (ex and ex.mode != "amount") else 0.0,
+                                        label_visibility="collapsed", key=f"{prefix}_rs_r_{k}")
+                amt = 0.0
+        _active = (amt > 0) if is_amount else (ratio > 0)
+        if owner.strip() and _active:
+            rs_rows.append(ar_models.RevenueShare(
+                owner=owner.strip(), ratio=float(ratio), amount=float(amt),
+                mode="amount" if is_amount else "ratio",
+                contact_email=ex.contact_email if ex else ""))
 
     return dict(
         customer_id=cust_id, order_form_name=order_form_name.strip(),
@@ -744,8 +768,8 @@ def _validate_contract(v: dict) -> "str | None":
         return "Yearly Fee(계약금액)는 0보다 커야 함"
     if v["billing_frequency"] != "one-time" and not v["subscription_end_date"]:
         return "Subscription End Date 가 필요합니다 (일회성 제외)"
-    if sum(rs.ratio for rs in v["revenue_shares"]) > 1.0001:
-        return "파트너 배분율 합계가 1.0을 초과"
+    if sum(rs.effective_ratio(v["yearly_fee"]) for rs in v["revenue_shares"]) > 1.0001:
+        return "파트너 배분 합계가 계약금액을 초과 (효과 비율 1.0 초과)"
     return None
 
 
@@ -895,8 +919,8 @@ with tab_dash:
             if not ct:
                 continue
             for rs in ct.revenue_shares:
-                if rs.ratio > 0:
-                    pq_amt.append((p.amount * rs.ratio, p.currency))
+                if rs.is_active():
+                    pq_amt.append((p.amount * rs_ratio(rs, ct), p.currency))
         payout_usd = sum(to_usd(a, c) for a, c in pq_amt)
         payout_krw = sum(to_krw(a, c) for a, c in pq_amt)
         net_usd, net_krw = collect_usd - payout_usd, collect_krw - payout_krw
@@ -989,14 +1013,14 @@ with tab_dash:
                 continue
             rec = collections.get(p.key)
             for rs in ct.revenue_shares:
-                if rs.ratio <= 0:
+                if not rs.is_active():
                     continue
-                payout = to_usd(p.amount * rs.ratio, p.currency)
+                payout = to_usd(p.amount * rs_ratio(rs, ct), p.currency)
                 done = payout if ar_models.is_owner_paid_out(rec, rs.owner) else 0.0
                 g = owner_agg.setdefault(rs.owner, {"total": 0.0, "done": 0.0, "items": {}})
                 g["total"] += payout
                 g["done"] += done
-                key = (cust.name if cust else "?", ct.order_form_name or ct.id, rs.ratio)
+                key = (cust.name if cust else "?", ct.order_form_name or ct.id, rs_ratio(rs, ct))
                 e = g["items"].setdefault(key, [0.0, 0.0])
                 e[0] += payout
                 e[1] += done
@@ -1154,7 +1178,7 @@ with tab_dash:
             in_by_m: dict = {}    # (y,m) -> [usd, krw] 수금(입금)
             out_by_m: dict = {}   # (y,m) -> [usd, krw] 파트너 배분(지출)
             for ct in running_contracts:
-                ratio_sum = sum(rs.ratio for rs in ct.revenue_shares if rs.ratio > 0)
+                ratio_sum = sum(rs_ratio(rs, ct) for rs in ct.revenue_shares if rs.is_active())
                 for p in periods_by_contract.get(ct.id, []):
                     due = _due(p)
                     _add_b(in_by_m, (due.year, due.month),
@@ -1566,7 +1590,7 @@ with tab_payout:
         if not ct:
             continue
         for rs in ct.revenue_shares:
-            if rs.ratio > 0:
+            if rs.is_active():
                 payout_items.append((p, ct, rs))
 
     if not payout_items:
@@ -1595,9 +1619,9 @@ with tab_payout:
                 and (not po_stage_sel or payout_owner_stage(p, rs.owner) in po_stage_sel)]
         rows.sort(key=lambda t: payout_due_date(t[0]) or today)
 
-        tot_usd = sum(to_usd(p.amount * rs.ratio, p.currency) for p, _, rs in rows)
+        tot_usd = sum(to_usd(p.amount * rs_ratio(rs, ct), p.currency) for p, ct, rs in rows)
         st.caption(f"{len(rows)}건 · 배분액 합계 {fmt_usd(tot_usd)} "
-                   f"({fmt_krw(sum(to_krw(p.amount * rs.ratio, p.currency) for p, _, rs in rows))})")
+                   f"({fmt_krw(sum(to_krw(p.amount * rs_ratio(rs, ct), p.currency) for p, ct, rs in rows))})")
 
         step_labels = ar_models.PAYOUT_STEP_LABELS
         for p, ct, rs in rows[:60]:
@@ -1605,7 +1629,7 @@ with tab_payout:
             rec = collections.get(p.key) or ar_models.empty_record()
             steps = ar_models.get_payout_steps(rec, rs.owner)
             stage = payout_owner_stage(p, rs.owner)
-            amt = p.amount * rs.ratio
+            amt = p.amount * rs_ratio(rs, ct)
             due = payout_due_date(p)
             dl = (due - today).days if due else 0
 
@@ -1614,7 +1638,7 @@ with tab_payout:
                 with head[0]:
                     st.markdown(
                         f"<div style='font-weight:600;color:{C_TEXT};'>💸 {rs.owner}"
-                        f"<span style='font-weight:400;color:{C_MUTED};font-size:0.8rem;'> · {rs.ratio*100:.0f}%</span></div>"
+                        f"<span style='font-weight:400;color:{C_MUTED};font-size:0.8rem;'> · {rs.label(ct.yearly_fee, ct.currency)}</span></div>"
                         f"<div style='font-size:0.76rem;color:{C_MUTED};'>"
                         f"🏢 {cust.name if cust else '?'} · {(ct.order_form_name if ct else '?')} · {p.label}</div>",
                         unsafe_allow_html=True,
@@ -1686,18 +1710,19 @@ with tab_settle:
             cust = customer_by_id.get(ct.customer_id)
             label = f"{cust.name if cust else '?'} · {ct.order_form_name or '(제목 없음)'}"
             for rs in ct.revenue_shares:
-                if rs.ratio <= 0:
+                if not rs.is_active():
                     continue
                 for p in periods_by_contract.get(ct.id, []):
                     due = _due(p)
                     if due.year != sel_year:
                         continue
                     qi2 = (due.month - 1) // 3
-                    amt = to_krw(p.amount * rs.ratio, p.currency)
+                    amt = to_krw(p.amount * rs_ratio(rs, ct), p.currency)
                     o = sdata.setdefault(rs.owner, {"q": [0.0, 0.0, 0.0, 0.0], "contracts": {}})
                     o["q"][qi2] += amt
                     c = o["contracts"].setdefault(
-                        ct.id, {"ratio": rs.ratio, "label": label, "q": [0.0, 0.0, 0.0, 0.0]})
+                        ct.id, {"ratio_label": rs.label(ct.yearly_fee, ct.currency),
+                                "label": label, "q": [0.0, 0.0, 0.0, 0.0]})
                     c["q"][qi2] += amt
 
         if not sdata:
@@ -1758,7 +1783,7 @@ with tab_settle:
                         cq = c["q"]
                         rows.append({
                             "고객사 · 계약": c["label"],
-                            "배분율": f"{c['ratio']*100:.0f}%",
+                            "배분": c["ratio_label"],
                             "1/4": _kw(cq[0]) if cq[0] else "—",
                             "2/4": _kw(cq[1]) if cq[1] else "—",
                             "3/4": _kw(cq[2]) if cq[2] else "—",

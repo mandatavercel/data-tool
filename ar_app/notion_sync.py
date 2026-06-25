@@ -100,17 +100,18 @@ def build_rows(today: Optional[date] = None) -> list[dict]:
         cust = customers.get(ct.customer_id)
         label = f"{cust.name if cust else '?'} · {ct.order_form_name or '(제목없음)'}"
         for rs in ct.revenue_shares:
-            if rs.ratio <= 0:
+            if not rs.is_active():
                 continue
+            eff = rs.effective_ratio(ct.yearly_fee)
             by_year: dict[int, list] = {}
             for p in expected_collections(ct, today):
                 due = ar_models.parse_iso(p.due_date) or today
                 qi = (due.month - 1) // 3
                 q = by_year.setdefault(due.year, [0.0, 0.0, 0.0, 0.0])
-                q[qi] += to_krw(p.amount * rs.ratio, p.currency)
+                q[qi] += to_krw(p.amount * eff, p.currency)
             for y, q in by_year.items():
                 rows.append({
-                    "year": y, "owner": rs.owner, "contract": label, "ratio": float(rs.ratio),
+                    "year": y, "owner": rs.owner, "contract": label, "ratio": float(eff),
                     "q": [round(x) for x in q], "total": round(sum(q)),
                 })
     return rows
