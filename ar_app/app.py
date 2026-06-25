@@ -947,12 +947,13 @@ with tab_dash:
         q_billed_usd, q_billed_krw = _sum_usd(q_periods), _sum_krw(q_periods)
         collect_usd, collect_krw = _sum_usd(coll_q), _sum_krw(coll_q)
 
-        # 직전 분기 수금 (= 이번 분기 파트너 배분의 기준 금액 · 배분은 다음 분기에 정산)
-        prev_periods = [p for p in periods_all if pstart <= _due(p) <= pend]
-        coll_prev = [p for p in prev_periods if period_paid(p)]
+        # 직전 분기 '실제 입금분' = 통장 입금일(paid_date)이 직전 분기인 수금
+        #  → 배분은 실제 입금일 분기의 '다음 분기'에 정산되므로, 이번 분기 배분의 기준이 됨
+        coll_prev = [p for p in periods_all
+                     if period_paid(p) and paid_date(p) and pstart <= paid_date(p) <= pend]
         prev_collect_usd, prev_collect_krw = _sum_usd(coll_prev), _sum_krw(coll_prev)
 
-        # 이번 분기 파트너 배분 = 직전 분기 수금분 × 배분율
+        # 이번 분기 파트너 배분 = 직전 분기 입금분 × 배분율
         #  · payout_*      = 이번 분기 '해야 할' 배분 총액
         #  · payout_done_* = 그 중 '실제 배분 완료'된 금액
         pq_amt = []  # (native_amount, currency)
@@ -1000,7 +1001,7 @@ with tab_dash:
                 f"💸 {qlabel} 파트너 배분", payout_done_usd, payout_done_krw, payout_usd, payout_krw,
                 done_lbl="배분 완료", todo_lbl="해야 할 배분",
                 accent=C_BLUE if payout_done_usd else C_TEXT,
-                sub=f"직전분기({plabel}) 수금분 기준"), unsafe_allow_html=True)
+                sub=f"직전분기({plabel}) 실제 입금분 기준"), unsafe_allow_html=True)
         with m[3]:
             st.markdown(kpi_card2(
                 f"✅ {qlabel} 순수익", net_done_usd, net_done_krw, net_todo_usd, net_todo_krw,
@@ -1038,36 +1039,28 @@ with tab_dash:
             st.caption(f"{qlabel}에 청구 예정인 수금이 없습니다.")
 
         st.markdown("")
-        # 5-2) 고객사별 수금 — 직전 분기 (수금완료 여부 포함, 이번 분기 배분의 기준)
-        st.markdown(f"##### 🏢 고객사별 수금 · 직전 분기 {plabel}")
-        st.caption(f"이 수금액이 이번 분기({qlabel}) 파트너 배분의 기준 · 수금 완료 여부 포함")
-        pagg: dict[str, list] = {}  # cid -> [billed, collected]
-        for p in prev_periods:
-            g = pagg.setdefault(p.customer_id, [0.0, 0.0])
-            g[0] += to_usd(p.amount, p.currency)
-            if period_paid(p):
-                g[1] += to_usd(p.amount, p.currency)
+        # 5-2) 고객사별 '직전 분기 실제 입금분' = 이번 분기 배분의 기준
+        st.markdown(f"##### 🏢 고객사별 입금분 · 직전 분기 {plabel} (배분 기준)")
+        st.caption(f"통장 **실제 입금일**이 {plabel}인 수금 → 이번 분기({qlabel}) 파트너 배분의 기준")
+        pagg: dict[str, float] = {}  # cid -> deposited
+        for p in coll_prev:
+            pagg[p.customer_id] = pagg.get(p.customer_id, 0.0) + to_usd(p.amount, p.currency)
         if pagg:
             prows = []
-            for cid, (bu, cu) in sorted(pagg.items(), key=lambda x: -x[1][0]):
+            for cid, amt in sorted(pagg.items(), key=lambda x: -x[1]):
                 cust = customer_by_id.get(cid)
-                out = bu - cu
-                status = "🟢 수금완료" if out <= 1 else ("🟠 일부수금" if cu > 1 else "🔴 미수금")
                 prows.append({
                     "고객사": cust.name if cust else "?",
-                    "분기 청구": fmt_usd(bu),
-                    "수금": fmt_usd(cu),
-                    "미수금": fmt_usd(out) if out > 1 else "—",
-                    "상태": status,
+                    "직전분기 입금액": fmt_usd(amt),
                 })
             st.dataframe(pd.DataFrame(prows), hide_index=True, use_container_width=True)
         else:
-            st.caption(f"{plabel}에 청구 예정인 수금이 없습니다.")
+            st.caption(f"{plabel}에 실제 입금된 수금이 없습니다.")
 
         st.markdown("")
         # 6) 파트너사별 배분 — 파트너별 요약(총 배분 중 완료) + 자세히 보기(계약별 상세)
         st.markdown(f"##### 💸 파트너사별 배분 · 이번 분기 {qlabel}")
-        st.caption(f"직전분기({plabel}) 수금 기준 · 파트너별 총 배분 중 완료 / 펼치면 고객사·계약별 상세")
+        st.caption(f"직전분기({plabel}) **실제 입금분** 기준 · 파트너별 총 배분 중 완료 / 펼치면 고객사·계약별 상세")
         # owner -> {"total","done","items": {(cust,ct): [payout, done]}}
         owner_agg: dict[str, dict] = {}
         for p in coll_prev:
@@ -1509,6 +1502,17 @@ def _cb_role(pkey: str, role: str) -> None:
     ar_models.save_collections(collections)
 
 
+def _cb_paid_date(pkey: str) -> None:
+    """실제 통장 입금일 입력 → paid_at/collected_at 갱신 (배분 정산 시점의 기준)."""
+    d = st.session_state.get(f"pdate_{pkey}")
+    rec = collections.get(pkey) or ar_models.empty_record()
+    if ar_models.is_paid(rec) and d:
+        rec["paid_at"] = d.isoformat()
+        rec["collected_at"] = d.isoformat()
+        collections[pkey] = rec
+        ar_models.save_collections(collections)
+
+
 def _cb_payout(pkey: str, owner: str, step: str) -> None:
     val = bool(st.session_state.get(f"po_{pkey}_{owner}_{step}"))
     rec = collections.get(pkey) or ar_models.empty_record()
@@ -1631,6 +1635,17 @@ with tab_collect:
                         st.checkbox(role_labels[role], value=bool(s.get(role)),
                                     key=f"chk_{p.key}_{role}", disabled=not invoiced,
                                     on_change=_cb_role, args=(p.key, role))
+                with ctrl[4]:
+                    if ar_models.is_paid(s):
+                        _pd = ar_models.parse_iso(s.get("paid_at", "")) or today
+                        st.date_input("📅 실제 입금일", value=_pd, key=f"pdate_{p.key}",
+                                      on_change=_cb_paid_date, args=(p.key,),
+                                      format="YYYY-MM-DD",
+                                      help="통장에 실제 입금된 날짜. 이 날짜 분기의 다음 분기에 파트너 배분이 정산됩니다.")
+                    else:
+                        st.markdown(f"<div style='font-size:0.72rem;color:{C_LABEL};"
+                                    f"padding-top:6px;'>입금 완료 시<br>입금일 입력</div>",
+                                    unsafe_allow_html=True)
         if len(rows) > 60:
             st.caption("⚠️ 표시 한계 60건. 계약/단계 필터로 좁혀주세요.")
 
