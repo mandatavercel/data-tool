@@ -1,9 +1,10 @@
 # Streamlit 서버 설정 (로컬 + Cloud 공용)
 
 [server]
-# 대용량 POS 데이터 업로드 (5GB)
-maxUploadSize = 5120
-maxMessageSize = 5120
+# 대용량 데이터 업로드 — 50 GB 한도.
+# Cloud는 실제로 1~2GB 이상 업로드시 메모리/타임아웃 실패 가능 → 큰 파일은 로컬에서 "경로 입력" 모드 권장.
+maxUploadSize = 51200
+maxMessageSize = 51200
 headless = true
 enableXsrfProtection = true
 enableCORS = false
