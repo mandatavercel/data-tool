@@ -1,0 +1,23 @@
+# Streamlit 서버 설정 — KFnB 앱(kfnb_app/) 전용.
+# 런처가 `cd kfnb_app` 후 실행하므로 이 파일이 우선 적용된다(루트 설정 대신).
+
+[server]
+# 대용량 POS 데이터 업로드 (50GB) — 20GB+ 백테스트 파일 대응.
+# ※ 브라우저 업로드는 파일을 메모리에 적재하므로 초대용량(>10GB)은
+#    '서버 경로 (대용량 권장)' 입력 방식을 사용하는 것이 안정적이다.
+maxUploadSize = 51200
+maxMessageSize = 51200
+headless = true
+enableXsrfProtection = true
+enableCORS = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "dark"
+primaryColor = "#F59E0B"
+backgroundColor = "#0A0A0B"
+secondaryBackgroundColor = "#161618"
+textColor = "#F1F5F9"
+font = "sans serif"

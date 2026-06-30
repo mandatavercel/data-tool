@@ -69,6 +69,11 @@ def variant_to_en(variant_ko: str) -> tuple[str, bool]:
 # ──────────────────────────────────────────────────────────────────────────
 # 3) 브랜드 해석 — 마스터 우선, 없으면 로마자 폴백
 # ──────────────────────────────────────────────────────────────────────────
+# 집계성 브랜드 토큰 → 표준 영문 (로마자화 대신)
+BRAND_SPECIAL_EN = {"전체": "Total", "기타": "Etc", "기타브랜드": "Etc",
+                    "합계": "Total", "기타등": "Etc"}
+
+
 def resolve_brand(company_kr: str, brand_kr: str, company_slug: str = "") -> dict:
     """(회사,브랜드) → {brand_id, brand_en, aliases, curated}."""
     key = (str(company_kr), str(brand_kr))
@@ -76,6 +81,20 @@ def resolve_brand(company_kr: str, brand_kr: str, company_slug: str = "") -> dic
     if m:
         return {"brand_id": m["id"], "brand_en": m["en"],
                 "aliases": list(m["aliases"]) + [str(brand_kr)], "curated": True}
+    # 집계성 토큰(전체/기타 등) → Total/Etc (로마자화 안 함)
+    special = BRAND_SPECIAL_EN.get(str(brand_kr).strip())
+    if special:
+        slug = (company_slug or "UNKNOWN") + "_" + special.upper()
+        return {"brand_id": slug, "brand_en": special,
+                "aliases": [str(brand_kr)], "curated": True}
+    # 추천 시드(fnb_brand_candidates) — 로마자 대신 알려진 영문명 추정
+    seed_en = (config.BRAND_SEED_CO.get((str(company_kr), str(brand_kr)))
+               or config.BRAND_SEED_EN.get(str(brand_kr)))
+    if seed_en:
+        slug = (company_slug or "UNKNOWN") + "_" + re.sub(
+            r"[^A-Za-z0-9]+", "_", seed_en).upper().strip("_")
+        return {"brand_id": slug, "brand_en": seed_en,
+                "aliases": [str(brand_kr)], "curated": True}
     # 폴백: 로마자 + 회사 slug 기반 ID
     rom = romanize(brand_kr)
     slug = (company_slug or "UNKNOWN") + "_" + re.sub(r"[^A-Za-z0-9]+", "_",
@@ -206,7 +225,7 @@ def enrich_sku_master(sku_df: pd.DataFrame) -> pd.DataFrame:
 def build_company_master(sku_df: pd.DataFrame) -> pd.DataFrame:
     """sku_df 의 이미-매핑된 컬럼(map_companies/DART overlay 반영)으로 회사 마스터 구성."""
     keep = ["company_kr", "company_en_official", "krx_code", "bbg_ticker",
-            "bloomberg_code", "isin", "gics_sub_code", "gics_sub_name",
+            "bloomberg_code", "isin", "jurir_no", "gics_sub_code", "gics_sub_name",
             "gics_sector", "listed", "map_status"]
     keep = [c for c in keep if c in sku_df.columns]
     g = sku_df[keep].drop_duplicates("company_kr").copy()
@@ -218,7 +237,7 @@ def build_company_master(sku_df: pd.DataFrame) -> pd.DataFrame:
     g = g.rename(columns={"company_kr": "company_name_ko",
                           "company_en_official": "company_name_en"})
     cols = ["company_id", "company_name_ko", "company_name_en", "isin", "krx_code",
-            "bbg_ticker", "bloomberg_code", "gics_sub_code", "gics_sub_name",
+            "jurir_no", "bbg_ticker", "bloomberg_code", "gics_sub_code", "gics_sub_name",
             "gics_sector", "listed", "mapping_status"]
     for c in cols:
         if c not in g.columns:

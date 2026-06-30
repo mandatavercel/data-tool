@@ -62,9 +62,22 @@ echo ""
 echo "════════════════════════════════════════════════════════════════════"
 echo ""
 
+# ─── 포트 정리: 이전 인스턴스가 8508 을 점유 중이면 종료 ─────────────
+PORT=8508
+if lsof -ti tcp:$PORT >/dev/null 2>&1; then
+    echo "⚠️  포트 $PORT 를 이전 인스턴스가 사용 중 — 정리합니다…"
+    lsof -ti tcp:$PORT | xargs kill -9 2>/dev/null
+    sleep 1
+fi
+# 그래도 막혀 있으면 8509~8513 중 빈 포트로 자동 전환
+for p in $PORT 8509 8510 8511 8512 8513; do
+    if ! lsof -ti tcp:$p >/dev/null 2>&1; then PORT=$p; break; fi
+done
+echo "🚀 포트 $PORT 로 실행합니다 — http://localhost:$PORT"
+
 # kfnb_app/ 으로 이동해서 실행 (entry 안에서 sys.path를 루트로 잡아 kfnb_app.* 임포트 정상)
 cd kfnb_app
-python3 -m streamlit run app.py --server.headless false --server.port 8508 --server.maxUploadSize 5120
+python3 -m streamlit run app.py --server.headless false --server.port $PORT --server.maxUploadSize 51200
 
 # ─── 종료 후 창 유지 ───────────────────────────────────────────────
 echo ""

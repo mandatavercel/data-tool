@@ -29,16 +29,21 @@ def _norm(s: str) -> str:
         return re.sub(r"\s+", "", s).strip().lower()
 
 
-def resolve(names, api_key: str) -> tuple[dict, str]:
+def resolve(names, api_key: str, code_hints: dict | None = None) -> tuple[dict, str]:
     """회사 한글명 리스트 → {회사명: {corp_code, krx_code, company_en_official}}.
 
-    사내 `modules.mapping.dart_lookup` 재사용:
-      fetch_dart_corp_master(api_key)  → 전체 회사 마스터(ZIP, 캐시·재시도)
-      match_dart_companies(names, ...) → 동명 후보 보존·상장 우선 랭킹 매칭
+    ⭐ 정확도 핵심: code_hints({회사명: 종목코드})가 주어지면 **이름이 아니라 종목코드로
+    공시 법인을 앵커링**해 공식 영문명을 가져온다(동명 법인 오매칭 방지 — 동원→동원F&B,
+    CJ제일제당→CJ제일제당 정확). 코드 힌트 없는 회사만 이름매칭 폴백.
 
+    사내 `modules.mapping.dart_lookup` 재사용:
+      fetch_dart_corp_master(api_key)  → 전체 회사 마스터(corp_code·corp_name·
+                                         corp_name_eng·stock_code; ZIP·캐시·재시도)
     반환 (mapping, note). 키/네트워크/의존성 없으면 ({}, 사유).
     """
     names = [str(n) for n in dict.fromkeys(names) if str(n).strip()]
+    code_hints = {str(k): str(v).strip().zfill(6)
+                  for k, v in (code_hints or {}).items() if str(v).strip()}
     if not api_key:
         return {}, "DART_API_KEY 없음 — 종목코드/영문명 자동조회 생략"
     if not names:
@@ -52,38 +57,65 @@ def resolve(names, api_key: str) -> tuple[dict, str]:
     try:
         master = dart_lookup.fetch_dart_corp_master(api_key)
     except Exception as e:                         # noqa: BLE001
-        # dart_lookup 이 사람이 읽을 수 있는 메시지를 RuntimeError 로 던짐
         return {}, f"DART 마스터 조회 실패: {e}"
 
-    try:
-        match = dart_lookup.match_dart_companies(names, master)
-    except Exception as e:                         # noqa: BLE001
-        return {}, f"DART 매칭 실패: {type(e).__name__}"
-
     out: dict[str, dict] = {}
-    for _, row in match.iterrows():
-        if row.get("status") == "none":
-            continue
-        krx = (row.get("stock_code") or "").strip()
-        eng = (row.get("corp_name_eng") or "").strip()
-        # 종목코드도 영문명도 없으면 보강 가치 없음 → skip (정적 마스터 유지)
-        if not krx and not eng:
-            continue
-        out[str(row["input_name"])] = {
-            "corp_code": (row.get("corp_code") or "").strip(),
-            "krx_code": krx,
-            "company_en_official": eng,
-        }
+    by_code, by_name = 0, 0
+
+    # ── 1) 종목코드 앵커 (정확) ──
+    code_idx = {}
+    if code_hints:
+        m = master.copy()
+        m["stock_code"] = m["stock_code"].astype(str).str.strip().str.zfill(6)
+        for _, r in m[m["stock_code"] != "000000"].iterrows():
+            code_idx.setdefault(r["stock_code"], r)
+        for nm in names:
+            code = code_hints.get(nm)
+            if not code:
+                continue
+            row = code_idx.get(code)
+            if row is not None:
+                out[nm] = {"corp_code": str(row["corp_code"]).strip(),
+                           "krx_code": code,
+                           "company_en_official": str(row.get("corp_name_eng") or "").strip()}
+                by_code += 1
+
+    # ── 2) 코드 없는 회사만 이름매칭 폴백 ──
+    rest = [n for n in names if n not in out]
+    if rest:
+        try:
+            match = dart_lookup.match_dart_companies(rest, master)
+            for _, row in match.iterrows():
+                if row.get("status") == "none":
+                    continue
+                krx = (row.get("stock_code") or "").strip()
+                eng = (row.get("corp_name_eng") or "").strip()
+                if not krx and not eng:
+                    continue
+                out[str(row["input_name"])] = {
+                    "corp_code": (row.get("corp_code") or "").strip(),
+                    "krx_code": krx, "company_en_official": eng}
+                by_name += 1
+        except Exception:                          # noqa: BLE001
+            pass
 
     if not out:
-        return {}, "DART 매칭 결과 없음(회사명 불일치)"
+        return {}, "DART 매칭 결과 없음(회사명/코드 불일치)"
 
-    try:
-        summ = dart_lookup.dart_summary(match)
-        note = (f"DART 자동해석 {len(out)}/{len(names)}개 "
-                f"(정확 {summ['exact']} · 부분 {summ['partial']}"
-                + (f" · 동명후보 {summ['ambiguous']}곳" if summ.get("ambiguous") else "")
-                + ")")
-    except Exception:                              # noqa: BLE001
-        note = f"DART 자동해석 {len(out)}/{len(names)}개 회사"
+    # 법인등록번호(jurir_no) 공시 기준 보강 — corp_code 로 company.json 조회(캐시)
+    jn = 0
+    for nm, info in out.items():
+        cc = info.get("corp_code")
+        info["jurir_no"] = ""
+        if cc:
+            try:
+                ci = dart_lookup.fetch_company_info(api_key, cc)
+                info["jurir_no"] = str(ci.get("jurir_no", "") or "").strip()
+                if info["jurir_no"]:
+                    jn += 1
+            except Exception:                      # noqa: BLE001
+                pass
+
+    note = (f"DART 자동해석 {len(out)}/{len(names)}개 "
+            f"(코드앵커 {by_code} · 이름매칭 {by_name} · 법인등록번호 {jn})")
     return out, note

@@ -21,21 +21,28 @@ def detect_owner(columns: list[str]) -> str:
     return best
 
 
-def rename_map(columns: list[str], owner: str | None = None) -> dict[str, str]:
-    """원천 헤더 → canonical. owner 미지정 시 자동 감지."""
+def rename_map(columns: list[str], owner: str | None = None,
+               extra_rename: dict | None = None) -> dict[str, str]:
+    """원천 헤더 → canonical. owner 미지정 시 자동 감지. extra_rename(수동) 덮어씀."""
     owner = owner or detect_owner(columns)
-    return config.rename_map(columns, owner)
+    out = dict(config.rename_map(columns, owner))
+    for raw, canon in (extra_rename or {}).items():
+        if raw in columns and canon:
+            out[raw] = canon
+    return out
 
 
-def missing_required(columns: list[str], owner: str | None = None) -> list[str]:
+def missing_required(columns: list[str], owner: str | None = None,
+                     extra_rename: dict | None = None) -> list[str]:
     """매핑 후에도 빠진 필수 canonical 컬럼."""
-    present = set(rename_map(columns, owner).values())
+    present = set(rename_map(columns, owner, extra_rename).values())
     return [c for c in config.REQUIRED_CANON if c not in present]
 
 
-def capabilities(columns: list[str], owner: str | None = None) -> dict:
+def capabilities(columns: list[str], owner: str | None = None,
+                 extra_rename: dict | None = None) -> dict:
     """가용 표준 컬럼으로 분석 입자도/기능 판정."""
-    p = set(rename_map(columns, owner).values())
+    p = set(rename_map(columns, owner, extra_rename).values())
     has_sku = "barcode" in p or "sku_name_kr" in p
     has_brand = "brand_kr" in p
     grain = "sku" if has_sku else ("brand" if has_brand else "company")

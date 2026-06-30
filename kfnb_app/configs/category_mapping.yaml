@@ -1,13 +1,39 @@
 # 카테고리 한글 → 영문 표준 + 투자 테마 태그
 category_en:
+  # 대분류(LRCL)
   가공식사제품: Processed Meal Products
-  면류: Noodles
-  봉지면: Bagged Noodles
-  용기면: Cup/Bowl Noodles
+  과자류: Confectionery
+  빵/떡/디저트: Bread/Rice Cake/Dessert
+  식재료: Food Ingredients
+  음료: Beverages
   주류: Alcoholic Beverages
+  # 중분류(MDCL)
+  면류: Noodles
+  스낵류: Snacks
+  비스켓/쿠키: Biscuits/Cookies
+  디저트: Desserts
+  냉동즉석식: Frozen Ready Meals
+  상온즉석식: Ambient Ready Meals
+  우유: Milk
+  조미료류: Seasonings
+  탄산음료: Carbonated Drinks
   맥주: Beer
   소주: Soju
+  기타주류: Other Alcohol
   온라인주류: Online Alcohol
+  # 소분류(SMCL)
+  봉지면: Bagged Noodles
+  용기면: Cup/Bowl Noodles
+  기타면류: Other Noodles
+  일반스낵: Standard Snacks
+  파이: Pie
+  냉장디저트: Chilled Dessert
+  냉동밥: Frozen Rice
+  즉석요리류: Ready-to-cook Meals
+  가공유: Processed Milk
+  양념류: Sauces & Seasonings
+  일반탄산음료: Standard Carbonated Drinks
+  하이볼: Highball
   국산맥주: Domestic Beer
   수입맥주: Imported Beer
   일반소주: Standard Soju
@@ -19,8 +45,27 @@ investment_theme_tag:
   봉지면: K-Ramen
   용기면: K-Ramen
   면류: K-Ramen
+  스낵류: K-Snack
+  일반스낵: K-Snack
+  비스켓/쿠키: K-Snack
+  파이: K-Snack
+  과자류: K-Snack
+  탄산음료: K-Beverage
+  일반탄산음료: K-Beverage
+  우유: K-Dairy
+  가공유: K-Dairy
+  디저트: K-Dessert
+  냉장디저트: K-Dessert
+  냉동즉석식: K-HMR
+  상온즉석식: K-HMR
+  냉동밥: K-HMR
+  즉석요리류: K-HMR
+  조미료류: K-Condiment
+  양념류: K-Condiment
   맥주: K-Beer
   소주: K-Soju
+  하이볼: K-Highball
+  기타주류: K-Alcohol
   온라인주류: K-Beverage
 
 # 시도(SIDO_NM) 한글 → 영문 (지역 영문화)

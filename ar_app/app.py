@@ -389,6 +389,11 @@ def payment_due_date(p) -> "date | None":
     return inv_at + timedelta(days=_terms(ct, "payment_terms_days"))
 
 
+def dep_date(p):
+    """배분 귀속용 '실제 입금일'. 입금일이 없으면 수금 예정일(due)로 폴백."""
+    return paid_date(p) or _due(p)
+
+
 def payout_due_date(p) -> "date | None":
     """배분 정산 기한 = 수금 완료 분기의 '다음 분기 첫 달' 말일.
     (예: 1~3월 수금 → 4월 한 달 → 4/30). 미입금이면 None."""
@@ -947,18 +952,18 @@ with tab_dash:
         q_billed_usd, q_billed_krw = _sum_usd(q_periods), _sum_krw(q_periods)
         collect_usd, collect_krw = _sum_usd(coll_q), _sum_krw(coll_q)
 
-        # 직전 분기 '실제 입금분' = 통장 입금일(paid_date)이 직전 분기인 수금
-        #  → 배분은 실제 입금일 분기의 '다음 분기'에 정산되므로, 이번 분기 배분의 기준이 됨
-        coll_prev = [p for p in periods_all
-                     if period_paid(p) and paid_date(p) and pstart <= paid_date(p) <= pend]
-        prev_collect_usd, prev_collect_krw = _sum_usd(coll_prev), _sum_krw(coll_prev)
+        # 이번 분기 '실제 입금분' = 통장 입금일(dep_date)이 이 분기인 수금
+        #  → 이 입금으로 발생하는 파트너 배분 (실제 정산 실행은 다음 분기)
+        coll_dep = [p for p in periods_all
+                    if period_paid(p) and qstart <= dep_date(p) <= qend]
+        prev_collect_usd, prev_collect_krw = _sum_usd(coll_dep), _sum_krw(coll_dep)
 
-        # 이번 분기 파트너 배분 = 직전 분기 입금분 × 배분율
-        #  · payout_*      = 이번 분기 '해야 할' 배분 총액
-        #  · payout_done_* = 그 중 '실제 배분 완료'된 금액
+        # 이번 분기 입금분 × 배분율 = 이번 분기 발생 배분 (다음 분기 정산)
+        #  · payout_*      = 발생한 배분 총액
+        #  · payout_done_* = 그 중 '실제 배분 완료(정산)'된 금액
         pq_amt = []  # (native_amount, currency)
         payout_done_usd = payout_done_krw = 0.0
-        for p in coll_prev:
+        for p in coll_dep:
             ct = contract_by_id.get(p.contract_id)
             if not ct:
                 continue
@@ -994,14 +999,11 @@ with tab_dash:
                      + (f" · 연체 이월 {len(q_carry)}건 포함" if q_carry else ""))),
                 unsafe_allow_html=True)
         with m[2]:
-            _pdone_cnt = sum(1 for p in coll_prev for rs in (contract_by_id.get(p.contract_id).revenue_shares
-                              if contract_by_id.get(p.contract_id) else [])
-                             if rs.is_active() and ar_models.is_owner_paid_out(collections.get(p.key), rs.owner))
             st.markdown(kpi_card2(
                 f"💸 {qlabel} 파트너 배분", payout_done_usd, payout_done_krw, payout_usd, payout_krw,
-                done_lbl="배분 완료", todo_lbl="해야 할 배분",
-                accent=C_BLUE if payout_done_usd else C_TEXT,
-                sub=f"직전분기({plabel}) 실제 입금분 기준"), unsafe_allow_html=True)
+                done_lbl="정산 완료", todo_lbl="배분 발생",
+                accent=C_BLUE if payout_usd else C_TEXT,
+                sub=f"이번 분기 입금분 × 배분율 · 정산 실행은 다음 분기"), unsafe_allow_html=True)
         with m[3]:
             st.markdown(kpi_card2(
                 f"✅ {qlabel} 순수익", net_done_usd, net_done_krw, net_todo_usd, net_todo_krw,
@@ -1039,11 +1041,11 @@ with tab_dash:
             st.caption(f"{qlabel}에 청구 예정인 수금이 없습니다.")
 
         st.markdown("")
-        # 5-2) 고객사별 '직전 분기 실제 입금분' = 이번 분기 배분의 기준
-        st.markdown(f"##### 🏢 고객사별 입금분 · 직전 분기 {plabel} (배분 기준)")
-        st.caption(f"통장 **실제 입금일**이 {plabel}인 수금 → 이번 분기({qlabel}) 파트너 배분의 기준")
+        # 5-2) 고객사별 '이번 분기 실제 입금분' = 이번 분기 발생 배분의 기준
+        st.markdown(f"##### 🏢 고객사별 입금분 · 이번 분기 {qlabel} (배분 기준)")
+        st.caption(f"통장 **실제 입금일**이 {qlabel}인 수금 → 이 입금으로 발생하는 파트너 배분 (정산은 다음 분기)")
         pagg: dict[str, float] = {}  # cid -> deposited
-        for p in coll_prev:
+        for p in coll_dep:
             pagg[p.customer_id] = pagg.get(p.customer_id, 0.0) + to_usd(p.amount, p.currency)
         if pagg:
             prows = []
@@ -1051,19 +1053,19 @@ with tab_dash:
                 cust = customer_by_id.get(cid)
                 prows.append({
                     "고객사": cust.name if cust else "?",
-                    "직전분기 입금액": fmt_usd(amt),
+                    "이번분기 입금액": fmt_usd(amt),
                 })
             st.dataframe(pd.DataFrame(prows), hide_index=True, use_container_width=True)
         else:
-            st.caption(f"{plabel}에 실제 입금된 수금이 없습니다.")
+            st.caption(f"{qlabel}에 실제 입금된 수금이 없습니다.")
 
         st.markdown("")
         # 6) 파트너사별 배분 — 파트너별 요약(총 배분 중 완료) + 자세히 보기(계약별 상세)
         st.markdown(f"##### 💸 파트너사별 배분 · 이번 분기 {qlabel}")
-        st.caption(f"직전분기({plabel}) **실제 입금분** 기준 · 파트너별 총 배분 중 완료 / 펼치면 고객사·계약별 상세")
+        st.caption(f"이번 분기({qlabel}) **실제 입금분** 기준 · 파트너별 배분 발생액 / 펼치면 고객사·계약별 상세")
         # owner -> {"total","done","items": {(cust,ct): [payout, done]}}
         owner_agg: dict[str, dict] = {}
-        for p in coll_prev:
+        for p in coll_dep:
             ct = contract_by_id.get(p.contract_id)
             cust = customer_by_id.get(p.customer_id)
             if not ct:
@@ -1554,8 +1556,9 @@ with tab_collect:
             )
         with top[1]:
             st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-            include_future = st.toggle("🔜 미도래(예정) 포함", value=False, key="coll_future",
-                                       help="끄면 수금일이 도래한 항목만, 켜면 미래 예정분까지 표시합니다.")
+            include_future = st.toggle("🔜 미도래(예정) 포함", value=True, key="coll_future",
+                                       help="켜면 아직 도래하지 않은 미래 예정 수금까지 함께 표시합니다 (기본 ON). "
+                                            "끄면 수금일이 도래한 항목만.")
         with top[2]:
             sort_sel = st.segmented_control(
                 "정렬", ["예정일 빠른순", "예정일 늦은순"],
@@ -1574,7 +1577,7 @@ with tab_collect:
             cs = collect_stage(p)
             if cs in counts:
                 counts[cs] += 1
-        default_stages = [s for s in stage_opts if s not in ("입금완료", "예정") and counts[s] > 0]
+        default_stages = [s for s in stage_opts if s != "입금완료" and counts[s] > 0]
         stage_sel = st.segmented_control(
             "단계 필터  ·  버튼으로 켜고 끄기 (여러 개)",
             stage_opts, selection_mode="multi",

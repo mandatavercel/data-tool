@@ -1,0 +1,68 @@
+# 글로벌 전달용 데이터 레이아웃 — 컬럼 순서/이름을 여기서 제어한다.
+# 각 파일: source(내부 프레임) + columns[{name: 출력컬럼명, from: 내부필드}].
+# 영문 전용. 내부필드는 export/delivery.py 가 생성한다.
+# ⚠️ 실제 전달 템플릿(샘플)에 맞추려면 name 값을 그대로 바꾸면 된다(순서도 정렬됨).
+
+files:
+  company_sales_monthly:
+    source: company
+    columns:
+      - {name: date,            from: date}            # 월말일 YYYY-MM-DD
+      - {name: available_date,  from: available_date}  # PIT 입수가능일
+      - {name: company_id,      from: company_id}      # ISIN(없으면 slug)
+      - {name: isin,            from: isin}
+      - {name: ticker,          from: ticker}          # 블룸버그 'NNNNNN KS'
+      - {name: company_name_en, from: company_name_en}
+      - {name: gics_sub_industry, from: gics_sub_name}
+      - {name: sales,           from: sales}
+      - {name: quantity,        from: quantity}
+      - {name: sales_yoy,       from: sales_yoy}
+      - {name: sales_mom,       from: sales_mom}
+
+  brand_sales_monthly:
+    source: brand
+    columns:
+      - {name: date,            from: date}
+      - {name: available_date,  from: available_date}
+      - {name: company_id,      from: company_id}
+      - {name: isin,            from: isin}
+      - {name: ticker,          from: ticker}
+      - {name: company_name_en, from: company_name_en}
+      - {name: brand_id,        from: brand_id}
+      - {name: brand_name_en,   from: brand_name_en}
+      - {name: sales,           from: sales}
+      - {name: quantity,        from: quantity}
+      - {name: sales_yoy,       from: sales_yoy}
+      - {name: sales_mom,       from: sales_mom}
+
+  sku_sales_monthly:
+    source: sku
+    columns:
+      - {name: date,            from: date}
+      - {name: available_date,  from: available_date}
+      - {name: company_id,      from: company_id}
+      - {name: isin,            from: isin}
+      - {name: ticker,          from: ticker}
+      - {name: company_name_en, from: company_name_en}
+      - {name: brand_id,        from: brand_id}
+      - {name: brand_name_en,   from: brand_name_en}
+      - {name: sku_id,          from: sku_id}          # 바코드(안정 키)
+      - {name: sku_name_en,     from: sku_name_en}
+      - {name: category,        from: cat_l2_en}
+      - {name: sales,           from: sales}
+      - {name: quantity,        from: quantity}
+      - {name: asp,             from: asp}
+      - {name: sales_yoy,       from: sales_yoy}
+      - {name: sales_mom,       from: sales_mom}
+
+  company_master:
+    source: company_master
+    columns: []        # 빈 리스트 = 마스터 빌더 기본 컬럼 그대로
+
+  brand_master:
+    source: brand_master
+    columns: []
+
+  sku_master:
+    source: sku_master
+    columns: []

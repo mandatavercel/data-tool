@@ -141,6 +141,26 @@ for r in _load_csv(MASTER_DIR / "brand_master.csv"):
     BRAND_MASTER[(r["company_kr"], r["brand_kr"])] = {
         "id": r["brand_id"], "en": r["brand_en"], "aliases": aliases}
 
+# 추천 브랜드 영문 시드 (fnb_brand_candidates.csv) — 마스터링이 로마자 대신 추정.
+# BRAND_SEED_EN: brand_kr → en (회사 무관 폴백), BRAND_SEED_CO: (company,brand) → en
+BRAND_SEED_EN: dict[str, str] = {}
+BRAND_SEED_CO: dict[tuple, str] = {}
+for r in _load_csv(MASTER_DIR / "fnb_brand_candidates.csv"):
+    co = str(r.get("company_kr", "")).strip()
+    br = str(r.get("brand_kr", "")).strip()
+    en = str(r.get("brand_en", "")).strip()
+    if br and en:
+        BRAND_SEED_EN.setdefault(br, en)
+        if co:
+            BRAND_SEED_CO[(co, br)] = en
+
+
+def brand_known(company_kr: str, brand_kr: str) -> bool:
+    """큐레이션 또는 시드에 영문명이 있는 브랜드인가(검증 간주)."""
+    return ((str(company_kr), str(brand_kr)) in BRAND_MASTER
+            or (str(company_kr), str(brand_kr)) in BRAND_SEED_CO
+            or str(brand_kr) in BRAND_SEED_EN)
+
 # ──────────────────────────────────────────────────────────────────────────
 # 4) 태깅 / SKU 토큰 / 포장 / 카테고리
 # ──────────────────────────────────────────────────────────────────────────

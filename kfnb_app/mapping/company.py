@@ -14,13 +14,20 @@ from kfnb_app import config
 
 
 def dart_overlay(resolved: dict) -> dict:
-    """DART resolve() 결과 → {회사명: CompanyRef}. 기존 마스터를 시드로 종목코드·
-    공식영문명을 공시 기준으로 덮어씀(나머지(GICS/slug)는 마스터 유지)."""
+    """DART resolve() 결과 → {회사명: CompanyRef}.
+
+    ⚠️ 큐레이션 마스터(company_master.csv)가 **우선**한다. DART 이름매칭은 동명
+    회사(예: 동원→동원시스템즈, CJ제일제당→CJ지주)를 잘못 잡을 수 있으므로,
+    마스터에 종목코드/영문명이 있으면 그것을 신뢰하고 DART 는 *빈 칸만* 채운다.
+    마스터에 없는 회사만 DART 결과로 신규 매핑한다(사용자가 ④단계에서 검수/수정)."""
     overlay = {}
     for name, r in (resolved or {}).items():
         base = config.COMPANY_MAP.get(str(name))
-        krx = r.get("krx_code", "") or (base.krx_code if base else "")
-        eng = r.get("company_en_official", "") or (base.company_en_official if base else "")
+        # 큐레이션 우선 — 있으면 마스터 값, 없으면 DART 값
+        krx = (base.krx_code if (base and base.krx_code) else r.get("krx_code", ""))
+        eng = (base.company_en_official if (base and base.company_en_official)
+               else r.get("company_en_official", ""))
+        note = "큐레이션 마스터(DART 확인)" if base else "DART 자동해석(검수 필요)"
         overlay[str(name)] = config.CompanyRef(
             company_en=(base.company_en if base else (eng or str(name))),
             krx_code=krx, listed=bool(krx),
@@ -29,7 +36,7 @@ def dart_overlay(resolved: dict) -> dict:
             gics_sub_code=(base.gics_sub_code if base else ""),
             gics_sub_name=(base.gics_sub_name if base else ""),
             gics_sector=(base.gics_sector if base else ""),
-            note="DART 자동해석")
+            note=note)
     return overlay
 
 

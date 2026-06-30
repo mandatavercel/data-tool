@@ -657,18 +657,19 @@ class TestDartCompany:
         assert ref.listed is True
         assert ref.isin.startswith("KR")          # krx_code → ISIN 자동계산
         assert ref.bbg_ticker == "004370 KS"
-        assert ref.note == "DART 자동해석"
+        assert "DART" in ref.note          # 미매핑 회사 → DART 자동해석(검수 필요)
 
-    def test_dart_overlay_keeps_master_gics(self):
-        # 기존 마스터에 있는 회사면 GICS/slug 유지, 종목코드·영문명만 갱신
-        co = next(iter(config.COMPANY_MAP))
+    def test_dart_overlay_curated_wins_over_dart(self):
+        # 큐레이션 마스터 우선 — DART 가 동명 회사를 잘못 잡아도 마스터 코드/영문명 유지.
+        co = "농심"
         base = config.COMPANY_MAP[co]
         resolved = {co: {"corp_code": "0", "krx_code": "999999",
-                         "company_en_official": "Override EN"}}
+                         "company_en_official": "Wrong Entity Inc."}}
         ov = mapping.dart_overlay(resolved)
+        assert ov[co].krx_code == base.krx_code            # 마스터 코드 유지(덮어쓰기 X)
+        assert ov[co].company_en_official == base.company_en_official
         assert ov[co].gics_sub_code == base.gics_sub_code
-        assert ov[co].krx_code == "999999"
-        assert ov[co].company_en_official == "Override EN"
+        assert "큐레이션" in ov[co].note
 
     def test_map_companies_extra_map_applies(self):
         df = pd.DataFrame({"company_kr": ["테스트회사", "테스트회사"],
@@ -1009,3 +1010,348 @@ class TestBrandAutoRecommend:
         br = U.candidate_brands(["농심"])
         reasons = set(br["selection_reason"])
         assert {"브랜드 마스터 등록", "자동 추천 대표 브랜드"} & reasons
+
+
+# ── 글로벌 전달 레이아웃 (delivery) ───────────────────────────────────────────
+class TestDelivery:
+    def _src_sku(self):
+        from kfnb_app.standardization import normalize, tagging
+        rows = []
+        for i, (y, m) in enumerate([(yy, mm) for yy in (2023, 2024)
+                                    for mm in range(1, 13)]):
+            d = int(f"{y}{m:02d}01")
+            rows.append({"YMD_CD": d, "GRP_ACNT_NM": "농심", "GRP_ITEM_NM": "신라면",
+                         "MDCL_NM": "면류", "SMCL_NM": "봉지면", "LRCL_NM": "가공식사제품",
+                         "ITEM_CD": "8801043014809", "ITEM_NM": "농심)신라면",
+                         "SALE_AMT": 100 + i, "SALE_QTY": 10, "SALE_CNT": 8,
+                         "SIDO_NM": "서울"})
+        df = pd.DataFrame(rows * 3)
+        src = dataio.open_source(df, prefer_duckdb=False)
+        sku = mastering.enrich_sku_master(mapping.map_companies(
+            tagging.tag_skus(normalize.normalize_skus(src.distinct_skus()))))
+        return src, sku
+
+    def test_build_facts_layers(self):
+        from kfnb_app.export import delivery
+        src, sku = self._src_sku()
+        f = delivery.build_facts(src, sku, lag_days=15)
+        for k in ("company", "brand", "sku", "company_master",
+                  "brand_master", "sku_master"):
+            assert k in f
+        # available_date = 월말 + 15일
+        com = f["company"].sort_values("ym")
+        assert com.iloc[0]["available_date"] >= com.iloc[0]["date"]
+        assert "asp" in f["sku"].columns
+
+    def test_yoy_computed(self):
+        from kfnb_app.export import delivery
+        src, sku = self._src_sku()
+        f = delivery.build_facts(src, sku, lag_days=15)
+        com = f["company"]
+        # 2024 월은 전년동월(2023) 대비 YoY 존재
+        y24 = com[com["ym"] // 100 == 2024]
+        assert y24["sales_yoy"].notna().any()
+        y23_first = com[com["ym"] == 202301].iloc[0]
+        assert pd.isna(y23_first["sales_yoy"])      # 첫 해는 전년 없음
+
+    def test_render_english_only_and_ids(self):
+        import re
+        from kfnb_app.export import delivery
+        src, sku = self._src_sku()
+        rn = delivery.render_layout(delivery.build_facts(src, sku, lag_days=15))
+        c = rn["company_sales_monthly"]
+        assert list(c.columns)[:5] == ["date", "available_date", "company_id",
+                                       "isin", "ticker"]
+        # 헤더·식별자 영문 전용(한글 없음)
+        assert not any(re.search("[가-힣]", str(x)) for x in c.columns)
+        assert (c["isin"].str.startswith("KR").all())
+        assert (c["ticker"].str.contains("KS").all())
+
+    def test_write_delivery_zip(self, tmp_path):
+        from kfnb_app.export import delivery
+        src, sku = self._src_sku()
+        info = delivery.build_and_write(tmp_path, src, sku, lag_days=15, label="T")
+        assert Path(info["zip"]).exists()
+        assert "company_sales_monthly" in info["tables"]
+        # zip 안에 3-티어 + 마스터 CSV 존재
+        import zipfile
+        with zipfile.ZipFile(info["zip"]) as z:
+            names = z.namelist()
+        assert any("sku_sales_monthly.csv" in n for n in names)
+        assert any("company_master.csv" in n for n in names)
+
+    def test_layout_fallback_valid(self):
+        from kfnb_app.export import delivery
+        lay = delivery.load_layout()
+        assert delivery._valid_layout(lay)
+        assert "company_sales_monthly" in lay["files"]
+
+
+# ── 알파 시그널 엔진 (signal_engine) ──────────────────────────────────────────
+class TestSignalEngine:
+    def _src_sku(self):
+        rows = []
+        # 2개 종목(농심·삼양식품) × 24개월, 신제품 1개 중도 등장
+        for i, (y, m) in enumerate([(yy, mm) for yy in (2023, 2024)
+                                    for mm in range(1, 13)]):
+            d = int(f"{y}{m:02d}01")
+            rows.append({"YMD_CD": d, "GRP_ACNT_NM": "농심", "GRP_ITEM_NM": "신라면",
+                         "MDCL_NM": "면류", "SMCL_NM": "봉지면", "LRCL_NM": "가공식사제품",
+                         "ITEM_CD": "8801043014809", "ITEM_NM": "농심)신라면",
+                         "SALE_AMT": 1000 + i * 10, "SALE_QTY": 100, "SALE_CNT": 80,
+                         "SIDO_NM": "서울"})
+            rows.append({"YMD_CD": d, "GRP_ACNT_NM": "삼양식품",
+                         "GRP_ITEM_NM": "불닭볶음면", "MDCL_NM": "면류", "SMCL_NM": "용기면",
+                         "LRCL_NM": "가공식사제품", "ITEM_CD": "8801073210",
+                         "ITEM_NM": "삼양)불닭볶음면컵", "SALE_AMT": 500 + i * 30,
+                         "SALE_QTY": 50, "SALE_CNT": 40, "SIDO_NM": "서울"})
+        df = pd.DataFrame(rows)
+        src = dataio.open_source(df, prefer_duckdb=False)
+        sku = mastering.enrich_sku_master(mapping.map_companies(
+            tagging.tag_skus(normalize.normalize_skus(src.distinct_skus()))))
+        return src, sku
+
+    def test_alpha_panel_signals_and_pit(self):
+        from kfnb_app.insight import signal_engine as eng
+        src, sku = self._src_sku()
+        ap = eng.build_alpha_panel(src, sku, lag_days=15)
+        for c in ("available_date", "ticker", "isin", "sales_yoy", "sales_mom",
+                  "sales_3m", "share", "share_yoy", "asp_yoy", "newproduct_share",
+                  "trend_share"):
+            assert c in ap.columns
+        # PIT: available_date = 월말 + 15일
+        r = ap.sort_values("ym").iloc[0]
+        assert r["available_date"] >= r["date"]
+        # 2024 는 전년동월 대비 YoY 존재
+        assert ap[ap["ym"] // 100 == 2024]["sales_yoy"].notna().any()
+        # 종목 식별자 영문/ISIN
+        assert ap["isin"].str.startswith("KR").all()
+
+    def test_trend_share_detects_spicy(self):
+        from kfnb_app.insight import signal_engine as eng
+        src, sku = self._src_sku()
+        ap = eng.build_alpha_panel(src, sku, lag_days=15)
+        sam = ap[ap["ticker"].str.startswith("003230")]   # 삼양(불닭=spicy)
+        assert (sam["trend_share"] > 0).any()             # 트렌드 기여 잡힘
+
+    def test_category_and_brand_analytics(self):
+        from kfnb_app.insight import signal_engine as eng
+        src, sku = self._src_sku()
+        cat = eng.build_category_analytics(src, sku)
+        assert {"category", "ym", "sales", "hhi", "top_company"}.issubset(cat.columns)
+        br = eng.build_brand_analytics(src, sku)
+        assert {"company_id", "brand_id", "brand_share_in_company"}.issubset(br.columns)
+
+    def test_run_engine_keys(self):
+        from kfnb_app.insight import signal_engine as eng
+        src, sku = self._src_sku()
+        out = eng.run_engine(src, sku, lag_days=15)
+        assert set(out) == {"alpha_panel", "category_analytics", "brand_analytics"}
+
+    def test_delivery_bundles_signals(self, tmp_path):
+        from kfnb_app.export import delivery
+        src, sku = self._src_sku()
+        info = delivery.build_and_write(tmp_path, src, sku, lag_days=15, label="T",
+                                        include_signals=True)
+        import zipfile
+        with zipfile.ZipFile(info["zip"]) as z:
+            names = z.namelist()
+        assert any("insight/alpha_panel.csv" in n for n in names)
+
+
+# ── 코드앵커 DART + 매출가중 검수 큐 ──────────────────────────────────────────
+class TestCodeAnchorAndReview:
+    def test_resolve_code_anchor_beats_name(self, monkeypatch):
+        from kfnb_app.ingest import dart_company
+        from modules.mapping import dart_lookup
+        master = pd.DataFrame([
+            {"corp_code": "00111", "corp_name": "동원시스템즈",
+             "corp_name_eng": "Dongwon Systems Corporation", "stock_code": "014820",
+             "modify_date": "20240101"},
+            {"corp_code": "00222", "corp_name": "동원에프앤비",
+             "corp_name_eng": "Dongwon F&B Co., Ltd.", "stock_code": "049770",
+             "modify_date": "20240101"}])
+        monkeypatch.setattr(dart_lookup, "fetch_dart_corp_master", lambda k: master)
+        out, note = dart_company.resolve(["동원"], "K", code_hints={"동원": "049770"})
+        assert out["동원"]["krx_code"] == "049770"
+        assert out["동원"]["company_en_official"] == "Dongwon F&B Co., Ltd."
+        assert "코드앵커 1" in note
+
+    def _sku(self):
+        src = dataio.open_source(_raw(), prefer_duckdb=False)
+        return mastering.enrich_sku_master(mapping.map_companies(
+            tagging.tag_skus(normalize.normalize_skus(src.distinct_skus()))))
+
+    def test_brand_review_queue_sorted_uncurated(self):
+        from kfnb_app.mapping import review
+        q = review.brand_review_queue(self._sku())
+        # 미큐레이션(듣보잡식품/미지브랜드) 포함, 큐레이션(농심/신라면) 제외
+        assert "미지브랜드" in set(q["brand_kr"])
+        assert "신라면" not in set(q["brand_kr"])
+        if len(q) > 1:                              # 매출 내림차순
+            assert (q["sales"].values[:-1] >= q["sales"].values[1:]).all()
+        assert q["cum_pct"].is_monotonic_increasing
+
+    def test_apply_brand_overrides(self):
+        from kfnb_app.mapping import review
+        sku = self._sku()
+        out = review.apply_brand_overrides(sku, {("듣보잡식품", "미지브랜드"): "Mystery"})
+        row = out[out["brand_kr"] == "미지브랜드"].iloc[0]
+        assert row["brand_name_en"] == "Mystery"
+        csv = review.overrides_to_master_csv(out, {("듣보잡식품", "미지브랜드"): "Mystery"})
+        assert list(csv.columns) == ["company_kr", "brand_kr", "brand_id",
+                                     "brand_en", "aliases"]
+
+    def test_coverage_summary(self):
+        from kfnb_app.mapping import review
+        cov = review.coverage_summary(self._sku())
+        assert 0 <= cov["brand_verified_pct"] <= 100
+        assert 0 <= cov["sku_verified_pct"] <= 100
+
+
+# ── 마스터 입출력 (큐레이션 누적: 다운로드→업로드 자동 적용) ──────────────────
+class TestMasterIO:
+    def _sku(self):
+        src = dataio.open_source(_raw(), prefer_duckdb=False)
+        return mastering.enrich_sku_master(mapping.map_companies(
+            tagging.tag_skus(normalize.normalize_skus(src.distinct_skus()))))
+
+    def test_bundle_roundtrip_and_apply(self, tmp_path):
+        from kfnb_app.mapping import master_io
+        sku = self._sku()
+        bundle = master_io.build_bundle(sku)
+        assert {"company_master", "brand_master", "category_master",
+                "sku_master"} <= set(bundle)
+        z = tmp_path / "m.zip"
+        master_io.write_zip(z, bundle)
+        loaded = master_io.load_zip(z)
+        ov = master_io.to_overrides(loaded)
+        assert ov["company"] and ov["brand"]
+        # 업로드 override 적용 — 회사 영문/브랜드 영문 반영
+        ov["brand"][("듣보잡식품", "미지브랜드")] = "Mystery Brand"
+        ov["company"]["농심"] = {"krx": "004370", "en": "NONGSHIM (master)"}
+        out = master_io.apply_overrides(self._sku(), ov)
+        assert out[out["brand_kr"] == "미지브랜드"]["brand_name_en"].iloc[0] == "Mystery Brand"
+        assert out[out["company_kr"] == "농심"]["company_en_official"].iloc[0] == "NONGSHIM (master)"
+
+    def test_company_overlay_wins(self):
+        from kfnb_app.mapping import master_io
+        ov = {"company": {"없는회사": {"krx": "111111", "en": "New Co"}}}
+        overlay = master_io.company_overlay(ov)
+        ref = overlay["없는회사"]
+        assert ref.krx_code == "111111" and ref.company_en_official == "New Co"
+        assert ref.isin.startswith("KR")
+
+    def test_load_bad_zip_graceful(self):
+        from kfnb_app.mapping import master_io
+        assert master_io.load_zip(b"not a zip") == {}
+
+
+# ── 고객 전달 템플릿(.xlsx) 채우기 ────────────────────────────────────────────
+class TestTemplateXlsx:
+    def _sku_src(self):
+        src = dataio.open_source(_raw(), prefer_duckdb=False)
+        sku = mastering.enrich_sku_master(mapping.map_companies(
+            tagging.tag_skus(normalize.normalize_skus(src.distinct_skus()))))
+        sku["jurir_no"] = ""
+        return sku, src
+
+    def test_basic_info_has_total_row(self):
+        from kfnb_app.export import template_xlsx as T
+        sku, _ = self._sku_src()
+        bi = T.build_basic_info(sku)
+        assert list(bi.columns) == ["공시명", "브랜드명", "법인등록번호"]
+        assert (bi["브랜드명"].str.endswith("_전체")).any()      # 회사_전체 집계행
+        assert (bi["브랜드명"] == "농심_신라면").any()
+
+    def test_basic_sales_layout(self):
+        from kfnb_app.export import template_xlsx as T
+        sku, src = self._sku_src()
+        bs = T.build_basic_sales(src, sku, channel="CU 편의점")
+        assert list(bs.columns) == ["거래일", "회사명", "브랜드명", "채널",
+                                    "거래금액", "거래수량", "거래건수", "거래자수"]
+        assert (bs["채널"] == "CU 편의점").all()
+        assert (bs["브랜드명"].str.contains("_")).all()
+
+    def test_daily_panel_source(self):
+        sku, src = self._sku_src()
+        dp = src.daily_panel()
+        assert {"date", "company_kr", "brand_kr", "sales_amt"}.issubset(dp.columns)
+
+
+# ── 단일 엑셀 산출물 (탭별 레이아웃) ──────────────────────────────────────────
+class TestDeliverableWorkbook:
+    def _sku_src(self):
+        src = dataio.open_source(_raw(), prefer_duckdb=False)
+        sku = mastering.enrich_sku_master(mapping.map_companies(
+            tagging.tag_skus(normalize.normalize_skus(src.distinct_skus()))))
+        sku["jurir_no"] = ""
+        return sku, src
+
+    def test_tabs_order_and_fill(self):
+        from kfnb_app.export import deliverable as DV
+        import openpyxl, io
+        sku, src = self._sku_src()
+        meta = DV.default_meta({"summary": {"period": "x", "companies": 3}}, {}, None, "T")
+        xb, rep = DV.build_deliverable(src, sku, meta=meta, channel="CU", english=True)
+        wb = openpyxl.load_workbook(io.BytesIO(xb), read_only=True)
+        assert wb.sheetnames == DV.SHEET_ORDER     # 순서 보존
+        assert "rows" in rep["TR_BASIC"]
+        assert "헤더만" in rep["DEMOGRAPHIC"]
+
+    def test_list_english(self):
+        from kfnb_app.export import deliverable as DV
+        sku, _ = self._sku_src()
+        lst = DV.build_list(sku, english=True)
+        assert {"disclosure_name", "brand_label", "company_name_en",
+                "jurir_no"}.issubset(lst.columns)
+        # 농심 영문 라벨
+        assert lst["disclosure_name"].str.contains("NONGSHIM").any()
+
+    def test_placeholder_headers(self):
+        from kfnb_app.export import deliverable as DV
+        assert "ru_m36" in DV.RETENTION_COLS and "amount_m0" in DV.RETENTION_COLS
+        assert any("amount" in c for c in DV.DEMOGRAPHIC_COLS)
+        assert "FNB_DAU" in DV.PANEL_COLS
+
+
+# ── 엑셀 템플릿 레이아웃 그대로 반영 ──────────────────────────────────────────
+class TestTemplatePlan:
+    def _mk_template(self, path):
+        import openpyxl
+        wb = openpyxl.Workbook(); wb.remove(wb.active)
+        ws1 = wb.create_sheet("1.기본정보_양산")
+        ws1.append(["기본정보"]); ws1.append(["공시명", "브랜드명", "법인등록번호"])
+        ws2 = wb.create_sheet("2.기본매출_양산")
+        ws2.append(["기본매출"])
+        ws2.append(["거래일", "회사명", "브랜드명", "채널", "거래금액", "거래수량"])
+        ws3 = wb.create_sheet("2.기본매출_data_dictionary")
+        ws3.append(["dict"]); ws3.append(["항목명", "설명"])
+        wb.save(path)
+
+    def test_plan_from_template(self, tmp_path):
+        from kfnb_app.export import deliverable as DV
+        p = tmp_path / "tpl.xlsx"; self._mk_template(p)
+        plan = DV.plan_from_template(p.read_bytes())
+        kinds = {it["sheet"]: it["kind"] for it in plan}
+        assert kinds.get("1.기본정보_양산") == "List"
+        assert kinds.get("2.기본매출_양산") == "TR_BASIC"
+        assert "2.기본매출_data_dictionary" not in kinds      # 사전 제외
+        tr = next(it for it in plan if it["kind"] == "TR_BASIC")
+        froms = {c["name"]: c["from"] for c in tr["columns"]}
+        assert froms["거래일"] == "date" and froms["거래금액"] == "sales_amount"
+
+    def test_build_from_plan_keeps_sheet_names(self, tmp_path):
+        from kfnb_app.export import deliverable as DV
+        src = dataio.open_source(_raw(), prefer_duckdb=False)
+        sku = mastering.enrich_sku_master(mapping.map_companies(
+            tagging.tag_skus(normalize.normalize_skus(src.distinct_skus()))))
+        p = tmp_path / "tpl.xlsx"; self._mk_template(p)
+        plan = DV.plan_from_template(p.read_bytes())
+        xb, rep = DV.build_deliverable(src, sku, meta={}, channel="CU", plan=plan)
+        import openpyxl, io
+        wb = openpyxl.load_workbook(io.BytesIO(xb), read_only=True)
+        assert "1.기본정보_양산" in wb.sheetnames
+        assert "2.기본매출_양산" in wb.sheetnames
+        hdr = [c for c in next(wb["2.기본매출_양산"].iter_rows(values_only=True))]
+        assert hdr[:3] == ["거래일", "회사명", "브랜드명"]

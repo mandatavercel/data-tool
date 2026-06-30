@@ -126,7 +126,9 @@ def stage_mapping(st: PipelineState) -> StageResult:
     names = sorted(set(str(c) for c in st.sku_master["company_kr"].dropna()))
     try:
         from kfnb_app.ingest import dart_company
-        resolved, note = dart_company.resolve(names, st.dart_api_key)
+        hints = {n: config.COMPANY_MAP[n].krx_code for n in names
+                 if n in config.COMPANY_MAP and config.COMPANY_MAP[n].krx_code}
+        resolved, note = dart_company.resolve(names, st.dart_api_key, code_hints=hints)
         st.company_overlay = mapping.dart_overlay(resolved) if resolved else {}
         st.dart_note = note
     except Exception as e:                       # noqa: BLE001 — 비차단
