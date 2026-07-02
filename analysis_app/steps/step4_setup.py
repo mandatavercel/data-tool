@@ -92,6 +92,13 @@ HAS_PARAMS = {"growth", "demand", "anomaly", "earnings_intel",
 def render() -> None:
     st.subheader("Step 4 — Analysis Setup")
 
+    # ── 🩺 네트워크·API 진단 패널 (분석 실행 전 상태 확인) ────────────────
+    try:
+        from analysis_app.diagnostics import render_diagnostic_panel
+        render_diagnostic_panel()
+    except Exception:
+        pass    # 진단 실패해도 앱은 계속
+
     df       = st.session_state.get("raw_df")
     role_map = st.session_state.get("role_map", {})
     if not role_map:
